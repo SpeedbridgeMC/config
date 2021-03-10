@@ -1,0 +1,145 @@
+package io.github.speedbridgemc.config.processor;
+
+import com.google.auto.service.AutoService;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.MultimapBuilder;
+import com.squareup.javapoet.*;
+import io.github.speedbridgemc.config.Component;
+import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.Exclude;
+import io.github.speedbridgemc.config.processor.api.ComponentContext;
+import io.github.speedbridgemc.config.processor.api.ComponentProvider;
+import org.jetbrains.annotations.ApiStatus;
+
+import javax.annotation.processing.*;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.*;
+import javax.tools.Diagnostic;
+import java.io.IOException;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@ApiStatus.Internal
+@SupportedSourceVersion(SourceVersion.RELEASE_8)
+@AutoService(Processor.class)
+public final class ConfigProcessor extends AbstractProcessor {
+    private HashMap<String, ComponentProvider> componentProviders;
+
+    @Override
+    public synchronized void init(ProcessingEnvironment processingEnv) {
+        super.init(processingEnv);
+
+        componentProviders = new HashMap<>();
+        ServiceLoader<ComponentProvider> cpLoader = ServiceLoader.load(ComponentProvider.class, ConfigProcessor.class.getClassLoader());
+        for (ComponentProvider provider : cpLoader)
+            componentProviders.put(provider.getId(), provider);
+
+        for (ComponentProvider componentProvider : componentProviders.values())
+            componentProvider.init(processingEnv);
+    }
+
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        for (Element element : roundEnv.getElementsAnnotatedWith(Config.class)) {
+            if (element.getKind() != ElementKind.CLASS) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "@Config annotation applied to non-class element", element);
+                continue;
+            }
+            TypeElement typeElement = (TypeElement) element;
+            Config config = typeElement.getAnnotation(Config.class);
+            String name = config.name();
+            String handlerName;
+            String[] handlerNameIn = config.handlerName();
+            if (handlerNameIn.length == 0)
+                handlerName = typeElement.getQualifiedName().toString() + "Handler";
+            else if (handlerNameIn.length == 1)
+                handlerName = handlerNameIn[0];
+            else {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "@Config annotation specifies more than one handler name", typeElement);
+                continue;
+            }
+            String handlerPackage = "";
+            int splitIndex = handlerName.lastIndexOf('.');
+            if (splitIndex >= 0) {
+                handlerPackage = handlerName.substring(0, splitIndex);
+                handlerName = handlerName.substring(splitIndex + 1);
+            }
+            TypeSpec.Builder classBuilder = TypeSpec.classBuilder(handlerName).addModifiers(Modifier.PUBLIC, Modifier.FINAL);
+            classBuilder.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
+            TypeName configType = TypeName.get(typeElement.asType());
+            classBuilder.addField(FieldSpec.builder(configType, "config", Modifier.PRIVATE, Modifier.STATIC).build())
+                    .addMethod(MethodSpec.methodBuilder("get")
+                            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                            .returns(configType)
+                            .addCode(CodeBlock.builder()
+                                    .beginControlFlow("if (config == null)")
+                                    .addStatement("config = load()")
+                                    .endControlFlow()
+                                    .addStatement("return config")
+                                    .build())
+                            .build());
+            MethodSpec.Builder loadMethodBuilder = MethodSpec.methodBuilder("load")
+                    .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                    .returns(configType)
+                    .addCode("$T config = null;", configType);
+            MethodSpec.Builder saveMethodBuilder = MethodSpec.methodBuilder("save")
+                    .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
+
+            ImmutableSet<VariableElement> fields = ImmutableSet.copyOf(
+                    typeElement.getEnclosedElements().stream()
+                        .map(element1 -> {
+                            if (element1 instanceof VariableElement)
+                                return (VariableElement) element1;
+                            return null;
+                        }).filter(Objects::nonNull)
+                        .filter(variableElement -> variableElement.getAnnotation(Exclude.class) == null)
+                        .collect(Collectors.toSet()));
+
+            Component[] components = config.components();
+            for (Component component : components) {
+                ComponentProvider provider = componentProviders.get(component.value());
+                if (provider == null) {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                            "@Config annotation specifies @Component with unknown ID \"" + component.value() + "\"", typeElement);
+                    continue;
+                }
+                String[] paramsIn = component.params();
+                Multimap<String, String> params = MultimapBuilder.hashKeys().arrayListValues().build();
+                for (String paramIn : paramsIn) {
+                    ArrayList<String> values = new ArrayList<>();
+                    if (paramIn.contains("=")) {
+                        String[] kv = paramIn.split("=");
+                        paramIn = kv[0];
+                        String valueIn = kv[1];
+                        if (valueIn.contains(","))
+                            Collections.addAll(values, valueIn.split(","));
+                        else
+                            values.add(valueIn);
+                    }
+                    params.putAll(paramIn, values);
+                }
+                ComponentContext ctx = new ComponentContext(params, loadMethodBuilder, saveMethodBuilder);
+                provider.process(name, typeElement, fields, ctx, classBuilder);
+            }
+            classBuilder.addMethod(loadMethodBuilder.addCode("return config;").build()).addMethod(saveMethodBuilder.build());
+            try {
+                JavaFile.builder(handlerPackage, classBuilder.build())
+                        .build()
+                        .writeTo(processingEnv.getFiler());
+            } catch (IOException e) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Failed to write handler class");
+                e.printStackTrace();
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
+        return Collections.singleton(Config.class.getCanonicalName());
+    }
+}

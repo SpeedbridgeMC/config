@@ -1,0 +1,62 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group 'io.github.speedbridgemc'
+version '1.0.0'
+
+sourceSets {
+    annotations { }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api 'com.squareup:javapoet:1.13.0'
+    api 'com.google.guava:guava:30.1-jre'
+    api sourceSets.annotations.output
+
+    implementation 'org.jetbrains:annotations:20.1.0'
+    annotationsImplementation 'org.jetbrains:annotations:20.1.0'
+    implementation 'com.google.auto.service:auto-service-annotations:1.0-rc7'
+    annotationProcessor 'com.google.auto.service:auto-service:1.0-rc7'
+}
+
+task annotationsJar(type: Jar, group: 'build') {
+    classifier 'annotations'
+    from sourceSets.annotations.output
+}
+
+task annotationsSourcesJar(type: Jar, group: 'build') {
+    classifier 'annotations-source'
+    from sourceSets.annotations.allJava
+}
+
+task annotationsJavadoc(type: Javadoc, group: 'build') {
+    classpath = sourceSets.annotations.runtimeClasspath
+    source sourceSets.annotations.allJava
+}
+
+task annotationsJavadocJar(type: Jar, group: 'build') {
+    classifier 'annotations-javadoc'
+    from annotationsJavadoc
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            artifact annotationsJar
+            artifact annotationsJavadocJar
+            artifact annotationsSourcesJar
+        }
+    }
+}
