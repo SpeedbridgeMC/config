@@ -10,4 +10,8 @@ repositories {
 }
 
 dependencies {
+    implementation project(':annotations')
+    testAnnotationProcessor project(':processor')
+
+    implementation 'blue.endless:jankson:1.2.0'
 }
