@@ -7,7 +7,7 @@ group 'io.github.speedbridgemc'
 version '1.0.0'
 
 sourceSets {
-    annotations { }
+    processor { }
 }
 
 repositories {
@@ -15,34 +15,36 @@ repositories {
 }
 
 dependencies {
-    api 'com.squareup:javapoet:1.13.0'
-    api 'com.google.guava:guava:30.1-jre'
-    api sourceSets.annotations.output
+    processorImplementation 'com.squareup:javapoet:1.13.0'
+    processorImplementation 'com.google.guava:guava:30.1-jre'
+    processorImplementation sourceSets.main.output
 
+    processorImplementation 'org.jetbrains:annotations:20.1.0'
     implementation 'org.jetbrains:annotations:20.1.0'
-    annotationsImplementation 'org.jetbrains:annotations:20.1.0'
-    implementation 'com.google.auto.service:auto-service-annotations:1.0-rc7'
-    annotationProcessor 'com.google.auto.service:auto-service:1.0-rc7'
+    processorImplementation 'com.google.auto.service:auto-service-annotations:1.0-rc7'
+    processorAnnotationProcessor 'com.google.auto.service:auto-service:1.0-rc7'
 }
 
-task annotationsJar(type: Jar, group: 'build') {
-    classifier 'annotations'
-    from sourceSets.annotations.output
+task processorJar(type: Jar, group: 'build') {
+    classifier 'processor'
+    from sourceSets.processor.output
 }
 
-task annotationsSourcesJar(type: Jar, group: 'build') {
-    classifier 'annotations-source'
-    from sourceSets.annotations.allJava
+task sourcesJar(type: Jar, group: 'build') {
+    classifier 'sources'
+    from sourceSets.main.allJava
+    from sourceSets.processor.allJava
 }
 
-task annotationsJavadoc(type: Javadoc, group: 'build') {
-    classpath = sourceSets.annotations.compileClasspath
-    source sourceSets.annotations.allJava
+task processorJavadoc(type: Javadoc, group: 'build') {
+    classpath = sourceSets.processor.compileClasspath
+    source sourceSets.processor.allJava
 }
 
-task annotationsJavadocJar(type: Jar, group: 'build') {
-    classifier 'annotations-javadoc'
-    from annotationsJavadoc
+task javadocJar(type: Jar, group: 'build') {
+    classifier 'javadoc'
+    from javadoc
+    from processorJavadoc
 }
 
 java {
@@ -54,9 +56,7 @@ publishing {
     publications {
         maven(MavenPublication) {
             from components.java
-            artifact annotationsJar
-            artifact annotationsJavadocJar
-            artifact annotationsSourcesJar
+            artifact processorJar
         }
     }
 }

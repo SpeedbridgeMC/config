@@ -1,7 +1,6 @@
 package io.github.speedbridgemc.config.processor;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
