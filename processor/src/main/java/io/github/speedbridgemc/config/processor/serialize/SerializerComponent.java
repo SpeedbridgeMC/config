@@ -83,7 +83,7 @@ public final class SerializerComponent extends BaseComponentProvider {
                 .addException(IOException.class);
         MethodSpec.Builder writeMethodBuilder = MethodSpec.methodBuilder("write")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                .addParameter(configType, "io/github/speedbridgemc/config")
+                .addParameter(configType, "config")
                 .addParameter(Path.class, "path")
                 .addException(IOException.class);
         SerializerContext ctx2 = new SerializerContext(basePackage, mode, options, readMethodBuilder, writeMethodBuilder);
