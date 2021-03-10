@@ -36,7 +36,7 @@ task annotationsSourcesJar(type: Jar, group: 'build') {
 }
 
 task annotationsJavadoc(type: Javadoc, group: 'build') {
-    classpath = sourceSets.annotations.runtimeClasspath
+    classpath = sourceSets.annotations.compileClasspath
     source sourceSets.annotations.allJava
 }
 
