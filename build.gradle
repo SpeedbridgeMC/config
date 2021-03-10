@@ -1,62 +1,13 @@
 plugins {
-    id 'java-library'
-    id 'maven-publish'
+    id 'java'
 }
 
 group 'io.github.speedbridgemc'
 version '1.0.0'
-
-sourceSets {
-    processor { }
-}
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    processorImplementation 'com.squareup:javapoet:1.13.0'
-    processorImplementation 'com.google.guava:guava:30.1-jre'
-    processorImplementation sourceSets.main.output
-
-    processorImplementation 'org.jetbrains:annotations:20.1.0'
-    implementation 'org.jetbrains:annotations:20.1.0'
-    processorImplementation 'com.google.auto.service:auto-service-annotations:1.0-rc7'
-    processorAnnotationProcessor 'com.google.auto.service:auto-service:1.0-rc7'
-}
-
-task processorJar(type: Jar, group: 'build') {
-    classifier 'processor'
-    from sourceSets.processor.output
-}
-
-task sourcesJar(type: Jar, group: 'build') {
-    classifier 'sources'
-    from sourceSets.main.allJava
-    from sourceSets.processor.allJava
-}
-
-task processorJavadoc(type: Javadoc, group: 'build') {
-    classpath = sourceSets.processor.compileClasspath
-    source sourceSets.processor.allJava
-}
-
-task javadocJar(type: Jar, group: 'build') {
-    classifier 'javadoc'
-    from javadoc
-    from processorJavadoc
-}
-
-java {
-    withJavadocJar()
-    withSourcesJar()
-}
-
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-            artifact processorJar
-        }
-    }
 }

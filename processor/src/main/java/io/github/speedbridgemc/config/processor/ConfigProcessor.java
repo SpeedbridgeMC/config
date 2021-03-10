@@ -70,7 +70,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             TypeSpec.Builder classBuilder = TypeSpec.classBuilder(handlerName).addModifiers(Modifier.PUBLIC, Modifier.FINAL);
             classBuilder.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
             TypeName configType = TypeName.get(typeElement.asType());
-            classBuilder.addField(FieldSpec.builder(configType, "config", Modifier.PRIVATE, Modifier.STATIC).build())
+            classBuilder.addField(FieldSpec.builder(configType, "io/github/speedbridgemc/config", Modifier.PRIVATE, Modifier.STATIC).build())
                     .addMethod(MethodSpec.methodBuilder("get")
                             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                             .returns(configType)
