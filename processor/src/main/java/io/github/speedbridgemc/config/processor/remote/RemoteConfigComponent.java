@@ -27,6 +27,7 @@ public final class RemoteConfigComponent extends BaseComponentProvider {
         ParameterSpec.Builder setRemoteParamBuilder = ParameterSpec.builder(ctx.configType, "remoteConfig");
         if (ctx.nullableAnnotation != null)
             setRemoteParamBuilder.addAnnotation(ctx.nullableAnnotation);
+        // TODO properly require setRemote method
         classBuilder.addField(remoteFieldBuilder.build())
                 .addMethod(MethodSpec.methodBuilder("setRemote")
                         .addAnnotation(Override.class)
