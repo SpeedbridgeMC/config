@@ -49,7 +49,12 @@ public final class PrimitiveGsonRWDelegate extends BaseGsonRWDelegate {
 
     @Override
     public boolean appendWrite(@NotNull GsonRWContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
-        // TODO
+        String name = field.getSimpleName().toString();
+        TypeName type = TypeName.get(field.asType());
+        if (STRING_TYPE.equals(type) || type.isBoxedPrimitive() || type.isPrimitive()) {
+            codeBuilder.addStatement("writer.value($L.$L)", ctx.varName, name);
+            return true;
+        }
         return false;
     }
 }

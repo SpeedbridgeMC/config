@@ -108,7 +108,21 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                     .endControlFlow()
                     .addStatement("return config")
                     .build());
-            // TODO write method
+            ctx.writeMethodBuilder.addCode(CodeBlock.builder()
+                    .beginControlFlow("try ($4T writer = new $4T(new $3T(new $2T($1T.newOutputStream(path)))))",
+                            Files.class, OutputStreamWriter.class, BufferedWriter.class, writerType)
+                    .addStatement("writer.beginObject()")
+                    .build());
+            for (VariableElement field : fields) {
+                CodeBlock.Builder codeBuilder = CodeBlock.builder()
+                        .addStatement("writer.name($S)", field.getSimpleName().toString());
+                rwCtx.appendWrite(field, codeBuilder);
+                ctx.writeMethodBuilder.addCode(codeBuilder.build());
+            }
+            ctx.writeMethodBuilder.addCode(CodeBlock.builder()
+                    .addStatement("writer.endObject()")
+                    .endControlFlow()
+                    .build());
             break;
         default:
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown mode \"" + mode + "\"", type);
