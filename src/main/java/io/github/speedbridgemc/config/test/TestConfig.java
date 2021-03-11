@@ -3,16 +3,15 @@ package io.github.speedbridgemc.config.test;
 import io.github.speedbridgemc.config.Component;
 import io.github.speedbridgemc.config.Config;
 
-@Config(name = "test",
+@Config(name = "test", handlerInterface = "TestConfigHandler",
         components = {
         @Component(
                 value = "speedbridge-config:serializer",
-                params = { "pathTemplate=java.nio.file.Paths.get(\".\", \"$L.json5\")",
-                        "logTemplate=System.err.println($S); $L.printStackTrace()",
-                        "provider=speedbridge-config:gson",
-                        "mode=explicit_readwrite" }),
+                params = { "provider=speedbridge-config:gson", "mode=explicit_readwrite" }
+                ),
                 @Component("speedbridge-config:remote")
-}, nonNullAnnotation = "org.jetbrains.annotations.NotNull", nullableAnnotation = "org.jetbrains.annotations.Nullable")
+        },
+        nonNullAnnotation = "org.jetbrains.annotations.NotNull", nullableAnnotation = "org.jetbrains.annotations.Nullable")
 public final class TestConfig {
     public boolean testBool = false;
     public String testString = "hello world";

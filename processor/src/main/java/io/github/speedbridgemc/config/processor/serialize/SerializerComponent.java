@@ -49,21 +49,9 @@ public final class SerializerComponent extends BaseComponentProvider {
     public void process(@NotNull String name, @NotNull TypeElement type,
                         @NotNull ImmutableList<VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        String pathTemplate = ParamUtils.allOrNothing(ctx.params, "pathTemplate");
-        if (pathTemplate == null) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Serializer: Missing required parameter \"pathTemplate\"", type);
-            return;
-        }
-        classBuilder.addField(FieldSpec.builder(Path.class, "PATH", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
-                .initializer(pathTemplate, name)
+        classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
+                .initializer("resolvePath($S)", name)
                 .build());
-        String logTemplate = ParamUtils.allOrNothing(ctx.params, "logTemplate");
-        if (logTemplate == null) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Serializer: Missing required parameter \"logTemplate\"", type);
-            return;
-        }
         String providerId = ParamUtils.allOrNothing(ctx.params, "provider");
         if (providerId == null)
             providerId = "speedbridge-config:jankson";
@@ -100,10 +88,10 @@ public final class SerializerComponent extends BaseComponentProvider {
         classBuilder.addMethod(readMethodBuilder.build()).addMethod(writeMethodBuilder.build());
         ctx.loadMethodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("try")
-                .addStatement("config = read(PATH)")
+                .addStatement("config = read(path)")
                 .nextControlFlow("catch ($T e)", NoSuchFileException.class)
                 .nextControlFlow("catch ($T e)", IOException.class)
-                .addStatement(logTemplate, "Failed to read from config file!", "e")
+                .addStatement("log($S + path + $S, e)", "Failed to read from config file at \"", "\"!")
                 // TODO backup
                 .endControlFlow()
                 .beginControlFlow("if (config == null)")
@@ -113,9 +101,9 @@ public final class SerializerComponent extends BaseComponentProvider {
                 .build());
         ctx.saveMethodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("try")
-                .addStatement("write(config, PATH)")
+                .addStatement("write(config, path)")
                 .nextControlFlow("catch ($T e)", IOException.class)
-                .addStatement(logTemplate, "Failed to write to config file!", "e")
+                .addStatement("log($S + path + $S, e)", "Failed to read from config file at \"", "\"!")
                 .endControlFlow()
                 .build());
     }

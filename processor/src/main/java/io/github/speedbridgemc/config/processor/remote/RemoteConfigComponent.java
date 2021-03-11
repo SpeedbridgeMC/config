@@ -21,7 +21,7 @@ public final class RemoteConfigComponent extends BaseComponentProvider {
     @Override
     public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableList<VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        FieldSpec.Builder remoteFieldBuilder = FieldSpec.builder(ctx.configType, "remoteConfig", Modifier.PRIVATE, Modifier.STATIC);
+        FieldSpec.Builder remoteFieldBuilder = FieldSpec.builder(ctx.configType, "remoteConfig", Modifier.PRIVATE);
         if (ctx.nullableAnnotation != null)
             remoteFieldBuilder.addAnnotation(ctx.nullableAnnotation);
         ParameterSpec.Builder setRemoteParamBuilder = ParameterSpec.builder(ctx.configType, "remoteConfig");
@@ -29,9 +29,10 @@ public final class RemoteConfigComponent extends BaseComponentProvider {
             setRemoteParamBuilder.addAnnotation(ctx.nullableAnnotation);
         classBuilder.addField(remoteFieldBuilder.build())
                 .addMethod(MethodSpec.methodBuilder("setRemote")
-                        .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                        .addAnnotation(Override.class)
+                        .addModifiers(Modifier.PUBLIC)
                         .addParameter(setRemoteParamBuilder.build())
-                        .addCode(CodeBlock.of("$L.remoteConfig = remoteConfig;", ctx.handlerName))
+                        .addCode("this.remoteConfig = remoteConfig;")
                         .build());
         ctx.getMethodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("if (remoteConfig != null)")

@@ -11,6 +11,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.SOURCE)
 public @interface Config {
     @NotNull String name();
+    @NotNull @JavaClass String handlerInterface();
     @NotNull Component @NotNull [] components();
     @NotNull String @NotNull [] handlerName() default { };
     @NotNull @JavaClass String @NotNull [] nonNullAnnotation() default { };
