@@ -39,7 +39,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         if (ctx.mode != null)
             mode = ctx.mode.toLowerCase(Locale.ROOT);
         if ("simple".equals(mode)) {
-            TypeName configType = TypeName.get(type.asType());
+            TypeName configType = ctx.configType;
             TypeName gsonType = TypeUtils.getTypeName(processingEnv, basePackage + ".Gson");
             TypeName syntaxExceptionType = TypeUtils.getTypeName(processingEnv, basePackage + ".SyntaxException");
             classBuilder

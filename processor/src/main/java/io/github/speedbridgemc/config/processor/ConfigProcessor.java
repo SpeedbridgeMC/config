@@ -54,8 +54,12 @@ public final class ConfigProcessor extends AbstractProcessor {
             String[] handlerNameIn = config.handlerName();
             if (handlerNameIn.length == 0)
                 handlerName = typeElement.getQualifiedName().toString() + "Handler";
-            else if (handlerNameIn.length == 1)
-                handlerName = handlerNameIn[0];
+            else if (handlerNameIn.length == 1) {
+                if (handlerNameIn[0].contains("."))
+                    handlerName = handlerNameIn[0];
+                else
+                    handlerName = processingEnv.getElementUtils().getPackageOf(typeElement).getQualifiedName().toString() + handlerNameIn[0];
+            }
             else {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
                         "@Config annotation specifies more than one handler name", typeElement);
@@ -67,20 +71,19 @@ public final class ConfigProcessor extends AbstractProcessor {
                 handlerPackage = handlerName.substring(0, splitIndex);
                 handlerName = handlerName.substring(splitIndex + 1);
             }
-            TypeSpec.Builder classBuilder = TypeSpec.classBuilder(handlerName).addModifiers(Modifier.PUBLIC, Modifier.FINAL);
+            TypeSpec.Builder classBuilder;
+            try {
+                classBuilder = TypeSpec.classBuilder(handlerName).addModifiers(Modifier.PUBLIC, Modifier.FINAL);
+            } catch (IllegalArgumentException e) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Handler name \"" + handlerName + "\" is invalid", typeElement);
+                continue;
+            }
             classBuilder.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
             TypeName configType = TypeName.get(typeElement.asType());
-            classBuilder.addField(FieldSpec.builder(configType, "config", Modifier.PRIVATE, Modifier.STATIC).build())
-                    .addMethod(MethodSpec.methodBuilder("get")
+            classBuilder.addField(FieldSpec.builder(configType, "config", Modifier.PRIVATE, Modifier.STATIC).build());
+            MethodSpec.Builder getMethodBuilder = MethodSpec.methodBuilder("get")
                             .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                            .returns(configType)
-                            .addCode(CodeBlock.builder()
-                                    .beginControlFlow("if (config == null)")
-                                    .addStatement("config = load()")
-                                    .endControlFlow()
-                                    .addStatement("return config")
-                                    .build())
-                            .build());
+                            .returns(configType);
             MethodSpec.Builder loadMethodBuilder = MethodSpec.methodBuilder("load")
                     .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
                     .returns(configType)
@@ -121,10 +124,17 @@ public final class ConfigProcessor extends AbstractProcessor {
                     }
                     params.putAll(paramIn, values);
                 }
-                ComponentContext ctx = new ComponentContext(params, loadMethodBuilder, saveMethodBuilder);
+                ComponentContext ctx = new ComponentContext(handlerName, configType, params, getMethodBuilder, loadMethodBuilder, saveMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }
-            classBuilder.addMethod(loadMethodBuilder.addCode("return config;").build()).addMethod(saveMethodBuilder.build());
+            classBuilder.addMethod(getMethodBuilder.addCode(CodeBlock.builder()
+                    .beginControlFlow("if (config == null)")
+                    .addStatement("config = load()")
+                    .endControlFlow()
+                    .addStatement("return config")
+                    .build()).build())
+                    .addMethod(loadMethodBuilder.addCode("return config;").build())
+                    .addMethod(saveMethodBuilder.build());
             try {
                 JavaFile.builder(handlerPackage, classBuilder.build())
                         .build()

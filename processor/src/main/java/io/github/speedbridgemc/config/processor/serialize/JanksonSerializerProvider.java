@@ -44,7 +44,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
             mode = ctx.mode.toLowerCase(Locale.ROOT);
         if ("simple".equals(mode)) {
             HashMap<String, Boolean> grammarMap = createGrammarMap(ctx.options);
-            TypeName configType = TypeName.get(type.asType());
+            TypeName configType = ctx.configType;
             TypeName janksonType = TypeUtils.getTypeName(processingEnv, basePackage + ".Jankson");
             TypeName grammarType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonGrammar");
             TypeName objectType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonObject");
