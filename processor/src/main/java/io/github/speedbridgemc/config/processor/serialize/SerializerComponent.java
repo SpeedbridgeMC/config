@@ -3,24 +3,25 @@ package io.github.speedbridgemc.config.processor.serialize;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.*;
-import io.github.speedbridgemc.config.processor.api.BaseComponentProvider;
-import io.github.speedbridgemc.config.processor.api.ComponentContext;
-import io.github.speedbridgemc.config.processor.api.ComponentProvider;
-import io.github.speedbridgemc.config.processor.api.ParamUtils;
+import io.github.speedbridgemc.config.processor.api.*;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.ServiceLoader;
 
 @ApiStatus.Internal
@@ -57,7 +58,42 @@ public final class SerializerComponent extends BaseComponentProvider {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown provider \"" + providerId + "\"", type);
             return;
         }
-        // TODO properly require resolvePath/log methods
+        boolean gotResolvePath = false, gotLog = false;
+        TypeMirror pathTM = TypeUtils.getTypeMirror(processingEnv, Path.class.getCanonicalName());
+        TypeMirror stringTM = TypeUtils.getTypeMirror(processingEnv, String.class.getCanonicalName());
+        TypeMirror exceptionTM = TypeUtils.getTypeMirror(processingEnv, Exception.class.getCanonicalName());
+        if (pathTM == null || stringTM == null || exceptionTM == null)
+            return;
+        for (ExecutableElement method : ctx.handlerInterfaceMethods) {
+            if (!method.isDefault())
+                continue;
+            String methodName = method.getSimpleName().toString();
+            List<? extends VariableElement> params = method.getParameters();
+            TypeMirror methodReturnType = method.getReturnType();
+            switch (methodName) {
+            case "resolvePath":
+                if (processingEnv.getTypeUtils().isSameType(methodReturnType, pathTM)) {
+                    if (params.size() == 1
+                        && processingEnv.getTypeUtils().isSameType(params.get(0).asType(), stringTM))
+                        gotResolvePath = true;
+                }
+                break;
+            case "log":
+                if (params.size() == 2
+                        && processingEnv.getTypeUtils().isSameType(params.get(0).asType(), stringTM)
+                        && processingEnv.getTypeUtils().isSameType(params.get(1).asType(), exceptionTM))
+                    gotLog = true;
+                break;
+            }
+        }
+        if (!gotResolvePath)
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    "Handler interface is missing required default method: Path resolvePath(String)", ctx.handlerInterfaceTypeElement);
+        if (!gotLog)
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    "Handler interface is missing required default method: <ignored> log(String, Exception)", ctx.handlerInterfaceTypeElement);
+        if (!gotResolvePath || !gotLog)
+            return;
         classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
                 .initializer("resolvePath($S)", name)
                 .build());

@@ -111,9 +111,13 @@ public final class ConfigProcessor extends AbstractProcessor {
                 handlerInterfaceName = handlerInterfaceNameIn;
             else
                 handlerInterfaceName = configPackage + "." + handlerInterfaceNameIn;
-            TypeName handlerInterfaceTypeName = TypeUtils.getTypeName(processingEnv, handlerInterfaceName);
-            if (handlerInterfaceTypeName == TypeName.VOID)
+            TypeElement handlerInterfaceTypeElement = processingEnv.getElementUtils().getTypeElement(handlerInterfaceName);
+            if (handlerInterfaceTypeElement == null) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "Missing handler interface class \"" + handlerInterfaceName + "\"", typeElement);
                 continue;
+            }
+            TypeName handlerInterfaceTypeName = TypeName.get(handlerInterfaceTypeElement.asType());
             String handlerInterfacePackage = "";
             int splitIndex = handlerInterfaceName.lastIndexOf('.');
             if (splitIndex >= 0) {
@@ -217,7 +221,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                     }
                     params.putAll(paramIn, values);
                 }
-                ComponentContext ctx = new ComponentContext(handlerName, nonNullAnnotation, nullableAnnotation,
+                ComponentContext ctx = new ComponentContext(handlerName, handlerInterfaceTypeName, handlerInterfaceTypeElement, nonNullAnnotation, nullableAnnotation,
                         configTypeName, params, getMethodBuilder, loadMethodBuilder, saveMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }
