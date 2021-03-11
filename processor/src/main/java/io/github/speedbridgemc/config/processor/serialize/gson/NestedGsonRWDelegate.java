@@ -14,8 +14,8 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.util.List;
-import java.util.Set;
 
+// not annotated with @AutoService, GsonRWContext manually calls this delegate
 public final class NestedGsonRWDelegate extends BaseGsonRWDelegate {
     @Override
     public boolean appendRead(@NotNull GsonRWContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {

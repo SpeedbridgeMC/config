@@ -26,7 +26,6 @@ import java.util.Locale;
 @ApiStatus.Internal
 @AutoService(SerializerProvider.class)
 public final class GsonSerializerProvider extends BaseSerializerProvider {
-
     public GsonSerializerProvider() {
         super("speedbridge-config:gson");
     }
@@ -76,10 +75,10 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
             TypeName readerType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonReader");
             TypeName writerType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonWriter");
             TypeName tokenType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonToken");
+            TypeName malformedExceptionType = TypeUtils.getTypeName(processingEnv, basePackage + ".MalformedJsonException");
             GsonRWContext rwCtx = new GsonRWContext(classBuilder, readerType, writerType, tokenType,
                     ctx.nonNullAnnotation, ctx.nullableAnnotation);
             rwCtx.init(processingEnv);
-            TypeName malformedExceptionType = TypeUtils.getTypeName(processingEnv, basePackage + ".MalformedJsonException");
             ctx.readMethodBuilder.addCode(CodeBlock.builder()
                     .addStatement("$1T config = new $1T()", configType)
                     .beginControlFlow("try ($4T reader = new $4T(new $3T(new $2T($1T.newInputStream(path)))))",
@@ -109,6 +108,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                     .endControlFlow()
                     .addStatement("return config")
                     .build());
+            // TODO write method
             break;
         default:
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown mode \"" + mode + "\"", type);

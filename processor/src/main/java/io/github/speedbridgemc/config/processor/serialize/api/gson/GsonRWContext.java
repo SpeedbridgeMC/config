@@ -14,7 +14,7 @@ import java.util.*;
 
 public final class GsonRWContext {
     private final List<GsonRWDelegate> delegates;
-    private final NestedGsonRWDelegate nestedDelegate;
+    private final NestedGsonRWDelegate nestedDelegate; // separated from the standard delegates since its a "last resort" measure
     public final @NotNull TypeSpec.Builder classBuilder;
     public final @NotNull Set<@NotNull String> generatedMethods;
     public final @NotNull TypeName readerType, writerType, tokenType;
