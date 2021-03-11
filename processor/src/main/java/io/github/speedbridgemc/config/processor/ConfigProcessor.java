@@ -2,13 +2,11 @@ package io.github.speedbridgemc.config.processor;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.Component;
 import io.github.speedbridgemc.config.Config;
-import io.github.speedbridgemc.config.Exclude;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
@@ -28,7 +26,6 @@ import java.io.InputStream;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @ApiStatus.Internal
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
