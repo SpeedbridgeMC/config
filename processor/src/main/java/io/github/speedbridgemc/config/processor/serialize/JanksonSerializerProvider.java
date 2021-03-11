@@ -42,7 +42,8 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         String mode = "simple";
         if (ctx.mode != null)
             mode = ctx.mode.toLowerCase(Locale.ROOT);
-        if ("simple".equals(mode)) {
+        switch (mode) {
+        case "simple":
             HashMap<String, Boolean> grammarMap = createGrammarMap(ctx.options);
             TypeName configType = ctx.configType;
             TypeName janksonType = TypeUtils.getTypeName(processingEnv, basePackage + ".Jankson");
@@ -71,8 +72,11 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                     .addStatement("out.write(json)")
                     .endControlFlow()
                     .build());
-        } else
+            break;
+        default:
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown mode \"" + mode + "\"", type);
+            break;
+        }
     }
 
     private HashMap<String, Boolean> createGrammarMap(String[] options) {

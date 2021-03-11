@@ -16,3 +16,10 @@ dependencies {
     implementation 'org.jetbrains:annotations:20.1.0'
     implementation 'blue.endless:jankson:1.2.0'
 }
+
+import org.apache.tools.ant.filters.ReplaceTokens
+processResources {
+    filesMatching 'version.properties', {
+        filter ReplaceTokens, tokens: [VERSION: project.version]
+    }
+}

@@ -38,7 +38,8 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         String mode = "simple";
         if (ctx.mode != null)
             mode = ctx.mode.toLowerCase(Locale.ROOT);
-        if ("simple".equals(mode)) {
+        switch (mode) {
+        case "simple":
             TypeName configType = ctx.configType;
             TypeName gsonType = TypeUtils.getTypeName(processingEnv, basePackage + ".Gson");
             TypeName syntaxExceptionType = TypeUtils.getTypeName(processingEnv, basePackage + ".SyntaxException");
@@ -60,7 +61,10 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                     .addStatement("GSON.toJson(config, out)")
                     .endControlFlow()
                     .build());
-        } else
+            break;
+        default:
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown mode \"" + mode + "\"", type);
+            break;
+        }
     }
 }
