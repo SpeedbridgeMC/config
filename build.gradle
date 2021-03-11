@@ -1,6 +1,5 @@
 plugins {
     id 'java'
-    id 'idea'
 }
 
 group 'io.github.speedbridgemc.config'
@@ -16,17 +15,4 @@ dependencies {
 
     implementation 'org.jetbrains:annotations:20.1.0'
     implementation 'blue.endless:jankson:1.2.0'
-}
-
-def generatedSrcDir = "${buildDir}/generated/sources/annotationProcessor/java"
-
-sourceSets {
-    main {
-        java.srcDir "${buildDir}/generated/sources/annotationProcessor/java"
-    }
-}
-idea {
-    module {
-        generatedSourceDirs += file(generatedSrcDir)
-    }
 }

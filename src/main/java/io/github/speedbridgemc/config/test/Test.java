@@ -2,7 +2,6 @@ package io.github.speedbridgemc.config.test;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import io.github.speedbridgemc.config.test.TestConfigHandler; // idea pls
 
 public class Test {
     public static void main(String[] args) {
