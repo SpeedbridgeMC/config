@@ -14,6 +14,8 @@ public interface TestConfigHandler {
     }
 
     @NotNull TestConfig get();
+    void reset();
+    void load();
     void save();
     void setRemote(@Nullable TestConfig remoteConfig);
 

@@ -49,9 +49,6 @@ public final class SerializerComponent extends BaseComponentProvider {
     public void process(@NotNull String name, @NotNull TypeElement type,
                         @NotNull ImmutableList<VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
-                .initializer("resolvePath($S)", name)
-                .build());
         String providerId = ParamUtils.allOrNothing(ctx.params, "provider");
         if (providerId == null)
             providerId = "speedbridge-config:jankson";
@@ -60,6 +57,10 @@ public final class SerializerComponent extends BaseComponentProvider {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown provider \"" + providerId + "\"", type);
             return;
         }
+        // TODO properly require resolvePath/log methods
+        classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
+                .initializer("resolvePath($S)", name)
+                .build());
         String basePackage = ParamUtils.allOrNothing(ctx.params, "basePackage");
         String mode = ParamUtils.allOrNothing(ctx.params, "mode");
         String[] options = ctx.params.get("options").toArray(new String[0]);

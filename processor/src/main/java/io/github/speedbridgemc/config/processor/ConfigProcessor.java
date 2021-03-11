@@ -163,21 +163,27 @@ public final class ConfigProcessor extends AbstractProcessor {
                     .addModifiers(Modifier.FINAL)
                     .addSuperinterface(handlerInterfaceTypeName)
                     .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).build());
-            TypeName configType = TypeName.get(typeElement.asType());
-            FieldSpec.Builder configFieldBuilder = FieldSpec.builder(configType, "config", Modifier.PRIVATE);
+            TypeName configTypeName = TypeName.get(typeElement.asType());
+            FieldSpec.Builder configFieldBuilder = FieldSpec.builder(configTypeName, "config", Modifier.PRIVATE);
             if (nullableAnnotation != null)
                 configFieldBuilder.addAnnotation(nullableAnnotation);
             classBuilder.addField(configFieldBuilder.build());
+            // TODO properly require get/reset/load/save methods
+            classBuilder.addMethod(MethodSpec.methodBuilder("reset")
+                    .addAnnotation(Override.class)
+                    .addModifiers(Modifier.PUBLIC)
+                    .addCode("config = new $T();", configTypeName)
+                    .build());
             MethodSpec.Builder getMethodBuilder = MethodSpec.methodBuilder("get")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .returns(configType);
+                    .returns(configTypeName);
             if (nonNullAnnotation != null)
                 getMethodBuilder.addAnnotation(nonNullAnnotation);
             MethodSpec.Builder loadMethodBuilder = MethodSpec.methodBuilder("load")
-                    .addModifiers(Modifier.PRIVATE)
-                    .returns(configType)
-                    .addCode("$T config = null;\n", configType);
+                    .addAnnotation(Override.class)
+                    .addModifiers(Modifier.PUBLIC)
+                    .addCode("$T config = null;\n", configTypeName);
             if (nonNullAnnotation != null)
                 loadMethodBuilder.addAnnotation(nonNullAnnotation);
             MethodSpec.Builder saveMethodBuilder = MethodSpec.methodBuilder("save")
@@ -212,16 +218,16 @@ public final class ConfigProcessor extends AbstractProcessor {
                     params.putAll(paramIn, values);
                 }
                 ComponentContext ctx = new ComponentContext(handlerName, nonNullAnnotation, nullableAnnotation,
-                        configType, params, getMethodBuilder, loadMethodBuilder, saveMethodBuilder);
+                        configTypeName, params, getMethodBuilder, loadMethodBuilder, saveMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }
             classBuilder.addMethod(getMethodBuilder.addCode(CodeBlock.builder()
                     .beginControlFlow("if (config == null)")
-                    .addStatement("config = load()")
+                    .addStatement("load()")
                     .endControlFlow()
                     .addStatement("return config")
                     .build()).build())
-                    .addMethod(loadMethodBuilder.addCode("return config;").build())
+                    .addMethod(loadMethodBuilder.addCode("this.config = config;").build())
                     .addMethod(saveMethodBuilder.build());
             try {
                 JavaFile.builder(handlerPackage, classBuilder.build())
