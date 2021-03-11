@@ -3,7 +3,7 @@ package io.github.speedbridgemc.config.test;
 import io.github.speedbridgemc.config.Component;
 import io.github.speedbridgemc.config.Config;
 
-@Config(name = "io/github/speedbridgemc/config/test",
+@Config(name = "test",
         components = {
         @Component(
                 value = "speedbridge-config:serializer",
