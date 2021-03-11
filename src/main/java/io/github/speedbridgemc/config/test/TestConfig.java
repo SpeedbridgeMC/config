@@ -7,7 +7,7 @@ import io.github.speedbridgemc.config.Config;
         components = {
         @Component(
                 value = "speedbridge-config:serializer",
-                params = "provider=speedbridge-config:gson"
+                params = "provider=speedbridge-config:jankson"
                 ),
                 @Component("speedbridge-config:remote")
         },

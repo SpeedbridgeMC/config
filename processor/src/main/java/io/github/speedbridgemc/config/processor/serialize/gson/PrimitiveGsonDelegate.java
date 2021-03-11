@@ -19,29 +19,29 @@ public final class PrimitiveGsonDelegate extends BaseGsonDelegate {
         String name = field.getSimpleName().toString();
         TypeName type = TypeName.get(field.asType());
         if (STRING_TYPE.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextString()", ctx.varName, name);
+            codeBuilder.addStatement("$L.$L = reader.nextString()", ctx.configName, name);
             return true;
         }
         if (type.isBoxedPrimitive())
             type = type.unbox();
         if (TypeName.BOOLEAN.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextBoolean()", ctx.varName, name);
+            codeBuilder.addStatement("$L.$L = reader.nextBoolean()", ctx.configName, name);
             return true;
         }
         if (TypeName.INT.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextInt()", ctx.varName, name);
+            codeBuilder.addStatement("$L.$L = reader.nextInt()", ctx.configName, name);
             return true;
         }
         if (TypeName.LONG.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextLong()", ctx.varName, name);
+            codeBuilder.addStatement("$L.$L = reader.nextLong()", ctx.configName, name);
             return true;
         }
         if (TypeName.FLOAT.equals(type)) {
-            codeBuilder.addStatement("$L.$L = (float) reader.nextDouble()", ctx.varName, name);
+            codeBuilder.addStatement("$L.$L = (float) reader.nextDouble()", ctx.configName, name);
             return true;
         }
         if (TypeName.DOUBLE.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextDouble()", ctx.varName, name);
+            codeBuilder.addStatement("$L.$L = reader.nextDouble()", ctx.configName, name);
             return true;
         }
         return false;
@@ -52,7 +52,7 @@ public final class PrimitiveGsonDelegate extends BaseGsonDelegate {
         String name = field.getSimpleName().toString();
         TypeName type = TypeName.get(field.asType());
         if (STRING_TYPE.equals(type) || type.isBoxedPrimitive() || type.isPrimitive()) {
-            codeBuilder.addStatement("writer.value($L.$L)", ctx.varName, name);
+            codeBuilder.addStatement("writer.value($L.$L)", ctx.configName, name);
             return true;
         }
         return false;

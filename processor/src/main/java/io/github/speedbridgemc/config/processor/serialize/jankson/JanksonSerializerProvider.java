@@ -10,6 +10,7 @@ import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.serialize.api.BaseSerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
+import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
@@ -42,6 +43,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         TypeName janksonType = TypeUtils.getTypeName(processingEnv, basePackage + ".Jankson");
         TypeName grammarType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonGrammar");
         TypeName objectType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonObject");
+        TypeName primitiveType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonPrimitive");
         TypeName syntaxErrorType = TypeUtils.getTypeName(processingEnv, basePackage + ".api.SyntaxError");
         classBuilder
                 .addField(FieldSpec.builder(janksonType, "JANKSON", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
@@ -50,17 +52,33 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                 .addField(FieldSpec.builder(grammarType, "GRAMMAR", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                         .initializer("$T.builder()$L.build()", grammarType, createGrammarCode(grammarMap))
                         .build());
-        // TODO change this to not use from/toJson
+        JanksonContext jCtx = new JanksonContext(classBuilder, objectType, primitiveType, ctx.nonNullAnnotation, ctx.nullableAnnotation);
+        jCtx.init(processingEnv);
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
+                .addStatement("$1T $2L = new $1T()", configType, jCtx.configName)
                 .beginControlFlow("try ($T in = $T.newInputStream(path))", InputStream.class, Files.class)
-                .addStatement("$T obj = JANKSON.load(in)", objectType)
-                .addStatement("return JANKSON.fromJson(obj, $T.class)", configType)
+                .addStatement("$T $L = JANKSON.load(in)", objectType, jCtx.objectName)
+                .addStatement("$T $L", primitiveType, jCtx.primitiveName)
+                .build());
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+        for (VariableElement field : fields)
+            jCtx.appendRead(field, codeBuilder);
+        ctx.readMethodBuilder.addCode(codeBuilder.build());
+        ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .nextControlFlow("catch ($T e)", syntaxErrorType)
                 .addStatement("throw new $T($S + path + $S, e)", IOException.class, "Failed to parse config file at \"", "\" to JSON!")
                 .endControlFlow()
+                .addStatement("return $L", jCtx.configName)
                 .build());
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()
-                .addStatement("String json = JANKSON.toJson(config).toJson(GRAMMAR)")
+                .addStatement("$1T $2L = new $1T()", objectType, jCtx.objectName)
+                .build());
+        codeBuilder = CodeBlock.builder();
+        for (VariableElement field : fields)
+            jCtx.appendWrite(field, codeBuilder);
+        ctx.writeMethodBuilder.addCode(codeBuilder.build());
+        ctx.writeMethodBuilder.addCode(CodeBlock.builder()
+                .addStatement("String json = $L.toJson(GRAMMAR)", jCtx.objectName)
                 .beginControlFlow("try ($3T out = new $3T(new $2T($1T.newOutputStream(path))))",
                         Files.class, OutputStreamWriter.class, BufferedWriter.class)
                 .addStatement("out.write(json)")

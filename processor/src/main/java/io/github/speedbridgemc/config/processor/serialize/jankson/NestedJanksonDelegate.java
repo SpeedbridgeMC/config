@@ -1,12 +1,13 @@
-package io.github.speedbridgemc.config.processor.serialize.gson;
+package io.github.speedbridgemc.config.processor.serialize.jankson;
 
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
+import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.*;
@@ -15,10 +16,10 @@ import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.util.List;
 
-// not annotated with @AutoService, GsonContext manually calls this delegate
-public final class NestedGsonDelegate extends BaseGsonDelegate {
+// not annotated with @AutoService, JanksonContext manually calls this delegate
+public final class NestedJanksonDelegate extends BaseJanksonDelegate {
     @Override
-    public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendRead(@NotNull JanksonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
         String name = field.getSimpleName().toString();
         TypeMirror typeMirror = field.asType();
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
@@ -29,56 +30,46 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(typeMirror);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$L.$L = $L(reader)", ctx.configName, name, methodName);
+        String nestedObjName = name + "Obj";
+        codeBuilder.addStatement("$1T $2L = $3L.get($1T.class, $4S)", ctx.objectType, nestedObjName, ctx.objectName, name)
+                .beginControlFlow("if ($L == null)", nestedObjName)
+                .addStatement("throw new $T($S)", IOException.class, "Missing field \"" + name + "\"!")
+                .endControlFlow()
+                .addStatement("$L.$L = $L($L)", ctx.configName, name, methodName, nestedObjName);
         return true;
     }
 
-    private @NotNull String generateReadMethod(@NotNull GsonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
+    private @NotNull String generateReadMethod(@NotNull JanksonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
         String methodName = "read" + typeElement.getSimpleName().toString();
         if (ctx.generatedMethods.contains(methodName))
-             return methodName;
+            return methodName;
         ctx.generatedMethods.add(methodName);
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
-        ParameterSpec.Builder readerParamBuilder = ParameterSpec.builder(ctx.readerType, "reader");
+        ParameterSpec.Builder objectParamBuilder = ParameterSpec.builder(ctx.objectType, ctx.objectName);
         if (ctx.nonNullAnnotation != null)
-            readerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
+            objectParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
                 .returns(typeName)
-                .addParameter(readerParamBuilder.build())
+                .addParameter(objectParamBuilder.build())
                 .addException(IOException.class);
         if (ctx.nonNullAnnotation != null)
             methodBuilder.addAnnotation(ctx.nonNullAnnotation);
         methodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$1T $2L = new $1T()", typeName, ctx.configName)
-                .addStatement("reader.beginObject()")
-                .beginControlFlow("while (reader.hasNext())")
-                .addStatement("$T token = reader.peek()", ctx.tokenType)
-                .beginControlFlow("if (token == $T.NAME)", ctx.tokenType)
-                .addStatement("String name = reader.nextName()")
+                .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                 .build());
-        for (VariableElement field : fields) {
-            CodeBlock.Builder codeBuilder = CodeBlock.builder()
-                    .beginControlFlow("if ($S.equals(name))", field.getSimpleName().toString());
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+        for (VariableElement field : fields)
             ctx.appendRead(field, codeBuilder);
-            methodBuilder.addCode(codeBuilder
-                    .addStatement("continue")
-                    .endControlFlow()
-                    .build());
-        }
-        methodBuilder.addCode(CodeBlock.builder()
-                .endControlFlow()
-                .addStatement("reader.skipValue()")
-                .endControlFlow()
-                .addStatement("reader.endObject()")
-                .addStatement("return $L", ctx.configName)
-                .build());
+        methodBuilder.addCode(codeBuilder.build());
+        methodBuilder.addCode("return $L;\n", ctx.configName);
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;
     }
 
     @Override
-    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendWrite(@NotNull JanksonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
         String name = field.getSimpleName().toString();
         TypeMirror typeMirror = field.asType();
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
@@ -89,11 +80,11 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(typeMirror);
         String methodName = generateWriteMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$L($L.$L, writer)", methodName, ctx.configName, name);
+        codeBuilder.addStatement("$1L.put($2S, $3L($4L.$2L))", ctx.objectName, name, methodName, ctx.configName);
         return true;
     }
 
-    private @NotNull String generateWriteMethod(@NotNull GsonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
+    private @NotNull String generateWriteMethod(@NotNull JanksonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
         String methodName = "write" + typeElement.getSimpleName().toString();
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
@@ -102,22 +93,19 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, ctx.configName);
         if (ctx.nonNullAnnotation != null)
             configParamBuilder.addAnnotation(ctx.nonNullAnnotation);
-        ParameterSpec.Builder writerParamBuilder = ParameterSpec.builder(ctx.writerType, "writer");
-        if (ctx.nonNullAnnotation != null)
-            writerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .returns(ctx.objectType)
                 .addParameter(configParamBuilder.build())
-                .addParameter(writerParamBuilder.build())
-                .addException(IOException.class)
-                .addCode("writer.beginObject();\n");
-        for (VariableElement field : fields) {
-            CodeBlock.Builder codeBuilder = CodeBlock.builder()
-                    .addStatement("writer.name($S)", field.getSimpleName().toString());
+                .addException(IOException.class);
+        if (ctx.nonNullAnnotation != null)
+            methodBuilder.addAnnotation(ctx.nonNullAnnotation);
+        methodBuilder.addCode("$1T $2L = new $1T();\n", ctx.objectType, ctx.objectName);
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+        for (VariableElement field : fields)
             ctx.appendWrite(field, codeBuilder);
-            methodBuilder.addCode(codeBuilder.build());
-        }
-        methodBuilder.addCode("writer.endObject();\n");
+        methodBuilder.addCode(codeBuilder.build());
+        methodBuilder.addCode("return $L;\n", ctx.objectName);
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;
     }
