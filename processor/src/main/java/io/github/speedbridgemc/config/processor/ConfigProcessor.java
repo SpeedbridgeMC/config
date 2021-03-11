@@ -10,7 +10,10 @@ import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.Exclude;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
+import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -65,6 +68,8 @@ public final class ConfigProcessor extends AbstractProcessor {
                         "@Config annotation specifies more than one handler name", typeElement);
                 continue;
             }
+            ClassName nonNullAnnotation = getAnnotationName(typeElement, config.nonNullAnnotation(), "non-null");
+            ClassName nullableAnnotation = getAnnotationName(typeElement, config.nullableAnnotation(), "nullable");
             String handlerPackage = "";
             int splitIndex = handlerName.lastIndexOf('.');
             if (splitIndex >= 0) {
@@ -80,16 +85,25 @@ public final class ConfigProcessor extends AbstractProcessor {
             }
             classBuilder.addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PRIVATE).build());
             TypeName configType = TypeName.get(typeElement.asType());
-            classBuilder.addField(FieldSpec.builder(configType, "config", Modifier.PRIVATE, Modifier.STATIC).build());
+            FieldSpec.Builder configFieldBuilder = FieldSpec.builder(configType, "config", Modifier.PRIVATE, Modifier.STATIC);
+            if (nullableAnnotation != null)
+                configFieldBuilder.addAnnotation(nullableAnnotation);
+            classBuilder.addField(configFieldBuilder.build());
             MethodSpec.Builder getMethodBuilder = MethodSpec.methodBuilder("get")
-                            .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                            .returns(configType);
+                    .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                    .returns(configType);
+            if (nonNullAnnotation != null)
+                getMethodBuilder.addAnnotation(nonNullAnnotation);
             MethodSpec.Builder loadMethodBuilder = MethodSpec.methodBuilder("load")
                     .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
                     .returns(configType)
                     .addCode("$T config = null;", configType);
+            if (nonNullAnnotation != null)
+                loadMethodBuilder.addAnnotation(nonNullAnnotation);
             MethodSpec.Builder saveMethodBuilder = MethodSpec.methodBuilder("save")
                     .addModifiers(Modifier.PUBLIC, Modifier.STATIC);
+            if (nonNullAnnotation != null)
+                saveMethodBuilder.addAnnotation(nonNullAnnotation);
 
             ImmutableSet<VariableElement> fields = ImmutableSet.copyOf(
                     typeElement.getEnclosedElements().stream()
@@ -124,7 +138,8 @@ public final class ConfigProcessor extends AbstractProcessor {
                     }
                     params.putAll(paramIn, values);
                 }
-                ComponentContext ctx = new ComponentContext(handlerName, configType, params, getMethodBuilder, loadMethodBuilder, saveMethodBuilder);
+                ComponentContext ctx = new ComponentContext(handlerName, nonNullAnnotation, nullableAnnotation,
+                        configType, params, getMethodBuilder, loadMethodBuilder, saveMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }
             classBuilder.addMethod(getMethodBuilder.addCode(CodeBlock.builder()
@@ -150,5 +165,23 @@ public final class ConfigProcessor extends AbstractProcessor {
     @Override
     public Set<String> getSupportedAnnotationTypes() {
         return Collections.singleton(Config.class.getCanonicalName());
+    }
+
+    private @Nullable ClassName getAnnotationName(@NotNull TypeElement typeElement, @NotNull String @NotNull [] in, @NotNull String errName) {
+        if (in.length == 0)
+            return null;
+        else if (in.length == 1) {
+            String aName = in[0];
+            String aPackage = "";
+            int splitIndex = aName.lastIndexOf('.');
+            if (splitIndex >= 0) {
+                aPackage = aName.substring(0, splitIndex);
+                aName = aName.substring(splitIndex + 1);
+            }
+            return ClassName.get(aPackage, aName);
+        }
+        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                "@Config annotation specifies more than one " + errName + " annotation", typeElement);
+        return null;
     }
 }

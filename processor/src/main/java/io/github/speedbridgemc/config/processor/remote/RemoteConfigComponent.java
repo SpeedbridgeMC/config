@@ -21,10 +21,16 @@ public final class RemoteConfigComponent extends BaseComponentProvider {
     @Override
     public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableSet<VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        classBuilder.addField(ctx.configType, "remoteConfig", Modifier.PRIVATE, Modifier.STATIC)
+        FieldSpec.Builder remoteFieldBuilder = FieldSpec.builder(ctx.configType, "remoteConfig", Modifier.PRIVATE, Modifier.STATIC);
+        if (ctx.nullableAnnotation != null)
+            remoteFieldBuilder.addAnnotation(ctx.nullableAnnotation);
+        ParameterSpec.Builder setRemoteParamBuilder = ParameterSpec.builder(ctx.configType, "remoteConfig");
+        if (ctx.nullableAnnotation != null)
+            setRemoteParamBuilder.addAnnotation(ctx.nullableAnnotation);
+        classBuilder.addField(remoteFieldBuilder.build())
                 .addMethod(MethodSpec.methodBuilder("setRemote")
                         .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                        .addParameter(ctx.configType, "remoteConfig")
+                        .addParameter(setRemoteParamBuilder.build())
                         .addCode(CodeBlock.of("$L.remoteConfig = remoteConfig;", ctx.handlerName))
                         .build());
         ctx.getMethodBuilder.addCode(CodeBlock.builder()

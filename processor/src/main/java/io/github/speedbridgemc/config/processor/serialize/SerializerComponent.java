@@ -76,15 +76,23 @@ public final class SerializerComponent extends BaseComponentProvider {
         String mode = ParamUtils.allOrNothing(ctx.params, "mode");
         String[] options = ctx.params.get("options").toArray(new String[0]);
         TypeName configType = ctx.configType;
+        ParameterSpec.Builder pathParamBuilder = ParameterSpec.builder(Path.class, "path");
+        if (ctx.nonNullAnnotation != null)
+            pathParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         MethodSpec.Builder readMethodBuilder = MethodSpec.methodBuilder("read")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                .addParameter(Path.class, "path")
+                .addParameter(pathParamBuilder.build())
                 .returns(configType)
                 .addException(IOException.class);
+        if (ctx.nonNullAnnotation != null)
+            readMethodBuilder.addAnnotation(ctx.nonNullAnnotation);
+        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(configType, "config");
+        if (ctx.nonNullAnnotation != null)
+            configParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         MethodSpec.Builder writeMethodBuilder = MethodSpec.methodBuilder("write")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                .addParameter(configType, "config")
-                .addParameter(Path.class, "path")
+                .addParameter(configParamBuilder.build())
+                .addParameter(pathParamBuilder.build())
                 .addException(IOException.class);
         SerializerContext ctx2 = new SerializerContext(configType, basePackage, mode, options, readMethodBuilder, writeMethodBuilder);
         provider.process(name, type, fields, ctx2, classBuilder);
