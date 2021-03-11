@@ -1,7 +1,7 @@
-package io.github.speedbridgemc.config.processor.serialize;
+package io.github.speedbridgemc.config.processor.serialize.jankson;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.TypeName;
@@ -9,6 +9,7 @@ import com.squareup.javapoet.TypeSpec;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.serialize.api.BaseSerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
+import io.github.speedbridgemc.config.processor.serialize.api.SerializerMode;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -34,16 +35,16 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
     }
 
     @Override
-    public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableSet<VariableElement> fields,
+    public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableList<VariableElement> fields,
                         @NotNull SerializerContext ctx, TypeSpec.@NotNull Builder classBuilder) {
         String basePackage = "blue.endless.jankson";
         if (ctx.basePackage != null)
             basePackage = ctx.basePackage;
-        String mode = "simple";
+        String mode = SerializerMode.IMPLICIT;
         if (ctx.mode != null)
             mode = ctx.mode.toLowerCase(Locale.ROOT);
         switch (mode) {
-        case "simple":
+        case SerializerMode.IMPLICIT:
             HashMap<String, Boolean> grammarMap = createGrammarMap(ctx.options);
             TypeName configType = ctx.configType;
             TypeName janksonType = TypeUtils.getTypeName(processingEnv, basePackage + ".Jankson");
@@ -72,6 +73,10 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                     .addStatement("out.write(json)")
                     .endControlFlow()
                     .build());
+            break;
+        case SerializerMode.EXPLICIT_ADAPTER:   // TODO
+        case SerializerMode.EXPLICIT_READWRITE: // TODO
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Mode \"" + mode + "\" is NYI", type);
             break;
         default:
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown mode \"" + mode + "\"", type);

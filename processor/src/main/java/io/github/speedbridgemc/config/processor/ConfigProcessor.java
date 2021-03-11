@@ -1,6 +1,7 @@
 package io.github.speedbridgemc.config.processor;
 
 import com.google.auto.service.AutoService;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.MultimapBuilder;
@@ -10,6 +11,7 @@ import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.Exclude;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
+import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -18,6 +20,7 @@ import javax.annotation.Generated;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -89,6 +92,19 @@ public final class ConfigProcessor extends AbstractProcessor {
                 continue;
             }
             TypeElement typeElement = (TypeElement) element;
+
+            boolean hasDefaultConstructor = false;
+            for (ExecutableElement constructor : ElementFilter.constructorsIn(typeElement.getEnclosedElements())) {
+                if (constructor.getParameters().isEmpty() && constructor.getModifiers().contains(Modifier.PUBLIC)) {
+                    hasDefaultConstructor = true;
+                    break;
+                }
+            }
+            if (!hasDefaultConstructor) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "@Config annotation applied to class with no public 0-parameter constructor", typeElement);
+            }
+
             Config config = typeElement.getAnnotation(Config.class);
             String name = config.name();
             String handlerName;
@@ -140,7 +156,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             MethodSpec.Builder loadMethodBuilder = MethodSpec.methodBuilder("load")
                     .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
                     .returns(configType)
-                    .addCode("$T config = null;", configType);
+                    .addCode("$T config = null;\n", configType);
             if (nonNullAnnotation != null)
                 loadMethodBuilder.addAnnotation(nonNullAnnotation);
             MethodSpec.Builder saveMethodBuilder = MethodSpec.methodBuilder("save")
@@ -148,15 +164,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             if (nonNullAnnotation != null)
                 saveMethodBuilder.addAnnotation(nonNullAnnotation);
 
-            ImmutableSet<VariableElement> fields = ImmutableSet.copyOf(
-                    typeElement.getEnclosedElements().stream()
-                        .map(element1 -> {
-                            if (element1 instanceof VariableElement)
-                                return (VariableElement) element1;
-                            return null;
-                        }).filter(Objects::nonNull)
-                        .filter(variableElement -> variableElement.getAnnotation(Exclude.class) == null)
-                        .collect(Collectors.toSet()));
+            ImmutableList<VariableElement> fields = ImmutableList.copyOf(TypeUtils.getFieldsIn(typeElement));
 
             Component[] components = config.components();
             for (Component component : components) {

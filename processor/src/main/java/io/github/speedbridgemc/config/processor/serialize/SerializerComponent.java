@@ -1,7 +1,7 @@
 package io.github.speedbridgemc.config.processor.serialize;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.BaseComponentProvider;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
@@ -47,7 +47,7 @@ public final class SerializerComponent extends BaseComponentProvider {
 
     @Override
     public void process(@NotNull String name, @NotNull TypeElement type,
-                        @NotNull ImmutableSet<VariableElement> fields,
+                        @NotNull ImmutableList<VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
         String pathTemplate = ParamUtils.allOrNothing(ctx.params, "pathTemplate");
         if (pathTemplate == null) {
@@ -55,7 +55,7 @@ public final class SerializerComponent extends BaseComponentProvider {
                     "Serializer: Missing required parameter \"pathTemplate\"", type);
             return;
         }
-        classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+        classBuilder.addField(FieldSpec.builder(Path.class, "PATH", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                 .initializer(pathTemplate, name)
                 .build());
         String logTemplate = ParamUtils.allOrNothing(ctx.params, "logTemplate");
@@ -64,12 +64,12 @@ public final class SerializerComponent extends BaseComponentProvider {
                     "Serializer: Missing required parameter \"logTemplate\"", type);
             return;
         }
-        String serializer = ParamUtils.allOrNothing(ctx.params, "serializer");
-        if (serializer == null)
-            serializer = "speedbridge-config:jankson";
-        SerializerProvider provider = serializerProviders.get(serializer);
+        String providerId = ParamUtils.allOrNothing(ctx.params, "provider");
+        if (providerId == null)
+            providerId = "speedbridge-config:jankson";
+        SerializerProvider provider = serializerProviders.get(providerId);
         if (provider == null) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown provider \"" + serializer + "\"", type);
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown provider \"" + providerId + "\"", type);
             return;
         }
         String basePackage = ParamUtils.allOrNothing(ctx.params, "basePackage");
@@ -94,12 +94,13 @@ public final class SerializerComponent extends BaseComponentProvider {
                 .addParameter(configParamBuilder.build())
                 .addParameter(pathParamBuilder.build())
                 .addException(IOException.class);
-        SerializerContext ctx2 = new SerializerContext(configType, basePackage, mode, options, readMethodBuilder, writeMethodBuilder);
-        provider.process(name, type, fields, ctx2, classBuilder);
+        SerializerContext sCtx = new SerializerContext(configType, basePackage, mode, options, readMethodBuilder, writeMethodBuilder,
+                ctx.nonNullAnnotation, ctx.nullableAnnotation);
+        provider.process(name, type, fields, sCtx, classBuilder);
         classBuilder.addMethod(readMethodBuilder.build()).addMethod(writeMethodBuilder.build());
         ctx.loadMethodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("try")
-                .addStatement("config = read(path)")
+                .addStatement("config = read(PATH)")
                 .nextControlFlow("catch ($T e)", NoSuchFileException.class)
                 .nextControlFlow("catch ($T e)", IOException.class)
                 .addStatement(logTemplate, "Failed to read from config file!", "e")
@@ -112,7 +113,7 @@ public final class SerializerComponent extends BaseComponentProvider {
                 .build());
         ctx.saveMethodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("try")
-                .addStatement("write(config, path)")
+                .addStatement("write(config, PATH)")
                 .nextControlFlow("catch ($T e)", IOException.class)
                 .addStatement(logTemplate, "Failed to write to config file!", "e")
                 .endControlFlow()

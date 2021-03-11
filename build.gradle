@@ -14,6 +14,7 @@ dependencies {
     annotationProcessor project(':processor')
 
     implementation 'org.jetbrains:annotations:20.1.0'
+    implementation 'com.google.code.gson:gson:2.8.6'
     implementation 'blue.endless:jankson:1.2.0'
 }
 

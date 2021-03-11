@@ -1,7 +1,7 @@
 package io.github.speedbridgemc.config.processor.remote;
 
 import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.BaseComponentProvider;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
@@ -19,7 +19,7 @@ public final class RemoteConfigComponent extends BaseComponentProvider {
     }
 
     @Override
-    public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableSet<VariableElement> fields,
+    public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableList<VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
         FieldSpec.Builder remoteFieldBuilder = FieldSpec.builder(ctx.configType, "remoteConfig", Modifier.PRIVATE, Modifier.STATIC);
         if (ctx.nullableAnnotation != null)
