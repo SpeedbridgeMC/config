@@ -8,16 +8,16 @@ import org.jetbrains.annotations.Nullable;
 
 public final class SerializerContext {
     public final @NotNull TypeName configType;
-    public final @Nullable String basePackage, mode;
+    public final @Nullable String basePackage;
     public final @NotNull String @NotNull [] options;
     public final @NotNull MethodSpec.Builder readMethodBuilder, writeMethodBuilder;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
 
-    public SerializerContext(@NotNull TypeName configType, @Nullable String basePackage, @Nullable String mode, @NotNull String @NotNull [] options,
-                             MethodSpec.@NotNull Builder readMethodBuilder, MethodSpec.@NotNull Builder writeMethodBuilder, @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
+    public SerializerContext(@NotNull TypeName configType, @Nullable String basePackage, @NotNull String @NotNull [] options,
+                             MethodSpec.@NotNull Builder readMethodBuilder, MethodSpec.@NotNull Builder writeMethodBuilder,
+                             @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
         this.configType = configType;
         this.basePackage = basePackage;
-        this.mode = mode;
         this.options = options;
         this.readMethodBuilder = readMethodBuilder;
         this.writeMethodBuilder = writeMethodBuilder;

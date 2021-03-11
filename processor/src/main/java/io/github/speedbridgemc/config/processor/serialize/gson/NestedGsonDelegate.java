@@ -5,8 +5,8 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonRWDelegate;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonRWContext;
+import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.*;
@@ -16,9 +16,9 @@ import java.io.IOException;
 import java.util.List;
 
 // not annotated with @AutoService, GsonRWContext manually calls this delegate
-public final class NestedGsonRWDelegate extends BaseGsonRWDelegate {
+public final class NestedGsonDelegate extends BaseGsonDelegate {
     @Override
-    public boolean appendRead(@NotNull GsonRWContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
         String name = field.getSimpleName().toString();
         TypeMirror typeMirror = field.asType();
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
@@ -33,7 +33,7 @@ public final class NestedGsonRWDelegate extends BaseGsonRWDelegate {
         return true;
     }
 
-    private @NotNull String generateReadMethod(@NotNull GsonRWContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
+    private @NotNull String generateReadMethod(@NotNull GsonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
         String methodName = "read" + typeElement.getSimpleName().toString();
         if (ctx.generatedMethods.contains(methodName))
              return methodName;
@@ -78,7 +78,7 @@ public final class NestedGsonRWDelegate extends BaseGsonRWDelegate {
     }
 
     @Override
-    public boolean appendWrite(@NotNull GsonRWContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
         String name = field.getSimpleName().toString();
         TypeMirror typeMirror = field.asType();
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
@@ -93,7 +93,7 @@ public final class NestedGsonRWDelegate extends BaseGsonRWDelegate {
         return true;
     }
 
-    private @NotNull String generateWriteMethod(@NotNull GsonRWContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
+    private @NotNull String generateWriteMethod(@NotNull GsonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
         String methodName = "write" + typeElement.getSimpleName().toString();
         if (ctx.generatedMethods.contains(methodName))
             return methodName;

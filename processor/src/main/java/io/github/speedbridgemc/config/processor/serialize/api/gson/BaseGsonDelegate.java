@@ -4,7 +4,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.ProcessingEnvironment;
 
-public abstract class BaseGsonRWDelegate implements GsonRWDelegate {
+public abstract class BaseGsonDelegate implements GsonDelegate {
     protected ProcessingEnvironment processingEnv;
 
     @Override

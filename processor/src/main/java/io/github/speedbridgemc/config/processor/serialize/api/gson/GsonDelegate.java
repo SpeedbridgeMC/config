@@ -6,8 +6,8 @@ import org.jetbrains.annotations.NotNull;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.VariableElement;
 
-public interface GsonRWDelegate {
+public interface GsonDelegate {
     void init(@NotNull ProcessingEnvironment processingEnv);
-    boolean appendRead(@NotNull GsonRWContext ctx, @NotNull VariableElement field, @NotNull CodeBlock.Builder codeBuilder);
-    boolean appendWrite(@NotNull GsonRWContext ctx, @NotNull VariableElement field, @NotNull CodeBlock.Builder codeBuilder);
+    boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull CodeBlock.Builder codeBuilder);
+    boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull CodeBlock.Builder codeBuilder);
 }

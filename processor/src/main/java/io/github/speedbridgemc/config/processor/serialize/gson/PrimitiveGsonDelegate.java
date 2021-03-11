@@ -3,19 +3,19 @@ package io.github.speedbridgemc.config.processor.serialize.gson;
 import com.google.auto.service.AutoService;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonRWDelegate;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonRWContext;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonRWDelegate;
+import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
+import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonDelegate;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.VariableElement;
 
-@AutoService(GsonRWDelegate.class)
-public final class PrimitiveGsonRWDelegate extends BaseGsonRWDelegate {
+@AutoService(GsonDelegate.class)
+public final class PrimitiveGsonDelegate extends BaseGsonDelegate {
     private final TypeName STRING_TYPE = TypeName.get(String.class);
 
     @Override
-    public boolean appendRead(@NotNull GsonRWContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
         String name = field.getSimpleName().toString();
         TypeName type = TypeName.get(field.asType());
         if (STRING_TYPE.equals(type)) {
@@ -48,7 +48,7 @@ public final class PrimitiveGsonRWDelegate extends BaseGsonRWDelegate {
     }
 
     @Override
-    public boolean appendWrite(@NotNull GsonRWContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
         String name = field.getSimpleName().toString();
         TypeName type = TypeName.get(field.asType());
         if (STRING_TYPE.equals(type) || type.isBoxedPrimitive() || type.isPrimitive()) {

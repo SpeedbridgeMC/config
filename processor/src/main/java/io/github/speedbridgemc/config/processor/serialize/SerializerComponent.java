@@ -61,8 +61,7 @@ public final class SerializerComponent extends BaseComponentProvider {
         classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
                 .initializer("resolvePath($S)", name)
                 .build());
-        String basePackage = ParamUtils.allOrNothing(ctx.params, "basePackage");
-        String mode = ParamUtils.allOrNothing(ctx.params, "mode");
+        String basePackage = ParamUtils.allOrNothing(ctx.params, "base_package");
         String[] options = ctx.params.get("options").toArray(new String[0]);
         TypeName configType = ctx.configType;
         ParameterSpec.Builder pathParamBuilder = ParameterSpec.builder(Path.class, "path");
@@ -83,7 +82,8 @@ public final class SerializerComponent extends BaseComponentProvider {
                 .addParameter(configParamBuilder.build())
                 .addParameter(pathParamBuilder.build())
                 .addException(IOException.class);
-        SerializerContext sCtx = new SerializerContext(configType, basePackage, mode, options, readMethodBuilder, writeMethodBuilder,
+        SerializerContext sCtx = new SerializerContext(configType, basePackage, options,
+                readMethodBuilder, writeMethodBuilder,
                 ctx.nonNullAnnotation, ctx.nullableAnnotation);
         provider.process(name, type, fields, sCtx, classBuilder);
         classBuilder.addMethod(readMethodBuilder.build()).addMethod(writeMethodBuilder.build());
