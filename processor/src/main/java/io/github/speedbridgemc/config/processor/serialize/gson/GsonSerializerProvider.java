@@ -2,6 +2,7 @@ package io.github.speedbridgemc.config.processor.serialize.gson;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
+import com.google.errorprone.annotations.Var;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
@@ -17,6 +18,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import java.io.*;
 import java.nio.file.Files;
+import java.util.Map;
 
 @ApiStatus.Internal
 @AutoService(SerializerProvider.class)
@@ -40,8 +42,14 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         GsonContext gCtx = new GsonContext(classBuilder, readerType, writerType, tokenType,
                 ctx.nonNullAnnotation, ctx.nullableAnnotation);
         gCtx.init(processingEnv);
+        for (VariableElement field : fields) {
+            String fieldName = field.getSimpleName().toString();
+            gCtx.gotFlags.put(fieldName, "got_" + fieldName);
+        }
+        ctx.readMethodBuilder.addCode("$1T $2L = new $1T();\n", configType, gCtx.configName);
+        CodeBlock.Builder codeBuilder = generateGotFlags(gCtx);
+        ctx.readMethodBuilder.addCode(codeBuilder.build());
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
-                .addStatement("$1T config = new $1T()", configType)
                 .beginControlFlow("try ($4T reader = new $4T(new $3T(new $2T($1T.newInputStream(path)))))",
                         Files.class, InputStreamReader.class, BufferedReader.class, readerType)
                 .addStatement("reader.beginObject()")
@@ -51,7 +59,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 .addStatement("String name = reader.nextName()")
                 .build());
         for (VariableElement field : fields) {
-            CodeBlock.Builder codeBuilder = CodeBlock.builder()
+            codeBuilder = CodeBlock.builder()
                     .beginControlFlow("if ($S.equals(name))", field.getSimpleName().toString());
             gCtx.appendRead(field, codeBuilder);
             ctx.readMethodBuilder.addCode(codeBuilder
@@ -67,15 +75,16 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 .nextControlFlow("catch ($T e)", malformedExceptionType)
                 .addStatement("throw new $T($S + path + $S, e)", IOException.class, "Failed to parse config file at \"", "\" to JSON!")
                 .endControlFlow()
-                .addStatement("return config")
                 .build());
+        ctx.readMethodBuilder.addCode(generateGotFlagChecks(gCtx).build());
+        ctx.readMethodBuilder.addCode("return $L;\n", gCtx.configName);
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("try ($4T writer = new $4T(new $3T(new $2T($1T.newOutputStream(path)))))",
                         Files.class, OutputStreamWriter.class, BufferedWriter.class, writerType)
                 .addStatement("writer.beginObject()")
                 .build());
         for (VariableElement field : fields) {
-            CodeBlock.Builder codeBuilder = CodeBlock.builder()
+            codeBuilder = CodeBlock.builder()
                     .addStatement("writer.name($S)", field.getSimpleName().toString());
             gCtx.appendWrite(field, codeBuilder);
             ctx.writeMethodBuilder.addCode(codeBuilder.build());
@@ -84,5 +93,22 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 .addStatement("writer.endObject()")
                 .endControlFlow()
                 .build());
+    }
+
+    public static @NotNull CodeBlock.Builder generateGotFlags(@NotNull GsonContext gCtx) {
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+        for (String gotFlagVar : gCtx.gotFlags.values())
+            codeBuilder.addStatement("boolean $L = false", gotFlagVar);
+        return codeBuilder;
+    }
+
+    public static @NotNull CodeBlock.Builder generateGotFlagChecks(@NotNull GsonContext gCtx) {
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+        for (Map.Entry<String, String> entry : gCtx.gotFlags.entrySet()) {
+            codeBuilder.beginControlFlow("if (!$L)", entry.getValue())
+                    .addStatement("throw new $T($S)", IOException.class, "Missing field \"" + entry.getKey() + "\"!")
+                    .endControlFlow();
+        }
+        return codeBuilder;
     }
 }

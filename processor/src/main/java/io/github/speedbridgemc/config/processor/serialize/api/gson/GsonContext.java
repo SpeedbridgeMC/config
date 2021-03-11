@@ -17,6 +17,7 @@ public final class GsonContext {
     private final NestedGsonDelegate nestedDelegate; // separated from the standard delegates since its a "last resort" measure
     public final @NotNull TypeSpec.Builder classBuilder;
     public final @NotNull Set<@NotNull String> generatedMethods;
+    public final @NotNull Map<@NotNull String, @NotNull String> gotFlags;
     public final @NotNull TypeName readerType, writerType, tokenType;
     public @NotNull String configName = "config";
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
@@ -31,6 +32,7 @@ public final class GsonContext {
         this.nonNullAnnotation = nonNullAnnotation;
         this.nullableAnnotation = nullableAnnotation;
         generatedMethods = new HashSet<>();
+        gotFlags = new LinkedHashMap<>();
         ServiceLoader<GsonDelegate> delegateLoader = ServiceLoader.load(GsonDelegate.class, GsonContext.class.getClassLoader());
         delegates = new ArrayList<>();
         for (GsonDelegate delegate : delegateLoader)

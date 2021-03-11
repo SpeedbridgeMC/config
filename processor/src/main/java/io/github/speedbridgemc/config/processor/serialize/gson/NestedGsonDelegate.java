@@ -13,6 +13,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 
 // not annotated with @AutoService, GsonContext manually calls this delegate
@@ -57,8 +58,16 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .beginControlFlow("if (token == $T.NAME)", ctx.tokenType)
                 .addStatement("String name = reader.nextName()")
                 .build());
+        HashMap<String, String> gotFlagsBackup = new HashMap<>(ctx.gotFlags);
+        ctx.gotFlags.clear();
         for (VariableElement field : fields) {
-            CodeBlock.Builder codeBuilder = CodeBlock.builder()
+            String fieldName = field.getSimpleName().toString();
+            ctx.gotFlags.put(fieldName, "got_" + fieldName);
+        }
+        CodeBlock.Builder codeBuilder = GsonSerializerProvider.generateGotFlags(ctx);
+        methodBuilder.addCode(codeBuilder.build());
+        for (VariableElement field : fields) {
+            codeBuilder = CodeBlock.builder()
                     .beginControlFlow("if ($S.equals(name))", field.getSimpleName().toString());
             ctx.appendRead(field, codeBuilder);
             methodBuilder.addCode(codeBuilder
@@ -66,6 +75,9 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                     .endControlFlow()
                     .build());
         }
+        methodBuilder.addCode(GsonSerializerProvider.generateGotFlagChecks(ctx).build());
+        ctx.gotFlags.clear();
+        ctx.gotFlags.putAll(gotFlagsBackup);
         methodBuilder.addCode(CodeBlock.builder()
                 .endControlFlow()
                 .addStatement("reader.skipValue()")

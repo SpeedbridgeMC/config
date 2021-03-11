@@ -16,35 +16,33 @@ public final class PrimitiveGsonDelegate extends BaseGsonDelegate {
 
     @Override
     public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+        boolean ok = false;
         String name = field.getSimpleName().toString();
         TypeName type = TypeName.get(field.asType());
-        if (STRING_TYPE.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextString()", ctx.configName, name);
-            return true;
-        }
         if (type.isBoxedPrimitive())
             type = type.unbox();
-        if (TypeName.BOOLEAN.equals(type)) {
+        if (STRING_TYPE.equals(type)) {
+            codeBuilder.addStatement("$L.$L = reader.nextString()", ctx.configName, name);
+            ok = true;
+        } else if (TypeName.BOOLEAN.equals(type)) {
             codeBuilder.addStatement("$L.$L = reader.nextBoolean()", ctx.configName, name);
-            return true;
-        }
-        if (TypeName.INT.equals(type)) {
+            ok = true;
+        } else if (TypeName.INT.equals(type)) {
             codeBuilder.addStatement("$L.$L = reader.nextInt()", ctx.configName, name);
-            return true;
-        }
-        if (TypeName.LONG.equals(type)) {
+            ok = true;
+        } else if (TypeName.LONG.equals(type)) {
             codeBuilder.addStatement("$L.$L = reader.nextLong()", ctx.configName, name);
-            return true;
-        }
-        if (TypeName.FLOAT.equals(type)) {
+            ok = true;
+        } else if (TypeName.FLOAT.equals(type)) {
             codeBuilder.addStatement("$L.$L = (float) reader.nextDouble()", ctx.configName, name);
-            return true;
-        }
-        if (TypeName.DOUBLE.equals(type)) {
+            ok = true;
+        } else if (TypeName.DOUBLE.equals(type)) {
             codeBuilder.addStatement("$L.$L = reader.nextDouble()", ctx.configName, name);
-            return true;
+            ok = true;
         }
-        return false;
+        if (ok)
+            codeBuilder.addStatement("$L = true", ctx.gotFlags.get(name));
+        return ok;
     }
 
     @Override
