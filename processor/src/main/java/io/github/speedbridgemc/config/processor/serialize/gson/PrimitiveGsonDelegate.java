@@ -40,8 +40,11 @@ public final class PrimitiveGsonDelegate extends BaseGsonDelegate {
             codeBuilder.addStatement("$L.$L = reader.nextDouble()", ctx.configName, name);
             ok = true;
         }
-        if (ok)
-            codeBuilder.addStatement("$L = true", ctx.gotFlags.get(name));
+        if (ok) {
+            String gotFlag = ctx.gotFlags.get(name);
+            if (gotFlag != null)
+                codeBuilder.addStatement("$L = true", gotFlag);
+        }
         return ok;
     }
 

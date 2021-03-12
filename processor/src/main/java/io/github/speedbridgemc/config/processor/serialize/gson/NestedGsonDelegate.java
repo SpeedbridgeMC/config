@@ -5,6 +5,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponent;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import org.jetbrains.annotations.NotNull;
@@ -58,10 +59,17 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .beginControlFlow("if (token == $T.NAME)", ctx.tokenType)
                 .addStatement("String name = reader.nextName()")
                 .build());
+        HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
         HashMap<String, String> gotFlagsBackup = new HashMap<>(ctx.gotFlags);
+        ctx.missingErrorMessages.clear();
         ctx.gotFlags.clear();
+        String defaultMissingErrorMessage = SerializerComponent.getDefaultMissingErrorMessage(processingEnv, typeElement);
+        SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, ctx.missingErrorMessages);
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
+            String missingErrorMessage = ctx.missingErrorMessages.get(fieldName);
+            if (missingErrorMessage == null)
+                continue;
             ctx.gotFlags.put(fieldName, "got_" + fieldName);
         }
         CodeBlock.Builder codeBuilder = GsonSerializerProvider.generateGotFlags(ctx);
@@ -76,6 +84,8 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                     .build());
         }
         methodBuilder.addCode(GsonSerializerProvider.generateGotFlagChecks(ctx).build());
+        ctx.missingErrorMessages.clear();
+        ctx.missingErrorMessages.putAll(missingErrorMessagesBackup);
         ctx.gotFlags.clear();
         ctx.gotFlags.putAll(gotFlagsBackup);
         methodBuilder.addCode(CodeBlock.builder()

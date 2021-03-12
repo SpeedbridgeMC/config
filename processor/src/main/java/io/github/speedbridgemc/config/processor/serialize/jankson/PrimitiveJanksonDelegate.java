@@ -17,40 +17,35 @@ public final class PrimitiveJanksonDelegate extends BaseJanksonDelegate {
 
     @Override
     public boolean appendRead(@NotNull JanksonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
-        String name = field.getSimpleName().toString();
         TypeName type = TypeName.get(field.asType());
         if (type.isBoxedPrimitive())
             type = type.unbox();
-        if (STRING_TYPE.equals(type) || type.isPrimitive())
-            codeBuilder.addStatement("$1L = $2L.get($3T.class, $4S)", ctx.primitiveName, ctx.objectName, ctx.primitiveType, name)
-                    .beginControlFlow("if ($L == null)", ctx.primitiveName)
-                    .addStatement("throw new $T($S)", IOException.class, "Missing field \"" + name + "\"!")
+        if (!STRING_TYPE.equals(type) && !type.isPrimitive())
+            return false;
+        String name = field.getSimpleName().toString();
+        codeBuilder.addStatement("$1L = $2L.get($3T.class, $4S)", ctx.primitiveName, ctx.objectName, ctx.primitiveType, name);
+        String missingErrorMessage = ctx.missingErrorMessages.get(name);
+        if (missingErrorMessage != null)
+            codeBuilder.beginControlFlow("if ($L == null)", ctx.primitiveName)
+                    .addStatement("throw new $T($S)", IOException.class, String.format(missingErrorMessage, name))
                     .endControlFlow();
-        if (STRING_TYPE.equals(type)) {
+        else
+            codeBuilder.beginControlFlow("if ($L != null)", ctx.primitiveName);
+        if (STRING_TYPE.equals(type))
             codeBuilder.addStatement("$L.$L = $L.asString()", ctx.configName, name, ctx.primitiveName);
-            return true;
-        }
-        if (TypeName.BOOLEAN.equals(type)) {
+        if (TypeName.BOOLEAN.equals(type))
             codeBuilder.addStatement("$1L.$2L = $3L.asBoolean($1L.$2L)", ctx.configName, name, ctx.primitiveName);
-            return true;
-        }
-        if (TypeName.INT.equals(type)) {
+        if (TypeName.INT.equals(type))
             codeBuilder.addStatement("$1L.$2L = $3L.asInt($1L.$2L)", ctx.configName, name, ctx.primitiveName);
-            return true;
-        }
-        if (TypeName.LONG.equals(type)) {
+        if (TypeName.LONG.equals(type))
             codeBuilder.addStatement("$1L.$2L = $3L.asLong($1L.$2L)", ctx.configName, name, ctx.primitiveName);
-            return true;
-        }
-        if (TypeName.FLOAT.equals(type)) {
+        if (TypeName.FLOAT.equals(type))
             codeBuilder.addStatement("$1L.$2L = $3L.asFloat($1L.$2L)", ctx.configName, name, ctx.primitiveName);
-            return true;
-        }
-        if (TypeName.DOUBLE.equals(type)) {
+        if (TypeName.DOUBLE.equals(type))
             codeBuilder.addStatement("$1L.$2L = $3L.asDouble($1L.$2L)", ctx.configName, name, ctx.primitiveName);
-            return true;
-        }
-        return false;
+        if (missingErrorMessage == null)
+            codeBuilder.endControlFlow();
+        return true;
     }
 
     @Override

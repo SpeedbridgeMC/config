@@ -7,15 +7,19 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponent;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.BaseSerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
+import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
+import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.tools.Diagnostic;
 import java.io.*;
 import java.nio.file.Files;
 import java.util.Map;
@@ -42,6 +46,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         GsonContext gCtx = new GsonContext(classBuilder, readerType, writerType, tokenType,
                 ctx.nonNullAnnotation, ctx.nullableAnnotation);
         gCtx.init(processingEnv);
+        SerializerComponent.getMissingErrorMessages(processingEnv, fields, ctx.defaultMissingErrorMessage, gCtx.missingErrorMessages);
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             gCtx.gotFlags.put(fieldName, "got_" + fieldName);
@@ -105,8 +110,11 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
     public static @NotNull CodeBlock.Builder generateGotFlagChecks(@NotNull GsonContext gCtx) {
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (Map.Entry<String, String> entry : gCtx.gotFlags.entrySet()) {
+            String missingErrorMessage = gCtx.missingErrorMessages.get(entry.getKey());
+            if (missingErrorMessage == null)
+                continue;
             codeBuilder.beginControlFlow("if (!$L)", entry.getValue())
-                    .addStatement("throw new $T($S)", IOException.class, "Missing field \"" + entry.getKey() + "\"!")
+                    .addStatement("throw new $T($S)", IOException.class, String.format(missingErrorMessage, entry.getKey()))
                     .endControlFlow();
         }
         return codeBuilder;

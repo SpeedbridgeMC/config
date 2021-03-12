@@ -35,7 +35,7 @@ public final class TypeUtils {
         return type.asType();
     }
 
-    public static @NotNull List<VariableElement> getFieldsIn(@NotNull TypeElement typeElement) {
+    public static @NotNull List<@NotNull VariableElement> getFieldsIn(@NotNull TypeElement typeElement) {
         return typeElement.getEnclosedElements().stream()
                 .map(element -> {
                     if (element.getKind() == ElementKind.FIELD)
@@ -52,7 +52,7 @@ public final class TypeUtils {
                 .collect(Collectors.toList());
     }
 
-    public static @NotNull List<ExecutableElement> getMethodsIn(@NotNull TypeElement typeElement) {
+    public static @NotNull List<@NotNull ExecutableElement> getMethodsIn(@NotNull TypeElement typeElement) {
         return typeElement.getEnclosedElements().stream()
                 .map(element -> {
                     if (element.getKind() == ElementKind.METHOD)

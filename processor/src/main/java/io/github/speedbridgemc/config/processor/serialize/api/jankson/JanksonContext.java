@@ -17,6 +17,7 @@ public final class JanksonContext {
     private final NestedJanksonDelegate nestedDelegate; // separated from the standard delegates since its a "last resort" measure
     public final @NotNull TypeSpec.Builder classBuilder;
     public final @NotNull Set<@NotNull String> generatedMethods;
+    public final @NotNull Map<@NotNull String, @NotNull String> missingErrorMessages;
     public final @NotNull TypeName objectType, primitiveType;
     public @NotNull String configName = "config", objectName = "obj", primitiveName = "prim";
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
@@ -32,6 +33,7 @@ public final class JanksonContext {
         generatedMethods = new HashSet<>();
         ServiceLoader<JanksonDelegate> delegateLoader = ServiceLoader.load(JanksonDelegate.class, JanksonContext.class.getClassLoader());
         delegates = new ArrayList<>();
+        missingErrorMessages = new HashMap<>();
         for (JanksonDelegate delegate : delegateLoader)
             delegates.add(delegate);
         nestedDelegate = new NestedJanksonDelegate();

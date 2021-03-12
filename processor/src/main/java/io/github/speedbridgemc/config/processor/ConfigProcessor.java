@@ -196,7 +196,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             if (nonNullAnnotation != null)
                 saveMethodBuilder.addAnnotation(nonNullAnnotation);
 
-            ImmutableList<VariableElement> fields = ImmutableList.copyOf(TypeUtils.getFieldsIn(typeElement));
+            ImmutableList<@NotNull VariableElement> fields = ImmutableList.copyOf(TypeUtils.getFieldsIn(typeElement));
 
             Component[] components = config.components();
             for (Component component : components) {

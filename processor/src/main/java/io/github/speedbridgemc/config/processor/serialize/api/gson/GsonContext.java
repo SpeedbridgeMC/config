@@ -18,6 +18,7 @@ public final class GsonContext {
     public final @NotNull TypeSpec.Builder classBuilder;
     public final @NotNull Set<@NotNull String> generatedMethods;
     public final @NotNull Map<@NotNull String, @NotNull String> gotFlags;
+    public final @NotNull Map<@NotNull String, @Nullable String> missingErrorMessages;
     public final @NotNull TypeName readerType, writerType, tokenType;
     public @NotNull String configName = "config";
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
@@ -33,6 +34,7 @@ public final class GsonContext {
         this.nullableAnnotation = nullableAnnotation;
         generatedMethods = new HashSet<>();
         gotFlags = new LinkedHashMap<>();
+        missingErrorMessages = new HashMap<>();
         ServiceLoader<GsonDelegate> delegateLoader = ServiceLoader.load(GsonDelegate.class, GsonContext.class.getClassLoader());
         delegates = new ArrayList<>();
         for (GsonDelegate delegate : delegateLoader)

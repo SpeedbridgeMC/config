@@ -6,23 +6,24 @@ import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.*;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
+import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
+import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ServiceLoader;
+import java.util.*;
 
 @ApiStatus.Internal
 @AutoService(ComponentProvider.class)
@@ -94,6 +95,7 @@ public final class SerializerComponent extends BaseComponentProvider {
                     "Handler interface is missing required default method: <ignored> log(String, Exception)", ctx.handlerInterfaceTypeElement);
         if (!gotResolvePath || !gotLog)
             return;
+        String defaultMissingErrorMessage = getDefaultMissingErrorMessage(processingEnv, type);
         classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
                 .initializer("resolvePath($S)", name)
                 .build());
@@ -120,7 +122,7 @@ public final class SerializerComponent extends BaseComponentProvider {
                 .addException(IOException.class);
         SerializerContext sCtx = new SerializerContext(configType, basePackage, options,
                 readMethodBuilder, writeMethodBuilder,
-                ctx.nonNullAnnotation, ctx.nullableAnnotation);
+                defaultMissingErrorMessage, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         provider.process(name, type, fields, sCtx, classBuilder);
         classBuilder.addMethod(readMethodBuilder.build()).addMethod(writeMethodBuilder.build());
         ctx.loadMethodBuilder.addCode(CodeBlock.builder()
@@ -143,5 +145,52 @@ public final class SerializerComponent extends BaseComponentProvider {
                 .addStatement("log($S + path + $S, e)", "Failed to read from config file at \"", "\"!")
                 .endControlFlow()
                 .build());
+    }
+
+    public static @Nullable String getDefaultMissingErrorMessage(@NotNull ProcessingEnvironment processingEnv, @NotNull TypeElement type) {
+        String defaultMissingErrorMessage = "Missing field \"%s\"!";
+        if (type.getAnnotation(UseDefaultIfMissing.class) != null)
+            defaultMissingErrorMessage = null;
+        else {
+            ThrowIfMissing throwIfMissing = type.getAnnotation(ThrowIfMissing.class);
+            if (throwIfMissing != null) {
+                String[] defaultMissingErrorMessageIn = throwIfMissing.message();
+                if (defaultMissingErrorMessageIn.length == 1)
+                    defaultMissingErrorMessage = defaultMissingErrorMessageIn[0];
+                else if (defaultMissingErrorMessageIn.length > 1) {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                            "Class specifies more than one error message in @ThrowIfMissing", type);
+                    return null;
+                }
+            }
+        }
+        return defaultMissingErrorMessage;
+    }
+
+    public static void getMissingErrorMessages(@NotNull ProcessingEnvironment processingEnv,
+                                               @NotNull List<@NotNull VariableElement> fields,
+                                               @Nullable String defaultMissingErrorMessage,
+                                               @NotNull Map<@NotNull String, @Nullable String> result) {
+        for (VariableElement field : fields) {
+            String fieldMissingErrorMessage = "Missing field \"%s\"!";
+            if (field.getAnnotation(UseDefaultIfMissing.class) != null)
+                continue;
+            else {
+                ThrowIfMissing throwIfMissing = field.getAnnotation(ThrowIfMissing.class);
+                if (throwIfMissing == null)
+                    fieldMissingErrorMessage = defaultMissingErrorMessage;
+                else {
+                    String[] fieldMissingErrorMessageIn = throwIfMissing.message();
+                    if (fieldMissingErrorMessageIn.length == 1)
+                        fieldMissingErrorMessage = fieldMissingErrorMessageIn[0];
+                    else if (fieldMissingErrorMessageIn.length > 1) {
+                        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                                "Field specifies more than one error message in @ThrowIfMissing", field);
+                        continue;
+                    }
+                }
+            }
+            result.put(field.getSimpleName().toString(), fieldMissingErrorMessage);
+        }
     }
 }

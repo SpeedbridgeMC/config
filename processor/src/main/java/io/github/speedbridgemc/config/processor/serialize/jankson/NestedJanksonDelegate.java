@@ -5,7 +5,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponent;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.NotNull;
@@ -14,6 +14,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 
 // not annotated with @AutoService, JanksonContext manually calls this delegate
@@ -31,11 +32,18 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         TypeName typeName = TypeName.get(typeMirror);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
         String nestedObjName = name + "Obj";
-        codeBuilder.addStatement("$1T $2L = $3L.get($1T.class, $4S)", ctx.objectType, nestedObjName, ctx.objectName, name)
-                .beginControlFlow("if ($L == null)", nestedObjName)
-                .addStatement("throw new $T($S)", IOException.class, "Missing field \"" + name + "\"!")
-                .endControlFlow()
-                .addStatement("$L.$L = $L($L)", ctx.configName, name, methodName, nestedObjName);
+        codeBuilder.addStatement("$1T $2L = $3L.get($1T.class, $4S)", ctx.objectType, nestedObjName, ctx.objectName, name);
+        String missingErrorMessage = ctx.missingErrorMessages.get(name);
+        if (missingErrorMessage == null)
+            codeBuilder.beginControlFlow("if ($L != null)", nestedObjName);
+        else {
+            codeBuilder.beginControlFlow("if ($L == null)", nestedObjName)
+                    .addStatement("throw new $T($S)", IOException.class, String.format(missingErrorMessage, name))
+                    .endControlFlow();
+        }
+        codeBuilder.addStatement("$L.$L = $L($L)", ctx.configName, name, methodName, nestedObjName);
+        if (missingErrorMessage == null)
+            codeBuilder.endControlFlow();
         return true;
     }
 
@@ -59,9 +67,15 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
                 .addStatement("$1T $2L = new $1T()", typeName, ctx.configName)
                 .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                 .build());
+        HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
+        ctx.missingErrorMessages.clear();
+        String defaultMissingErrorMessage = SerializerComponent.getDefaultMissingErrorMessage(processingEnv, typeElement);
+        SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, ctx.missingErrorMessages);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields)
             ctx.appendRead(field, codeBuilder);
+        ctx.missingErrorMessages.clear();
+        ctx.missingErrorMessages.putAll(missingErrorMessagesBackup);
         methodBuilder.addCode(codeBuilder.build());
         methodBuilder.addCode("return $L;\n", ctx.configName);
         ctx.classBuilder.addMethod(methodBuilder.build());

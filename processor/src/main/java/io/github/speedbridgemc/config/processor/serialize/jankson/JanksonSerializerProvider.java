@@ -7,16 +7,20 @@ import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponent;
 import io.github.speedbridgemc.config.processor.serialize.api.BaseSerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
+import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
+import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.tools.Diagnostic;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,6 +58,8 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                         .build());
         JanksonContext jCtx = new JanksonContext(classBuilder, objectType, primitiveType, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         jCtx.init(processingEnv);
+        String defaultMissingErrorMessage = ctx.defaultMissingErrorMessage;
+        SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, jCtx.missingErrorMessages);
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$1T $2L = new $1T()", configType, jCtx.configName)
                 .beginControlFlow("try ($T in = $T.newInputStream(path))", InputStream.class, Files.class)
