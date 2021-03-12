@@ -24,6 +24,7 @@ public final class ComponentContext {
     public ComponentContext(@NotNull String handlerName,
                             @NotNull TypeName handlerInterfaceTypeName,
                             @NotNull TypeElement handlerInterfaceTypeElement,
+                            @NotNull ImmutableList<ExecutableElement> handlerInterfaceMethods,
                             @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation,
                             @NotNull TypeName configType,
                             @NotNull Multimap<String, String> params,
@@ -33,6 +34,7 @@ public final class ComponentContext {
         this.handlerName = handlerName;
         this.handlerInterfaceTypeName = handlerInterfaceTypeName;
         this.handlerInterfaceTypeElement = handlerInterfaceTypeElement;
+        this.handlerInterfaceMethods = handlerInterfaceMethods;
         this.nonNullAnnotation = nonNullAnnotation;
         this.nullableAnnotation = nullableAnnotation;
         this.configType = configType;
@@ -40,6 +42,5 @@ public final class ComponentContext {
         this.getMethodBuilder = getMethodBuilder;
         this.loadMethodBuilder = loadMethodBuilder;
         this.saveMethodBuilder = saveMethodBuilder;
-        handlerInterfaceMethods = ImmutableList.copyOf(TypeUtils.getMethodsIn(handlerInterfaceTypeElement));
     }
 }

@@ -10,6 +10,7 @@ import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
+import jdk.nashorn.internal.ir.annotations.Immutable;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -18,6 +19,8 @@ import javax.annotation.Generated;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.io.FileNotFoundException;
@@ -117,6 +120,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                         "Missing handler interface class \"" + handlerInterfaceName + "\"", typeElement);
                 continue;
             }
+            ImmutableList<ExecutableElement> handlerInterfaceMethods = ImmutableList.copyOf(TypeUtils.getMethodsIn(handlerInterfaceTypeElement));
             TypeName handlerInterfaceTypeName = TypeName.get(handlerInterfaceTypeElement.asType());
             String handlerInterfacePackage = "";
             int splitIndex = handlerInterfaceName.lastIndexOf('.');
@@ -141,6 +145,66 @@ public final class ConfigProcessor extends AbstractProcessor {
                         "@Config annotation specifies more than one handler name", typeElement);
                 continue;
             }
+
+            boolean gotGet = false, gotReset = false, gotLoad = false, gotSave = false, gotLog = false;
+            TypeMirror configTM = typeElement.asType();
+            TypeMirror stringTM = TypeUtils.getTypeMirror(processingEnv, String.class.getCanonicalName());
+            TypeMirror exceptionTM = TypeUtils.getTypeMirror(processingEnv, Exception.class.getCanonicalName());
+            if (stringTM == null || exceptionTM == null)
+                continue;
+            for (ExecutableElement method : handlerInterfaceMethods) {
+                String methodName = method.getSimpleName().toString();
+                List<? extends VariableElement> params = method.getParameters();
+                TypeMirror returnType = method.getReturnType();
+                switch (methodName) {
+                case "get":
+                    if (params.size() == 0 && processingEnv.getTypeUtils().isSameType(returnType, configTM))
+                        gotGet = true;
+                    break;
+                case "reset":
+                case "load":
+                case "save":
+                    if (params.size() == 0 && returnType.getKind() == TypeKind.VOID) {
+                        switch (methodName) {
+                        case "reset":
+                            gotReset = true;
+                            break;
+                        case "load":
+                            gotLoad = true;
+                            break;
+                        case "save":
+                            gotSave = true;
+                            break;
+                        }
+                    }
+                    break;
+                case "log":
+                    if (method.isDefault()
+                            && params.size() == 2
+                            && processingEnv.getTypeUtils().isSameType(params.get(0).asType(), stringTM)
+                            && processingEnv.getTypeUtils().isSameType(params.get(1).asType(), exceptionTM))
+                        gotLog = true;
+                    break;
+                }
+            }
+            if (!gotGet)
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "Handler interface is missing required method: " + typeElement.getSimpleName() + " get()", handlerInterfaceTypeElement);
+            if (!gotReset)
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "Handler interface is missing required method: void reset()", handlerInterfaceTypeElement);
+            if (!gotSave)
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "Handler interface is missing required method: void save()", handlerInterfaceTypeElement);
+            if (!gotLoad)
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "Handler interface is missing required method: void load()", handlerInterfaceTypeElement);
+            if (!gotLog)
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "Handler interface is missing required default method: <ignored> log(String, Exception)", handlerInterfaceTypeElement);
+            if (!gotGet || !gotReset || !gotLoad || !gotSave || !gotLog)
+                continue;
+
             ClassName nonNullAnnotation = getAnnotationName(typeElement, config.nonNullAnnotation(), "non-null");
             ClassName nullableAnnotation = getAnnotationName(typeElement, config.nullableAnnotation(), "nullable");
             String handlerPackage = "";
@@ -172,7 +236,6 @@ public final class ConfigProcessor extends AbstractProcessor {
             if (nullableAnnotation != null)
                 configFieldBuilder.addAnnotation(nullableAnnotation);
             classBuilder.addField(configFieldBuilder.build());
-            // TODO properly require get/reset/load/save methods
             classBuilder.addMethod(MethodSpec.methodBuilder("reset")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
@@ -221,7 +284,8 @@ public final class ConfigProcessor extends AbstractProcessor {
                     }
                     params.putAll(paramIn, values);
                 }
-                ComponentContext ctx = new ComponentContext(handlerName, handlerInterfaceTypeName, handlerInterfaceTypeElement, nonNullAnnotation, nullableAnnotation,
+                ComponentContext ctx = new ComponentContext(handlerName, handlerInterfaceTypeName, handlerInterfaceTypeElement,
+                        handlerInterfaceMethods, nonNullAnnotation, nullableAnnotation,
                         configTypeName, params, getMethodBuilder, loadMethodBuilder, saveMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }

@@ -59,41 +59,29 @@ public final class SerializerComponent extends BaseComponentProvider {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown provider \"" + providerId + "\"", type);
             return;
         }
-        boolean gotResolvePath = false, gotLog = false;
+        boolean gotResolvePath = false;
         TypeMirror pathTM = TypeUtils.getTypeMirror(processingEnv, Path.class.getCanonicalName());
         TypeMirror stringTM = TypeUtils.getTypeMirror(processingEnv, String.class.getCanonicalName());
-        TypeMirror exceptionTM = TypeUtils.getTypeMirror(processingEnv, Exception.class.getCanonicalName());
-        if (pathTM == null || stringTM == null || exceptionTM == null)
+        if (pathTM == null || stringTM == null)
             return;
         for (ExecutableElement method : ctx.handlerInterfaceMethods) {
             if (!method.isDefault())
                 continue;
             String methodName = method.getSimpleName().toString();
             List<? extends VariableElement> params = method.getParameters();
-            TypeMirror methodReturnType = method.getReturnType();
-            switch (methodName) {
-            case "resolvePath":
-                if (processingEnv.getTypeUtils().isSameType(methodReturnType, pathTM)) {
+            TypeMirror returnType = method.getReturnType();
+            if ("resolvePath".equals(methodName)) {
+                if (processingEnv.getTypeUtils().isSameType(returnType, pathTM)) {
                     if (params.size() == 1
-                        && processingEnv.getTypeUtils().isSameType(params.get(0).asType(), stringTM))
+                            && processingEnv.getTypeUtils().isSameType(params.get(0).asType(), stringTM))
                         gotResolvePath = true;
                 }
-                break;
-            case "log":
-                if (params.size() == 2
-                        && processingEnv.getTypeUtils().isSameType(params.get(0).asType(), stringTM)
-                        && processingEnv.getTypeUtils().isSameType(params.get(1).asType(), exceptionTM))
-                    gotLog = true;
-                break;
             }
         }
         if (!gotResolvePath)
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required default method: Path resolvePath(String)", ctx.handlerInterfaceTypeElement);
-        if (!gotLog)
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Handler interface is missing required default method: <ignored> log(String, Exception)", ctx.handlerInterfaceTypeElement);
-        if (!gotResolvePath || !gotLog)
+        if (!gotResolvePath)
             return;
         String defaultMissingErrorMessage = getDefaultMissingErrorMessage(processingEnv, type);
         classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
