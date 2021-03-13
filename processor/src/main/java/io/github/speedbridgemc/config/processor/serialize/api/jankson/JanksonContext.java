@@ -4,6 +4,7 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.jankson.NestedJanksonDelegate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -19,7 +20,7 @@ public final class JanksonContext {
     public final @NotNull Set<@NotNull String> generatedMethods;
     public final @NotNull Map<@NotNull String, @NotNull String> missingErrorMessages;
     public final @NotNull TypeName objectType, primitiveType;
-    public @NotNull String configName = "config", objectName = "obj", primitiveName = "prim";
+    public @NotNull String objectName = "jObj", primitiveName = "jPrim";
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
 
     @SuppressWarnings("RedundantSuppression")
@@ -45,19 +46,35 @@ public final class JanksonContext {
         nestedDelegate.init(processingEnv);
     }
 
-    public void appendRead(@NotNull VariableElement field, @NotNull CodeBlock.Builder codeBuilder) {
+    public boolean appendRead(@NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
         for (JanksonDelegate delegate : delegates) {
-            if (delegate.appendRead(this, field, codeBuilder))
-                return;
+            if (delegate.appendRead(this, field, dest, codeBuilder))
+                return true;
         }
-        nestedDelegate.appendRead(this, field, codeBuilder);
+        return useNested && appendReadNested(field, dest, codeBuilder);
     }
 
-    public void appendWrite(@NotNull VariableElement field, @NotNull CodeBlock.Builder codeBuilder) {
+    public boolean appendRead(@NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
+        return appendRead(field, dest, codeBuilder, true);
+    }
+
+    public boolean appendReadNested(@NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
+        return nestedDelegate.appendRead(this, field, dest, codeBuilder);
+    }
+
+    public boolean appendWrite(@NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
         for (JanksonDelegate delegate : delegates) {
-            if (delegate.appendWrite(this, field, codeBuilder))
-                return;
+            if (delegate.appendWrite(this, field, src, codeBuilder))
+                return true;
         }
-        nestedDelegate.appendWrite(this, field, codeBuilder);
+        return useNested && appendWriteNested(field, src, codeBuilder);
+    }
+
+    public boolean appendWrite(@NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
+        return appendWrite(field, src, codeBuilder, true);
+    }
+
+    public boolean appendWriteNested(@NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
+        return nestedDelegate.appendWrite(this, field, src, codeBuilder);
     }
 }

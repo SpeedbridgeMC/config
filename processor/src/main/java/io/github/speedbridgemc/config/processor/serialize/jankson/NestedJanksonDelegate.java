@@ -20,7 +20,7 @@ import java.util.List;
 // not annotated with @AutoService, JanksonContext manually calls this delegate
 public final class NestedJanksonDelegate extends BaseJanksonDelegate {
     @Override
-    public boolean appendRead(@NotNull JanksonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendRead(@NotNull JanksonContext ctx, @NotNull VariableElement field, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
         String name = field.getSimpleName().toString();
         TypeMirror typeMirror = field.asType();
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
@@ -41,7 +41,7 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
                     .addStatement("throw new $T($S)", IOException.class, String.format(missingErrorMessage, name))
                     .endControlFlow();
         }
-        codeBuilder.addStatement("$L.$L = $L($L)", ctx.configName, name, methodName, nestedObjName);
+        codeBuilder.addStatement("$L = $L($L)", dest, methodName, nestedObjName);
         if (missingErrorMessage == null)
             codeBuilder.endControlFlow();
         return true;
@@ -63,8 +63,9 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
                 .addException(IOException.class);
         if (ctx.nonNullAnnotation != null)
             methodBuilder.addAnnotation(ctx.nonNullAnnotation);
+        String configName = "obj" + typeElement.getSimpleName();
         methodBuilder.addCode(CodeBlock.builder()
-                .addStatement("$1T $2L = new $1T()", typeName, ctx.configName)
+                .addStatement("$1T $2L = new $1T()", typeName, configName)
                 .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                 .build());
         HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
@@ -73,17 +74,18 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, ctx.missingErrorMessages);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields)
-            ctx.appendRead(field, codeBuilder);
+            ctx.appendRead(field, configName + "." + field.getSimpleName(), codeBuilder);
         ctx.missingErrorMessages.clear();
         ctx.missingErrorMessages.putAll(missingErrorMessagesBackup);
-        methodBuilder.addCode(codeBuilder.build());
-        methodBuilder.addCode("return $L;\n", ctx.configName);
+        methodBuilder.addCode(codeBuilder
+                .addStatement("return $L", configName)
+                .build());
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;
     }
 
     @Override
-    public boolean appendWrite(@NotNull JanksonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendWrite(@NotNull JanksonContext ctx, @NotNull VariableElement field, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
         String name = field.getSimpleName().toString();
         TypeMirror typeMirror = field.asType();
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
@@ -94,7 +96,7 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(typeMirror);
         String methodName = generateWriteMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$1L.put($2S, $3L($4L.$2L))", ctx.objectName, name, methodName, ctx.configName);
+        codeBuilder.addStatement("$L.put($S, $L($L))", ctx.objectName, name, methodName, src);
         return true;
     }
 
@@ -104,7 +106,8 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
             return methodName;
         ctx.generatedMethods.add(methodName);
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
-        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, ctx.configName);
+        String configName = "obj";
+        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, configName);
         if (ctx.nonNullAnnotation != null)
             configParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
@@ -117,9 +120,10 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         methodBuilder.addCode("$1T $2L = new $1T();\n", ctx.objectType, ctx.objectName);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields)
-            ctx.appendWrite(field, codeBuilder);
-        methodBuilder.addCode(codeBuilder.build());
-        methodBuilder.addCode("return $L;\n", ctx.objectName);
+            ctx.appendWrite(field, configName + "." + field.getSimpleName().toString(), codeBuilder);
+        methodBuilder.addCode(codeBuilder
+                .addStatement("return $L", ctx.objectName)
+                .build());
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;
     }

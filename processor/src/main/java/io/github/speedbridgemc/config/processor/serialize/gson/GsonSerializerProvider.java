@@ -2,7 +2,6 @@ package io.github.speedbridgemc.config.processor.serialize.gson;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
-import com.google.errorprone.annotations.Var;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
@@ -12,14 +11,11 @@ import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.BaseSerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
-import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
-import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.tools.Diagnostic;
 import java.io.*;
 import java.nio.file.Files;
 import java.util.Map;
@@ -49,9 +45,11 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         SerializerComponent.getMissingErrorMessages(processingEnv, fields, ctx.defaultMissingErrorMessage, gCtx.missingErrorMessages);
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            gCtx.gotFlags.put(fieldName, "got_" + fieldName);
+            if (gCtx.missingErrorMessages.get(fieldName) != null)
+                gCtx.gotFlags.put(fieldName, "got_" + fieldName);
         }
-        ctx.readMethodBuilder.addCode("$1T $2L = new $1T();\n", configType, gCtx.configName);
+        String objName = "config";
+        ctx.readMethodBuilder.addCode("$1T $2L = new $1T();\n", configType, objName);
         CodeBlock.Builder codeBuilder = generateGotFlags(gCtx);
         ctx.readMethodBuilder.addCode(codeBuilder.build());
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
@@ -64,9 +62,10 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 .addStatement("String name = reader.nextName()")
                 .build());
         for (VariableElement field : fields) {
+            String fieldName = field.getSimpleName().toString();
             codeBuilder = CodeBlock.builder()
-                    .beginControlFlow("if ($S.equals(name))", field.getSimpleName().toString());
-            gCtx.appendRead(field, codeBuilder);
+                    .beginControlFlow("if ($S.equals(name))", fieldName);
+            gCtx.appendRead(field, objName + "." + fieldName, codeBuilder);
             ctx.readMethodBuilder.addCode(codeBuilder
                     .addStatement("continue")
                     .endControlFlow()
@@ -81,17 +80,19 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 .addStatement("throw new $T($S + path + $S, e)", IOException.class, "Failed to parse config file at \"", "\" to JSON!")
                 .endControlFlow()
                 .build());
-        ctx.readMethodBuilder.addCode(generateGotFlagChecks(gCtx).build());
-        ctx.readMethodBuilder.addCode("return $L;\n", gCtx.configName);
+        ctx.readMethodBuilder.addCode(generateGotFlagChecks(gCtx)
+                .addStatement("return $L", objName)
+                .build());
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("try ($4T writer = new $4T(new $3T(new $2T($1T.newOutputStream(path)))))",
                         Files.class, OutputStreamWriter.class, BufferedWriter.class, writerType)
                 .addStatement("writer.beginObject()")
                 .build());
         for (VariableElement field : fields) {
+            String fieldName = field.getSimpleName().toString();
             codeBuilder = CodeBlock.builder()
-                    .addStatement("writer.name($S)", field.getSimpleName().toString());
-            gCtx.appendWrite(field, codeBuilder);
+                    .addStatement("writer.name($S)", fieldName);
+            gCtx.appendWrite(field, objName + "." + fieldName, codeBuilder);
             ctx.writeMethodBuilder.addCode(codeBuilder.build());
         }
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()

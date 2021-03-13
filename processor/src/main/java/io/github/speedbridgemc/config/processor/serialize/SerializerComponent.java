@@ -162,7 +162,7 @@ public final class SerializerComponent extends BaseComponentProvider {
         for (VariableElement field : fields) {
             String fieldMissingErrorMessage = "Missing field \"%s\"!";
             if (field.getAnnotation(UseDefaultIfMissing.class) != null)
-                continue;
+                fieldMissingErrorMessage = null;
             else {
                 ThrowIfMissing throwIfMissing = field.getAnnotation(ThrowIfMissing.class);
                 if (throwIfMissing == null)

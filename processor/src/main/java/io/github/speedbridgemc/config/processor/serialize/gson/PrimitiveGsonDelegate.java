@@ -15,33 +15,32 @@ public final class PrimitiveGsonDelegate extends BaseGsonDelegate {
     private final TypeName STRING_TYPE = TypeName.get(String.class);
 
     @Override
-    public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
         boolean ok = false;
-        String name = field.getSimpleName().toString();
         TypeName type = TypeName.get(field.asType());
         if (type.isBoxedPrimitive())
             type = type.unbox();
         if (STRING_TYPE.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextString()", ctx.configName, name);
+            codeBuilder.addStatement("$L = reader.nextString()", dest);
             ok = true;
         } else if (TypeName.BOOLEAN.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextBoolean()", ctx.configName, name);
+            codeBuilder.addStatement("$L = reader.nextBoolean()", dest);
             ok = true;
         } else if (TypeName.INT.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextInt()", ctx.configName, name);
+            codeBuilder.addStatement("$L = reader.nextInt()", dest);
             ok = true;
         } else if (TypeName.LONG.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextLong()", ctx.configName, name);
+            codeBuilder.addStatement("$L = reader.nextLong()", dest);
             ok = true;
         } else if (TypeName.FLOAT.equals(type)) {
-            codeBuilder.addStatement("$L.$L = (float) reader.nextDouble()", ctx.configName, name);
+            codeBuilder.addStatement("$L = (float) reader.nextDouble()", dest);
             ok = true;
         } else if (TypeName.DOUBLE.equals(type)) {
-            codeBuilder.addStatement("$L.$L = reader.nextDouble()", ctx.configName, name);
+            codeBuilder.addStatement("$L = reader.nextDouble()", dest);
             ok = true;
         }
         if (ok) {
-            String gotFlag = ctx.gotFlags.get(name);
+            String gotFlag = ctx.gotFlags.get(field.getSimpleName().toString());
             if (gotFlag != null)
                 codeBuilder.addStatement("$L = true", gotFlag);
         }
@@ -49,11 +48,10 @@ public final class PrimitiveGsonDelegate extends BaseGsonDelegate {
     }
 
     @Override
-    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
-        String name = field.getSimpleName().toString();
+    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
         TypeName type = TypeName.get(field.asType());
         if (STRING_TYPE.equals(type) || type.isBoxedPrimitive() || type.isPrimitive()) {
-            codeBuilder.addStatement("writer.value($L.$L)", ctx.configName, name);
+            codeBuilder.addStatement("writer.value($L)", src);
             return true;
         }
         return false;

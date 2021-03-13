@@ -20,8 +20,7 @@ import java.util.List;
 // not annotated with @AutoService, GsonContext manually calls this delegate
 public final class NestedGsonDelegate extends BaseGsonDelegate {
     @Override
-    public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
-        String name = field.getSimpleName().toString();
+    public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
         TypeMirror typeMirror = field.asType();
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
@@ -31,7 +30,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(typeMirror);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$L.$L = $L(reader)", ctx.configName, name, methodName);
+        codeBuilder.addStatement("$L = $L(reader)", dest, methodName);
         return true;
     }
 
@@ -51,8 +50,9 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .addException(IOException.class);
         if (ctx.nonNullAnnotation != null)
             methodBuilder.addAnnotation(ctx.nonNullAnnotation);
+        String objName = "obj" + typeElement.getSimpleName();
         methodBuilder.addCode(CodeBlock.builder()
-                .addStatement("$1T $2L = new $1T()", typeName, ctx.configName)
+                .addStatement("$1T $2L = new $1T()", typeName, objName)
                 .addStatement("reader.beginObject()")
                 .beginControlFlow("while (reader.hasNext())")
                 .addStatement("$T token = reader.peek()", ctx.tokenType)
@@ -77,7 +77,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         for (VariableElement field : fields) {
             codeBuilder = CodeBlock.builder()
                     .beginControlFlow("if ($S.equals(name))", field.getSimpleName().toString());
-            ctx.appendRead(field, codeBuilder);
+            ctx.appendRead(field, objName + "." + field.getSimpleName(), codeBuilder);
             methodBuilder.addCode(codeBuilder
                     .addStatement("continue")
                     .endControlFlow()
@@ -93,15 +93,14 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .addStatement("reader.skipValue()")
                 .endControlFlow()
                 .addStatement("reader.endObject()")
-                .addStatement("return $L", ctx.configName)
+                .addStatement("return $L", objName)
                 .build());
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;
     }
 
     @Override
-    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, CodeBlock.@NotNull Builder codeBuilder) {
-        String name = field.getSimpleName().toString();
+    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
         TypeMirror typeMirror = field.asType();
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
@@ -111,7 +110,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(typeMirror);
         String methodName = generateWriteMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$L($L.$L, writer)", methodName, ctx.configName, name);
+        codeBuilder.addStatement("$L($L, writer)", methodName, src);
         return true;
     }
 
@@ -121,7 +120,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
             return methodName;
         ctx.generatedMethods.add(methodName);
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
-        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, ctx.configName);
+        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, "obj");
         if (ctx.nonNullAnnotation != null)
             configParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         ParameterSpec.Builder writerParamBuilder = ParameterSpec.builder(ctx.writerType, "writer");
@@ -134,9 +133,10 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .addException(IOException.class)
                 .addCode("writer.beginObject();\n");
         for (VariableElement field : fields) {
+            String fieldName = field.getSimpleName().toString();
             CodeBlock.Builder codeBuilder = CodeBlock.builder()
-                    .addStatement("writer.name($S)", field.getSimpleName().toString());
-            ctx.appendWrite(field, codeBuilder);
+                    .addStatement("writer.name($S)", fieldName);
+            ctx.appendWrite(field, "obj." + fieldName, codeBuilder);
             methodBuilder.addCode(codeBuilder.build());
         }
         methodBuilder.addCode("writer.endObject();\n");

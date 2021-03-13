@@ -8,6 +8,6 @@ import javax.lang.model.element.VariableElement;
 
 public interface JanksonDelegate {
     void init(@NotNull ProcessingEnvironment processingEnv);
-    boolean appendRead(@NotNull JanksonContext ctx, @NotNull VariableElement field, @NotNull CodeBlock.Builder codeBuilder);
-    boolean appendWrite(@NotNull JanksonContext ctx, @NotNull VariableElement field, @NotNull CodeBlock.Builder codeBuilder);
+    boolean appendRead(@NotNull JanksonContext ctx, @NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder);
+    boolean appendWrite(@NotNull JanksonContext ctx, @NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder);
 }

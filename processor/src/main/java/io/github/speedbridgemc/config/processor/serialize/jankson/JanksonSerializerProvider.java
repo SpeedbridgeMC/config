@@ -12,15 +12,12 @@ import io.github.speedbridgemc.config.processor.serialize.api.BaseSerializerProv
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
-import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
-import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.tools.Diagnostic;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,28 +57,29 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         jCtx.init(processingEnv);
         String defaultMissingErrorMessage = ctx.defaultMissingErrorMessage;
         SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, jCtx.missingErrorMessages);
+        String configName = "config";
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
-                .addStatement("$1T $2L = new $1T()", configType, jCtx.configName)
+                .addStatement("$1T $2L = new $1T()", configType, configName)
                 .beginControlFlow("try ($T in = $T.newInputStream(path))", InputStream.class, Files.class)
                 .addStatement("$T $L = JANKSON.load(in)", objectType, jCtx.objectName)
                 .addStatement("$T $L", primitiveType, jCtx.primitiveName)
                 .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields)
-            jCtx.appendRead(field, codeBuilder);
+            jCtx.appendRead(field, configName + "." + field.getSimpleName(), codeBuilder);
         ctx.readMethodBuilder.addCode(codeBuilder.build());
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .nextControlFlow("catch ($T e)", syntaxErrorType)
                 .addStatement("throw new $T($S + path + $S, e)", IOException.class, "Failed to parse config file at \"", "\" to JSON!")
                 .endControlFlow()
-                .addStatement("return $L", jCtx.configName)
+                .addStatement("return $L", configName)
                 .build());
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$1T $2L = new $1T()", objectType, jCtx.objectName)
                 .build());
         codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields)
-            jCtx.appendWrite(field, codeBuilder);
+            jCtx.appendWrite(field, configName + "." + field.getSimpleName().toString(), codeBuilder);
         ctx.writeMethodBuilder.addCode(codeBuilder.build());
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()
                 .addStatement("String json = $L.toJson(GRAMMAR)", jCtx.objectName)
