@@ -1,46 +1,44 @@
 package io.github.speedbridgemc.config.processor.serialize.gson;
 
-import com.google.auto.service.AutoService;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonDelegate;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 
-@AutoService(GsonDelegate.class)
 public final class PrimitiveGsonDelegate extends BaseGsonDelegate {
     private final TypeName STRING_TYPE = TypeName.get(String.class);
 
     @Override
-    public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendRead(@NotNull GsonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
         boolean ok = false;
-        TypeName type = TypeName.get(field.asType());
-        if (type.isBoxedPrimitive())
-            type = type.unbox();
-        if (STRING_TYPE.equals(type)) {
-            codeBuilder.addStatement("$L = reader.nextString()", dest);
+        TypeName typeName = TypeName.get(type);
+        if (typeName.isBoxedPrimitive())
+            typeName = typeName.unbox();
+        if (STRING_TYPE.equals(typeName)) {
+            codeBuilder.addStatement("$L = $L.nextString()", dest, ctx.readerName);
             ok = true;
-        } else if (TypeName.BOOLEAN.equals(type)) {
-            codeBuilder.addStatement("$L = reader.nextBoolean()", dest);
+        } else if (TypeName.BOOLEAN.equals(typeName)) {
+            codeBuilder.addStatement("$L = $L.nextBoolean()", dest, ctx.readerName);
             ok = true;
-        } else if (TypeName.INT.equals(type)) {
-            codeBuilder.addStatement("$L = reader.nextInt()", dest);
+        } else if (TypeName.INT.equals(typeName)) {
+            codeBuilder.addStatement("$L = $L.nextInt()", dest, ctx.readerName);
             ok = true;
-        } else if (TypeName.LONG.equals(type)) {
-            codeBuilder.addStatement("$L = reader.nextLong()", dest);
+        } else if (TypeName.LONG.equals(typeName)) {
+            codeBuilder.addStatement("$L = $L.nextLong()", dest, ctx.readerName);
             ok = true;
-        } else if (TypeName.FLOAT.equals(type)) {
-            codeBuilder.addStatement("$L = (float) reader.nextDouble()", dest);
+        } else if (TypeName.FLOAT.equals(typeName)) {
+            codeBuilder.addStatement("$L = (float) $L.nextDouble()", dest, ctx.readerName);
             ok = true;
-        } else if (TypeName.DOUBLE.equals(type)) {
-            codeBuilder.addStatement("$L = reader.nextDouble()", dest);
+        } else if (TypeName.DOUBLE.equals(typeName)) {
+            codeBuilder.addStatement("$L = $L.nextDouble()", dest, ctx.readerName);
             ok = true;
         }
-        if (ok) {
-            String gotFlag = ctx.gotFlags.get(field.getSimpleName().toString());
+        if (ok && name != null) {
+            String gotFlag = ctx.gotFlags.get(name);
             if (gotFlag != null)
                 codeBuilder.addStatement("$L = true", gotFlag);
         }
@@ -48,10 +46,10 @@ public final class PrimitiveGsonDelegate extends BaseGsonDelegate {
     }
 
     @Override
-    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
-        TypeName type = TypeName.get(field.asType());
-        if (STRING_TYPE.equals(type) || type.isBoxedPrimitive() || type.isPrimitive()) {
-            codeBuilder.addStatement("writer.value($L)", src);
+    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
+        TypeName typeName = TypeName.get(type);
+        if (STRING_TYPE.equals(typeName) || typeName.isBoxedPrimitive() || typeName.isPrimitive()) {
+            codeBuilder.addStatement("$L.value($L)", ctx.writerName, src);
             return true;
         }
         return false;

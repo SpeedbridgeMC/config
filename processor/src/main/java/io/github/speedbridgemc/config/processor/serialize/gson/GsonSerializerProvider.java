@@ -18,6 +18,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import java.io.*;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.Map;
 
 @ApiStatus.Internal
@@ -43,29 +44,26 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 ctx.nonNullAnnotation, ctx.nullableAnnotation);
         gCtx.init(processingEnv);
         SerializerComponent.getMissingErrorMessages(processingEnv, fields, ctx.defaultMissingErrorMessage, gCtx.missingErrorMessages);
-        for (VariableElement field : fields) {
-            String fieldName = field.getSimpleName().toString();
-            if (gCtx.missingErrorMessages.get(fieldName) != null)
-                gCtx.gotFlags.put(fieldName, "got_" + fieldName);
-        }
+        generateGotFlags(gCtx, fields);
         String objName = "config";
         ctx.readMethodBuilder.addCode("$1T $2L = new $1T();\n", configType, objName);
-        CodeBlock.Builder codeBuilder = generateGotFlags(gCtx);
+        CodeBlock.Builder codeBuilder = generateGotFlagDecls(gCtx);
         ctx.readMethodBuilder.addCode(codeBuilder.build());
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
-                .beginControlFlow("try ($4T reader = new $4T(new $3T(new $2T($1T.newInputStream(path)))))",
-                        Files.class, InputStreamReader.class, BufferedReader.class, readerType)
-                .addStatement("reader.beginObject()")
-                .beginControlFlow("while (reader.hasNext())")
-                .addStatement("$T token = reader.peek()", tokenType)
+                .beginControlFlow("try ($4T $5L = new $4T(new $3T(new $2T($1T.newInputStream(path)))))",
+                        Files.class, InputStreamReader.class, BufferedReader.class, readerType, gCtx.readerName)
+                .addStatement("$L.beginObject()", gCtx.readerName)
+                .beginControlFlow("while ($L.hasNext())", gCtx.readerName)
+                .addStatement("$T token = $L.peek()", tokenType, gCtx.readerName)
                 .beginControlFlow("if (token == $T.NAME)", tokenType)
-                .addStatement("String name = reader.nextName()")
+                .addStatement("String name = $L.nextName()", gCtx.readerName)
                 .build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             codeBuilder = CodeBlock.builder()
                     .beginControlFlow("if ($S.equals(name))", fieldName);
-            gCtx.appendRead(field, objName + "." + fieldName, codeBuilder);
+            gCtx.fieldElement = field;
+            gCtx.appendRead(field.asType(), fieldName, objName + "." + fieldName, codeBuilder);
             ctx.readMethodBuilder.addCode(codeBuilder
                     .addStatement("continue")
                     .endControlFlow()
@@ -73,9 +71,9 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         }
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .endControlFlow()
-                .addStatement("reader.skipValue()")
+                .addStatement("$L.skipValue()", gCtx.readerName)
                 .endControlFlow()
-                .addStatement("reader.endObject()")
+                .addStatement("$L.endObject()", gCtx.readerName)
                 .nextControlFlow("catch ($T e)", malformedExceptionType)
                 .addStatement("throw new $T($S + path + $S, e)", IOException.class, "Failed to parse config file at \"", "\" to JSON!")
                 .endControlFlow()
@@ -84,24 +82,35 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 .addStatement("return $L", objName)
                 .build());
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()
-                .beginControlFlow("try ($4T writer = new $4T(new $3T(new $2T($1T.newOutputStream(path)))))",
-                        Files.class, OutputStreamWriter.class, BufferedWriter.class, writerType)
-                .addStatement("writer.beginObject()")
+                .beginControlFlow("try ($4T $5L = new $4T(new $3T(new $2T($1T.newOutputStream(path)))))",
+                        Files.class, OutputStreamWriter.class, BufferedWriter.class, writerType, gCtx.writerName)
+                .addStatement("$L.beginObject()", gCtx.writerName)
                 .build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             codeBuilder = CodeBlock.builder()
-                    .addStatement("writer.name($S)", fieldName);
-            gCtx.appendWrite(field, objName + "." + fieldName, codeBuilder);
+                    .addStatement("$L.name($S)", gCtx.writerName, fieldName);
+            gCtx.fieldElement = field;
+            gCtx.appendWrite(field.asType(), fieldName, objName + "." + fieldName, codeBuilder);
             ctx.writeMethodBuilder.addCode(codeBuilder.build());
         }
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()
-                .addStatement("writer.endObject()")
+                .addStatement("$L.endObject()", gCtx.writerName)
                 .endControlFlow()
                 .build());
     }
 
-    public static @NotNull CodeBlock.Builder generateGotFlags(@NotNull GsonContext gCtx) {
+    public static void generateGotFlags(@NotNull GsonContext gCtx, @NotNull List<@NotNull VariableElement> fields) {
+        for (VariableElement field : fields) {
+            String fieldName = field.getSimpleName().toString();
+            if (gCtx.missingErrorMessages.get(fieldName) != null) {
+                String fieldNameTS = Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+                gCtx.gotFlags.put(fieldName, "got" + fieldNameTS);
+            }
+        }
+    }
+
+    public static @NotNull CodeBlock.Builder generateGotFlagDecls(@NotNull GsonContext gCtx) {
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (String gotFlagVar : gCtx.gotFlags.values())
             codeBuilder.addStatement("boolean $L = false", gotFlagVar);

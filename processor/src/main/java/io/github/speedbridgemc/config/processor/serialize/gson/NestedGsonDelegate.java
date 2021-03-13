@@ -9,6 +9,7 @@ import io.github.speedbridgemc.config.processor.serialize.SerializerComponent;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
@@ -20,17 +21,22 @@ import java.util.List;
 // not annotated with @AutoService, GsonContext manually calls this delegate
 public final class NestedGsonDelegate extends BaseGsonDelegate {
     @Override
-    public boolean appendRead(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
-        TypeMirror typeMirror = field.asType();
-        Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
+    public boolean appendRead(@NotNull GsonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
+        Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Field has non-class type with no special delegate", field);
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    "Serializer: Field has non-class type with no special delegate", ctx.fieldElement);
             return false;
         }
         TypeElement typeElement = (TypeElement) typeElementRaw;
-        TypeName typeName = TypeName.get(typeMirror);
+        TypeName typeName = TypeName.get(type);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$L = $L(reader)", dest, methodName);
+        codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.readerName);
+        if (name != null) {
+            String gotFlag = ctx.gotFlags.get(name);
+            if (gotFlag != null)
+                codeBuilder.addStatement("$L = true", gotFlag);
+        }
         return true;
     }
 
@@ -40,7 +46,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
              return methodName;
         ctx.generatedMethods.add(methodName);
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
-        ParameterSpec.Builder readerParamBuilder = ParameterSpec.builder(ctx.readerType, "reader");
+        ParameterSpec.Builder readerParamBuilder = ParameterSpec.builder(ctx.readerType, ctx.readerName);
         if (ctx.nonNullAnnotation != null)
             readerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
@@ -53,11 +59,11 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         String objName = "obj" + typeElement.getSimpleName();
         methodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$1T $2L = new $1T()", typeName, objName)
-                .addStatement("reader.beginObject()")
-                .beginControlFlow("while (reader.hasNext())")
-                .addStatement("$T token = reader.peek()", ctx.tokenType)
+                .addStatement("$L.beginObject()", ctx.readerName)
+                .beginControlFlow("while ($L.hasNext())", ctx.readerName)
+                .addStatement("$T token = $L.peek()", ctx.tokenType, ctx.readerName)
                 .beginControlFlow("if (token == $T.NAME)", ctx.tokenType)
-                .addStatement("String name = reader.nextName()")
+                .addStatement("String name = $L.nextName()", ctx.readerName)
                 .build());
         HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
         HashMap<String, String> gotFlagsBackup = new HashMap<>(ctx.gotFlags);
@@ -65,19 +71,15 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         ctx.gotFlags.clear();
         String defaultMissingErrorMessage = SerializerComponent.getDefaultMissingErrorMessage(processingEnv, typeElement);
         SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, ctx.missingErrorMessages);
-        for (VariableElement field : fields) {
-            String fieldName = field.getSimpleName().toString();
-            String missingErrorMessage = ctx.missingErrorMessages.get(fieldName);
-            if (missingErrorMessage == null)
-                continue;
-            ctx.gotFlags.put(fieldName, "got_" + fieldName);
-        }
-        CodeBlock.Builder codeBuilder = GsonSerializerProvider.generateGotFlags(ctx);
+        GsonSerializerProvider.generateGotFlags(ctx, fields);
+        CodeBlock.Builder codeBuilder = GsonSerializerProvider.generateGotFlagDecls(ctx);
         methodBuilder.addCode(codeBuilder.build());
         for (VariableElement field : fields) {
+            String fieldName = field.getSimpleName().toString();
             codeBuilder = CodeBlock.builder()
-                    .beginControlFlow("if ($S.equals(name))", field.getSimpleName().toString());
-            ctx.appendRead(field, objName + "." + field.getSimpleName(), codeBuilder);
+                    .beginControlFlow("if ($S.equals(name))", fieldName);
+            ctx.fieldElement = field;
+            ctx.appendRead(field.asType(), fieldName, objName + "." + field.getSimpleName(), codeBuilder);
             methodBuilder.addCode(codeBuilder
                     .addStatement("continue")
                     .endControlFlow()
@@ -90,9 +92,9 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         ctx.gotFlags.putAll(gotFlagsBackup);
         methodBuilder.addCode(CodeBlock.builder()
                 .endControlFlow()
-                .addStatement("reader.skipValue()")
+                .addStatement("$L.skipValue()", ctx.readerName)
                 .endControlFlow()
-                .addStatement("reader.endObject()")
+                .addStatement("$L.endObject()", ctx.readerName)
                 .addStatement("return $L", objName)
                 .build());
         ctx.classBuilder.addMethod(methodBuilder.build());
@@ -100,17 +102,17 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
     }
 
     @Override
-    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull VariableElement field, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
-        TypeMirror typeMirror = field.asType();
-        Element typeElementRaw = processingEnv.getTypeUtils().asElement(typeMirror);
+    public boolean appendWrite(@NotNull GsonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
+        Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Field has non-class type with no special delegate", field);
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    "Serializer: Field has non-class type with no special delegate", ctx.fieldElement);
             return false;
         }
         TypeElement typeElement = (TypeElement) typeElementRaw;
-        TypeName typeName = TypeName.get(typeMirror);
+        TypeName typeName = TypeName.get(type);
         String methodName = generateWriteMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$L($L, writer)", methodName, src);
+        codeBuilder.addStatement("$L($L, $L)", methodName, src, ctx.writerName);
         return true;
     }
 
@@ -131,15 +133,15 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .addParameter(configParamBuilder.build())
                 .addParameter(writerParamBuilder.build())
                 .addException(IOException.class)
-                .addCode("writer.beginObject();\n");
+                .addCode("$L.beginObject();\n", ctx.writerName);
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             CodeBlock.Builder codeBuilder = CodeBlock.builder()
-                    .addStatement("writer.name($S)", fieldName);
-            ctx.appendWrite(field, "obj." + fieldName, codeBuilder);
+                    .addStatement("$L.name($S)", ctx.writerName, fieldName);
+            ctx.appendWrite(field.asType(), fieldName, "obj." + fieldName, codeBuilder);
             methodBuilder.addCode(codeBuilder.build());
         }
-        methodBuilder.addCode("writer.endObject();\n");
+        methodBuilder.addCode("$L.endObject();\n", ctx.writerName);
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;
     }

@@ -4,12 +4,16 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import io.github.speedbridgemc.config.processor.serialize.gson.ListArrayGsonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.gson.MapGsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.gson.NestedGsonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.gson.PrimitiveGsonDelegate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 import java.util.*;
 
 public final class GsonContext {
@@ -21,6 +25,8 @@ public final class GsonContext {
     public final @NotNull Map<@NotNull String, @Nullable String> missingErrorMessages;
     public final @NotNull TypeName readerType, writerType, tokenType;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
+    public @NotNull String readerName = "reader", writerName = "writer";
+    public @Nullable VariableElement fieldElement;
 
     @SuppressWarnings("RedundantSuppression")
     public GsonContext(TypeSpec.@NotNull Builder classBuilder, @NotNull TypeName readerType, @NotNull TypeName writerType,
@@ -36,8 +42,11 @@ public final class GsonContext {
         missingErrorMessages = new HashMap<>();
         ServiceLoader<GsonDelegate> delegateLoader = ServiceLoader.load(GsonDelegate.class, GsonContext.class.getClassLoader());
         delegates = new ArrayList<>();
+        delegates.add(new PrimitiveGsonDelegate());
         for (GsonDelegate delegate : delegateLoader)
             delegates.add(delegate);
+        delegates.add(new ListArrayGsonDelegate());
+        delegates.add(new MapGsonDelegate());
         nestedDelegate = new NestedGsonDelegate();
     }
 
@@ -47,35 +56,35 @@ public final class GsonContext {
         nestedDelegate.init(processingEnv);
     }
 
-    public boolean appendRead(@NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
+    public boolean appendRead(@NotNull TypeMirror type, @Nullable String name, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
         for (GsonDelegate delegate : delegates) {
-            if (delegate.appendRead(this, field, dest, codeBuilder))
+            if (delegate.appendRead(this, type, name, dest, codeBuilder))
                 return true;
         }
-        return useNested && appendReadNested(field, dest, codeBuilder);
+        return useNested && appendReadNested(type, name, dest, codeBuilder);
     }
 
-    public boolean appendRead(@NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
-        return appendRead(field, dest, codeBuilder, true);
+    public boolean appendRead(@NotNull TypeMirror type, @Nullable String name, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
+        return appendRead(type, name, dest, codeBuilder, true);
     }
 
-    public boolean appendReadNested(@NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
-        return nestedDelegate.appendRead(this, field, dest, codeBuilder);
+    public boolean appendReadNested(@NotNull TypeMirror type, @Nullable String name, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
+        return nestedDelegate.appendRead(this, type, name, dest, codeBuilder);
     }
 
-    public boolean appendWrite(@NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
+    public boolean appendWrite(@NotNull TypeMirror type, @Nullable String name, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
         for (GsonDelegate delegate : delegates) {
-            if (delegate.appendWrite(this, field, src, codeBuilder))
+            if (delegate.appendWrite(this, type, name, src, codeBuilder))
                 return true;
         }
-        return useNested && appendWriteNested(field, src, codeBuilder);
+        return useNested && appendWriteNested(type, name, src, codeBuilder);
     }
 
-    public boolean appendWrite(@NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
-        return appendWrite(field, src, codeBuilder, true);
+    public boolean appendWrite(@NotNull TypeMirror type, @Nullable String name, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
+        return appendWrite(type, name, src, codeBuilder, true);
     }
 
-    public boolean appendWriteNested(@NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
-        return nestedDelegate.appendWrite(this, field, src, codeBuilder);
+    public boolean appendWriteNested(@NotNull TypeMirror type, @Nullable String name, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
+        return nestedDelegate.appendWrite(this, type, name, src, codeBuilder);
     }
 }
