@@ -31,8 +31,10 @@ public final class TestConfig {
     public int[] testArray = new int[] { 1, 2, 3 };
     public List<String> testList = new ArrayList<>();
     public List<int[]> testNestedList = new ArrayList<>();
+    public List<HelloWorld> testList2 = new ArrayList<>();
     public Map<String, StringEntry> testStringKeysMap = new HashMap<>();
     public Map<MapKey, MapEntry> testMap = new HashMap<>();
+    public Map<String, Map<String, String>> testNestedMap = new HashMap<>();
 
     public TestConfig() {
         testList.add("a");

@@ -4,13 +4,16 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.jankson.ListArrayJanksonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.jankson.MapJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.jankson.NestedJanksonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.jankson.PrimitiveJanksonDelegate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
 import java.util.*;
 
 public final class JanksonContext {
@@ -19,24 +22,32 @@ public final class JanksonContext {
     public final @NotNull TypeSpec.Builder classBuilder;
     public final @NotNull Set<@NotNull String> generatedMethods;
     public final @NotNull Map<@NotNull String, @NotNull String> missingErrorMessages;
-    public final @NotNull TypeName objectType, primitiveType;
-    public @NotNull String objectName = "jObj", primitiveName = "jPrim";
+    public final @NotNull TypeName elementType, objectType, primitiveType, arrayType;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
+    public @NotNull String elementName = "jElem", objectName = "jObj", primitiveName = "jPrim", arrayName = "jArr";
+    public @Nullable VariableElement fieldElement;
 
     @SuppressWarnings("RedundantSuppression")
-    public JanksonContext(TypeSpec.@NotNull Builder classBuilder, @NotNull TypeName objectType,
-                          @NotNull TypeName primitiveType, @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
+    public JanksonContext(TypeSpec.@NotNull Builder classBuilder,
+                          @NotNull TypeName elementType, @NotNull TypeName objectType,
+                          @NotNull TypeName primitiveType, @NotNull TypeName arrayType,
+                          @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
         this.classBuilder = classBuilder;
+        this.elementType = elementType;
         this.objectType = objectType;
         this.primitiveType = primitiveType;
+        this.arrayType = arrayType;
         this.nonNullAnnotation = nonNullAnnotation;
         this.nullableAnnotation = nullableAnnotation;
         generatedMethods = new HashSet<>();
         ServiceLoader<JanksonDelegate> delegateLoader = ServiceLoader.load(JanksonDelegate.class, JanksonContext.class.getClassLoader());
         delegates = new ArrayList<>();
         missingErrorMessages = new HashMap<>();
+        delegates.add(new PrimitiveJanksonDelegate());
         for (JanksonDelegate delegate : delegateLoader)
             delegates.add(delegate);
+        delegates.add(new ListArrayJanksonDelegate());
+        delegates.add(new MapJanksonDelegate());
         nestedDelegate = new NestedJanksonDelegate();
     }
 
@@ -46,35 +57,35 @@ public final class JanksonContext {
         nestedDelegate.init(processingEnv);
     }
 
-    public boolean appendRead(@NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
+    public boolean appendRead(@NotNull TypeMirror type, @Nullable String name, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
         for (JanksonDelegate delegate : delegates) {
-            if (delegate.appendRead(this, field, dest, codeBuilder))
+            if (delegate.appendRead(this, type, name, dest, codeBuilder))
                 return true;
         }
-        return useNested && appendReadNested(field, dest, codeBuilder);
+        return useNested && appendReadNested(type, name, dest, codeBuilder);
     }
 
-    public boolean appendRead(@NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
-        return appendRead(field, dest, codeBuilder, true);
+    public boolean appendRead(@NotNull TypeMirror type, @Nullable String name, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
+        return appendRead(type, name, dest, codeBuilder, true);
     }
 
-    public boolean appendReadNested(@NotNull VariableElement field, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
-        return nestedDelegate.appendRead(this, field, dest, codeBuilder);
+    public boolean appendReadNested(@NotNull TypeMirror type, @Nullable String name, @NotNull String dest, @NotNull CodeBlock.Builder codeBuilder) {
+        return nestedDelegate.appendRead(this, type, name, dest, codeBuilder);
     }
 
-    public boolean appendWrite(@NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
+    public boolean appendWrite(@NotNull TypeMirror type, @Nullable String name, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder, boolean useNested) {
         for (JanksonDelegate delegate : delegates) {
-            if (delegate.appendWrite(this, field, src, codeBuilder))
+            if (delegate.appendWrite(this, type, name, src, codeBuilder))
                 return true;
         }
-        return useNested && appendWriteNested(field, src, codeBuilder);
+        return useNested && appendWriteNested(type, name, src, codeBuilder);
     }
 
-    public boolean appendWrite(@NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
-        return appendWrite(field, src, codeBuilder, true);
+    public boolean appendWrite(@NotNull TypeMirror type, @Nullable String name, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
+        return appendWrite(type, name, src, codeBuilder, true);
     }
 
-    public boolean appendWriteNested(@NotNull VariableElement field, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
-        return nestedDelegate.appendWrite(this, field, src, codeBuilder);
+    public boolean appendWriteNested(@NotNull TypeMirror type, @Nullable String name, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
+        return nestedDelegate.appendWrite(this, type, name, src, codeBuilder);
     }
 }

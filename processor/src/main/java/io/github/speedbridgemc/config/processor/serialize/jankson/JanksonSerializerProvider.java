@@ -43,7 +43,9 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         TypeName configType = ctx.configType;
         TypeName janksonType = TypeUtils.getTypeName(processingEnv, basePackage + ".Jankson");
         TypeName grammarType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonGrammar");
+        TypeName elementType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonElement");
         TypeName objectType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonObject");
+        TypeName arrayType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonArray");
         TypeName primitiveType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonPrimitive");
         TypeName syntaxErrorType = TypeUtils.getTypeName(processingEnv, basePackage + ".api.SyntaxError");
         classBuilder
@@ -53,7 +55,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                 .addField(FieldSpec.builder(grammarType, "GRAMMAR", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                         .initializer("$T.builder()$L.build()", grammarType, createGrammarCode(grammarMap))
                         .build());
-        JanksonContext jCtx = new JanksonContext(classBuilder, objectType, primitiveType, ctx.nonNullAnnotation, ctx.nullableAnnotation);
+        JanksonContext jCtx = new JanksonContext(classBuilder, elementType, objectType, primitiveType, arrayType, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         jCtx.init(processingEnv);
         String defaultMissingErrorMessage = ctx.defaultMissingErrorMessage;
         SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, jCtx.missingErrorMessages);
@@ -63,10 +65,15 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                 .beginControlFlow("try ($T in = $T.newInputStream(path))", InputStream.class, Files.class)
                 .addStatement("$T $L = JANKSON.load(in)", objectType, jCtx.objectName)
                 .addStatement("$T $L", primitiveType, jCtx.primitiveName)
+                .addStatement("$T $L", arrayType, jCtx.arrayName)
+                .addStatement("$T $L", elementType, jCtx.elementName)
                 .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
-        for (VariableElement field : fields)
-            jCtx.appendRead(field, configName + "." + field.getSimpleName(), codeBuilder);
+        for (VariableElement field : fields) {
+            String fieldName = field.getSimpleName().toString();
+            jCtx.fieldElement = field;
+            jCtx.appendRead(field.asType(), fieldName, configName + "." + fieldName, codeBuilder);
+        }
         ctx.readMethodBuilder.addCode(codeBuilder.build());
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .nextControlFlow("catch ($T e)", syntaxErrorType)
@@ -78,8 +85,11 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                 .addStatement("$1T $2L = new $1T()", objectType, jCtx.objectName)
                 .build());
         codeBuilder = CodeBlock.builder();
-        for (VariableElement field : fields)
-            jCtx.appendWrite(field, configName + "." + field.getSimpleName().toString(), codeBuilder);
+        for (VariableElement field : fields) {
+            String fieldName = field.getSimpleName().toString();
+            jCtx.fieldElement = field;
+            jCtx.appendWrite(field.asType(), fieldName, configName + "." + fieldName, codeBuilder);
+        }
         ctx.writeMethodBuilder.addCode(codeBuilder.build());
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()
                 .addStatement("String json = $L.toJson(GRAMMAR)", jCtx.objectName)
