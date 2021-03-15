@@ -19,9 +19,9 @@ import javax.tools.Diagnostic;
 import java.util.List;
 
 @AutoService(ComponentProvider.class)
-public final class RemoteConfigComponent extends BaseComponentProvider {
-    public RemoteConfigComponent() {
-        super("speedbridge-config:remote");
+public final class RemoteStorageComponent extends BaseComponentProvider {
+    public RemoteStorageComponent() {
+        super("speedbridge-config:remote-storage");
     }
 
     @Override

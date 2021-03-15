@@ -16,7 +16,7 @@ import java.util.Map;
                 value = "speedbridge-config:serializer",
                 params = "provider=speedbridge-config:jankson"
                 ),
-                @Component("speedbridge-config:remote")
+                @Component("speedbridge-config:remote-storage")
         },
         nonNullAnnotation = "org.jetbrains.annotations.NotNull", nullableAnnotation = "org.jetbrains.annotations.Nullable")
 public final class TestConfig {
