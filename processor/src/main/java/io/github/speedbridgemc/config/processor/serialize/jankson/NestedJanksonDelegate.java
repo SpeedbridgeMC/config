@@ -5,7 +5,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import io.github.speedbridgemc.config.processor.serialize.SerializerComponent;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.NotNull;
@@ -53,7 +53,7 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         if (ctx.nullableAnnotation != null)
             methodBuilder.addAnnotation(ctx.nullableAnnotation);
         String configName = "obj" + typeElement.getSimpleName();
-        String defaultMissingErrorMessage = SerializerComponent.getDefaultMissingErrorMessage(processingEnv, typeElement);
+        String defaultMissingErrorMessage = SerializerComponentProvider.getDefaultMissingErrorMessage(processingEnv, typeElement);
         methodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("if ($L == $T.INSTANCE)", ctx.elementName, ctx.nullType)
                 .addStatement("return null")

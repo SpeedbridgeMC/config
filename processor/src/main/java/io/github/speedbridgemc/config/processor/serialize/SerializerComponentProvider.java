@@ -20,17 +20,16 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.*;
 
 @ApiStatus.Internal
 @AutoService(ComponentProvider.class)
-public final class SerializerComponent extends BaseComponentProvider {
+public final class SerializerComponentProvider extends BaseComponentProvider {
     private HashMap<String, SerializerProvider> serializerProviders;
 
-    public SerializerComponent() {
+    public SerializerComponentProvider() {
         super("speedbridge-config:serializer");
     }
 
@@ -39,7 +38,7 @@ public final class SerializerComponent extends BaseComponentProvider {
         super.init(processingEnv);
 
         serializerProviders = new HashMap<>();
-        ServiceLoader<SerializerProvider> spLoader = ServiceLoader.load(SerializerProvider.class, SerializerComponent.class.getClassLoader());
+        ServiceLoader<SerializerProvider> spLoader = ServiceLoader.load(SerializerProvider.class, SerializerComponentProvider.class.getClassLoader());
         for (SerializerProvider provider : spLoader)
             serializerProviders.put(provider.getId(), provider);
 

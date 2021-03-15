@@ -7,7 +7,7 @@ import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import io.github.speedbridgemc.config.processor.serialize.SerializerComponent;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.BaseSerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
@@ -147,7 +147,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                                                                  @NotNull List<VariableElement> fields,
                                                                  @NotNull String objectName) {
         HashMap<String, String> missingErrorMessages = new HashMap<>();
-        SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, missingErrorMessages);
+        SerializerComponentProvider.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, missingErrorMessages);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (Map.Entry<String, String> entry : missingErrorMessages.entrySet()) {
             if (entry.getValue() == null)

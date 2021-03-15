@@ -6,7 +6,7 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import io.github.speedbridgemc.config.processor.serialize.SerializerComponent;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.BaseSerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
@@ -43,7 +43,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         GsonContext gCtx = new GsonContext(classBuilder, readerType, writerType, tokenType,
                 ctx.nonNullAnnotation, ctx.nullableAnnotation);
         gCtx.init(processingEnv);
-        SerializerComponent.getMissingErrorMessages(processingEnv, fields, ctx.defaultMissingErrorMessage, gCtx.missingErrorMessages);
+        SerializerComponentProvider.getMissingErrorMessages(processingEnv, fields, ctx.defaultMissingErrorMessage, gCtx.missingErrorMessages);
         generateGotFlags(gCtx, fields);
         String objName = "config";
         ctx.readMethodBuilder.addCode("$1T $2L = new $1T();\n", configType, objName);
