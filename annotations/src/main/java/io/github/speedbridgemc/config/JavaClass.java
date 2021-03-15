@@ -10,5 +10,5 @@ import static java.lang.annotation.ElementType.*;
 
 @Target({ METHOD, FIELD, PARAMETER, LOCAL_VARIABLE, ANNOTATION_TYPE })
 @Retention(RetentionPolicy.SOURCE)
-@Language(value = "JAVA", prefix = "class X { Class<?> clazz = ", suffix = ".class }")
+@Language(value = "JAVA", prefix = "final class X { Class<?> clazz = ", suffix = ".class }")
 public @interface JavaClass { }

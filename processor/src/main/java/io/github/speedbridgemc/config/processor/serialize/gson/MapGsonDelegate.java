@@ -54,6 +54,12 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
         if (keyType == null || valueType == null)
             return false;
 
+        codeBuilder
+                .beginControlFlow("if ($L.peek() == $T.NULL)", ctx.readerName, ctx.tokenType)
+                .addStatement("$L.skipValue()", ctx.readerName)
+                .addStatement("$L = null", dest)
+                .nextControlFlow("else");
+
         boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
         String tokenDest, nameDest, keyDest, valueDest;
         String unqDest = dest;
@@ -86,6 +92,18 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                     .addStatement("$L.endObject()", ctx.readerName);
         } else {
             // array of key/value pair objects
+            HashMap<String, String> gotFlagsBackup = new HashMap<>(ctx.gotFlags);
+            HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
+            ctx.gotFlags.clear();
+            String keyDestTS = Character.toUpperCase(keyDest.charAt(0)) + keyDest.substring(1);
+            ctx.gotFlags.put(keyDest, "got" + keyDestTS);
+            String valueDestTS = Character.toUpperCase(valueDest.charAt(0)) + valueDest.substring(1);
+            ctx.gotFlags.put(valueDest, "got" + valueDestTS);
+            ctx.missingErrorMessages.clear();
+            ctx.missingErrorMessages.put(keyDest, "Missing map entry key!");
+            ctx.missingErrorMessages.put(valueDest, "Missing map entry value!");
+
+            codeBuilder.add(GsonSerializerProvider.generateGotFlagDecls(ctx).build());
             codeBuilder
                     .addStatement("$T $L = null", keyType, keyDest)
                     .addStatement("$T $L = null", valueType, valueDest)
@@ -97,28 +115,39 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                     .beginControlFlow("if ($L == $T.NAME)", tokenDest, ctx.tokenType)
                     .addStatement("String $L = $L.nextName()", nameDest, ctx.readerName)
                     .beginControlFlow("if ($S.equals($L))", "key", nameDest);
-            ctx.appendRead(keyType, null, keyDest, codeBuilder);
+            ctx.appendRead(keyType, keyDest, keyDest, codeBuilder);
             codeBuilder
                     .addStatement("continue")
                     .nextControlFlow("else if ($S.equals($L))", "value", nameDest);
-            ctx.appendRead(valueType, null, valueDest, codeBuilder);
+            ctx.appendRead(valueType, valueDest, valueDest, codeBuilder);
             codeBuilder
                     .addStatement("continue")
                     .endControlFlow()
                     .endControlFlow()
                     .addStatement("$L.endObject()", ctx.readerName)
-                    .endControlFlow()
-                    .beginControlFlow("if ($L != null && $L != null)", keyDest, valueDest)
+                    .endControlFlow();
+            codeBuilder.add(GsonSerializerProvider.generateGotFlagChecks(ctx).build());
+            codeBuilder
                     .addStatement("$L.put($L, $L)", dest, keyDest, valueDest)
-                    // TODO throw error if key/value is missing
                     .addStatement("$L = null", keyDest)
                     .addStatement("$L = null", valueDest)
                     .endControlFlow()
-                    .endControlFlow()
                     .addStatement("$L.endArray()", ctx.readerName);
+
+            ctx.gotFlags.clear();
+            ctx.gotFlags.putAll(gotFlagsBackup);
+            ctx.missingErrorMessages.clear();
+            ctx.missingErrorMessages.putAll(missingErrorMessagesBackup);
         }
 
         ctx.fieldElement = fieldElementBackup;
+
+        codeBuilder.endControlFlow();
+        if (name != null) {
+            String gotFlag = ctx.gotFlags.get(name);
+            if (gotFlag != null)
+                codeBuilder.addStatement("$L = true", gotFlag);
+        }
 
         return true;
     }
@@ -144,6 +173,11 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
         }
         if (keyType == null || valueType == null)
             return false;
+
+        codeBuilder
+                .beginControlFlow("if ($L == null)", src)
+                .addStatement("$L.nullValue()", ctx.writerName)
+                .nextControlFlow("else");
 
         boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
         String entrySrc, keySrc, valueSrc;
@@ -191,6 +225,8 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
         }
 
         ctx.fieldElement = fieldElementBackup;
+
+        codeBuilder.endControlFlow();
 
         return true;
     }

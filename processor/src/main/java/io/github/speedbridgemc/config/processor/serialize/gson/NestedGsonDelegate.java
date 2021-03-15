@@ -54,10 +54,14 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .returns(typeName)
                 .addParameter(readerParamBuilder.build())
                 .addException(IOException.class);
-        if (ctx.nonNullAnnotation != null)
-            methodBuilder.addAnnotation(ctx.nonNullAnnotation);
+        if (ctx.nullableAnnotation != null)
+            methodBuilder.addAnnotation(ctx.nullableAnnotation);
         String objName = "obj" + typeElement.getSimpleName();
         methodBuilder.addCode(CodeBlock.builder()
+                .beginControlFlow("if ($L.peek() == $T.NULL)", ctx.readerName, ctx.tokenType)
+                .addStatement("$L.skipValue()", ctx.readerName)
+                .addStatement("return null")
+                .endControlFlow()
                 .addStatement("$1T $2L = new $1T()", typeName, objName)
                 .addStatement("$L.beginObject()", ctx.readerName)
                 .beginControlFlow("while ($L.hasNext())", ctx.readerName)
@@ -112,7 +116,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(type);
         String methodName = generateWriteMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$L($L, $L)", methodName, src, ctx.writerName);
+        codeBuilder.addStatement("$L($L, $L)", methodName, ctx.writerName, src);
         return true;
     }
 
@@ -122,18 +126,24 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
             return methodName;
         ctx.generatedMethods.add(methodName);
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
-        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, "obj");
-        if (ctx.nonNullAnnotation != null)
-            configParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         ParameterSpec.Builder writerParamBuilder = ParameterSpec.builder(ctx.writerType, "writer");
         if (ctx.nonNullAnnotation != null)
             writerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
+        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, "obj");
+        if (ctx.nullableAnnotation != null)
+            configParamBuilder.addAnnotation(ctx.nullableAnnotation);
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
-                .addParameter(configParamBuilder.build())
                 .addParameter(writerParamBuilder.build())
+                .addParameter(configParamBuilder.build())
                 .addException(IOException.class)
-                .addCode("$L.beginObject();\n", ctx.writerName);
+                .addCode(CodeBlock.builder()
+                        .beginControlFlow("if (obj == null)")
+                        .addStatement("$L.nullValue()", ctx.writerName)
+                        .addStatement("return")
+                        .endControlFlow()
+                        .addStatement("$L.beginObject()", ctx.writerName)
+                        .build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             CodeBlock.Builder codeBuilder = CodeBlock.builder()

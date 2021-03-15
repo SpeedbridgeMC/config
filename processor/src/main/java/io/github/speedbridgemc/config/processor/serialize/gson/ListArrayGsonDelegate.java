@@ -55,6 +55,12 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
         if (componentType == null)
             return false;
 
+        codeBuilder
+                .beginControlFlow("if ($L.peek() == $T.NULL)", ctx.readerName, ctx.tokenType)
+                .addStatement("$L.skipValue()", ctx.readerName)
+                .addStatement("$L = null", dest)
+                .nextControlFlow("else");
+
         TypeName componentTypeName = TypeName.get(componentType);
         TypeName oldComponentTypeName = componentTypeName;
         String oldDest = dest;
@@ -100,6 +106,13 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
 
         ctx.fieldElement = fieldElementBackup;
 
+        codeBuilder.endControlFlow();
+        if (name != null) {
+            String gotFlag = ctx.gotFlags.get(name);
+            if (gotFlag != null)
+                codeBuilder.addStatement("$L = true", gotFlag);
+        }
+
         return true;
     }
 
@@ -135,6 +148,11 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
             unqSrc = src.substring(dotI + 1);
         compSrc = unqSrc + "Comp";
 
+        codeBuilder
+                .beginControlFlow("if ($L == null)", src)
+                .addStatement("$L.nullValue()", ctx.writerName)
+                .nextControlFlow("else");
+
         VariableElement fieldElementBackup = ctx.fieldElement;
         ctx.fieldElement = null;
 
@@ -145,6 +163,8 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
                 .addStatement("$L.endArray()", ctx.writerName);
 
         ctx.fieldElement = fieldElementBackup;
+
+        codeBuilder.endControlFlow();
 
         return true;
     }
