@@ -10,7 +10,6 @@ import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import jdk.nashorn.internal.ir.annotations.Immutable;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -23,9 +22,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -83,8 +80,22 @@ public final class ConfigProcessor extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        try {
+            run(roundEnv);
+        } catch (Exception e) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    "Speedbridge Config annotation processor failed exceptionally!\n" + sw.toString());
+            e.printStackTrace();
+        }
+        return true;
+    }
+
+    private void run(RoundEnvironment roundEnv) {
         if (componentProviders == null)
-            return true;
+            return;
         for (Element element : roundEnv.getElementsAnnotatedWith(Config.class)) {
             if (element.getKind() != ElementKind.CLASS) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
@@ -236,21 +247,19 @@ public final class ConfigProcessor extends AbstractProcessor {
             if (nullableAnnotation != null)
                 configFieldBuilder.addAnnotation(nullableAnnotation);
             classBuilder.addField(configFieldBuilder.build());
-            classBuilder.addMethod(MethodSpec.methodBuilder("reset")
-                    .addAnnotation(Override.class)
-                    .addModifiers(Modifier.PUBLIC)
-                    .addCode("config = new $T();", configTypeName)
-                    .build());
             MethodSpec.Builder getMethodBuilder = MethodSpec.methodBuilder("get")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
                     .returns(configTypeName);
             if (nonNullAnnotation != null)
                 getMethodBuilder.addAnnotation(nonNullAnnotation);
-            MethodSpec.Builder loadMethodBuilder = MethodSpec.methodBuilder("load")
+            MethodSpec.Builder resetMethodBuilder = MethodSpec.methodBuilder("reset")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .addCode("$T config = null;\n", configTypeName);
+                    .addCode("config = new $T();\n", configTypeName);
+            MethodSpec.Builder loadMethodBuilder = MethodSpec.methodBuilder("load")
+                    .addAnnotation(Override.class)
+                    .addModifiers(Modifier.PUBLIC);
             if (nonNullAnnotation != null)
                 loadMethodBuilder.addAnnotation(nonNullAnnotation);
             MethodSpec.Builder saveMethodBuilder = MethodSpec.methodBuilder("save")
@@ -286,7 +295,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                 }
                 ComponentContext ctx = new ComponentContext(handlerName, handlerInterfaceTypeName, handlerInterfaceTypeElement,
                         handlerInterfaceMethods, nonNullAnnotation, nullableAnnotation,
-                        configTypeName, params, getMethodBuilder, loadMethodBuilder, saveMethodBuilder);
+                        configTypeName, params, getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }
             classBuilder.addMethod(getMethodBuilder.addCode(CodeBlock.builder()
@@ -295,7 +304,8 @@ public final class ConfigProcessor extends AbstractProcessor {
                     .endControlFlow()
                     .addStatement("return config")
                     .build()).build())
-                    .addMethod(loadMethodBuilder.addCode("this.config = config;").build())
+                    .addMethod(resetMethodBuilder.build())
+                    .addMethod(loadMethodBuilder.build())
                     .addMethod(saveMethodBuilder.build());
             try {
                 JavaFile.builder(handlerPackage, classBuilder.build())
@@ -306,7 +316,6 @@ public final class ConfigProcessor extends AbstractProcessor {
                 e.printStackTrace();
             }
         }
-        return true;
     }
 
     @Override

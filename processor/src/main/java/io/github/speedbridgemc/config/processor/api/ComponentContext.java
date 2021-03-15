@@ -19,7 +19,7 @@ public final class ComponentContext {
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
     public final @NotNull TypeName configType;
     public final @NotNull Multimap<String, String> params;
-    public final @NotNull MethodSpec.Builder getMethodBuilder, loadMethodBuilder, saveMethodBuilder;
+    public final @NotNull MethodSpec.Builder getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder;
 
     public ComponentContext(@NotNull String handlerName,
                             @NotNull TypeName handlerInterfaceTypeName,
@@ -28,9 +28,8 @@ public final class ComponentContext {
                             @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation,
                             @NotNull TypeName configType,
                             @NotNull Multimap<String, String> params,
-                            MethodSpec.@NotNull Builder getMethodBuilder,
-                            MethodSpec.@NotNull Builder loadMethodBuilder,
-                            MethodSpec.@NotNull Builder saveMethodBuilder) {
+                            MethodSpec.@NotNull Builder getMethodBuilder, MethodSpec.@NotNull Builder resetMethodBuilder,
+                            MethodSpec.@NotNull Builder loadMethodBuilder, MethodSpec.@NotNull Builder saveMethodBuilder) {
         this.handlerName = handlerName;
         this.handlerInterfaceTypeName = handlerInterfaceTypeName;
         this.handlerInterfaceTypeElement = handlerInterfaceTypeElement;
@@ -40,6 +39,7 @@ public final class ComponentContext {
         this.configType = configType;
         this.params = params;
         this.getMethodBuilder = getMethodBuilder;
+        this.resetMethodBuilder = resetMethodBuilder;
         this.loadMethodBuilder = loadMethodBuilder;
         this.saveMethodBuilder = saveMethodBuilder;
     }

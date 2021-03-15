@@ -112,17 +112,18 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 defaultMissingErrorMessage, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         provider.process(name, type, fields, sCtx, classBuilder);
         classBuilder.addMethod(readMethodBuilder.build()).addMethod(writeMethodBuilder.build());
+        ctx.resetMethodBuilder.addCode("save();\n");
         ctx.loadMethodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("try")
                 .addStatement("config = read(path)")
                 .nextControlFlow("catch ($T e)", NoSuchFileException.class)
+                .addStatement("log($S + path + $S, null)", "File \"", "\" does not exist, loading default values")
                 .nextControlFlow("catch ($T e)", IOException.class)
-                .addStatement("log($S + path + $S, e)", "Failed to read from config file at \"", "\"!")
+                .addStatement("log($S + path + $S, e)", "Failed to read from config file at \"", "\"! Loading default values")
                 // TODO backup
                 .endControlFlow()
                 .beginControlFlow("if (config == null)")
-                .addStatement("config = new $T()", configType)
-                .addStatement("save()")
+                .addStatement("reset()")
                 .endControlFlow()
                 .build());
         ctx.saveMethodBuilder.addCode(CodeBlock.builder()

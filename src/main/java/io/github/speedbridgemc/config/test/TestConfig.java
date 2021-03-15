@@ -2,6 +2,8 @@ package io.github.speedbridgemc.config.test;
 
 import io.github.speedbridgemc.config.Component;
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.EnforceNotNull;
+import io.github.speedbridgemc.config.FloatingRange;
 import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
 import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
 
@@ -16,15 +18,16 @@ import java.util.Map;
                 value = "speedbridge-config:serializer",
                 params = "provider=speedbridge-config:jankson"
                 ),
-                @Component("speedbridge-config:remote-storage")
+                @Component("speedbridge-config:remote-storage"),
+                @Component("speedbridge-config:validator")
         },
         nonNullAnnotation = "org.jetbrains.annotations.NotNull", nullableAnnotation = "org.jetbrains.annotations.Nullable")
 public final class TestConfig {
     public boolean testBool = false;
     @ThrowIfMissing(message = "test string is :crab:, also \"%s\" is missing")
     public String testString = "hello world";
-    public float testFloat = 21.5f;
-    public Integer testInt = 21;
+    public @FloatingRange(max = 50) float testFloat = 21.5f;
+    public @EnforceNotNull Integer testInt = 21;
     @UseDefaultIfMissing
     public HelloWorld helloWorld = new HelloWorld();
     public Nested3 nested3 = new Nested3();
