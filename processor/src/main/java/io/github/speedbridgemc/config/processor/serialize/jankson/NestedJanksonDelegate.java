@@ -15,7 +15,6 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 
 // not annotated with @AutoService, JanksonContext manually calls this delegate
@@ -31,34 +30,9 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(type);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
-        String objDest;
-        String unqDest = dest;
-        int dotI = dest.lastIndexOf('.');
-        if (dotI > 0)
-            unqDest = dest.substring(dotI + 1);
-        objDest = unqDest + "Obj";
-        if (name == null) {
-            codeBuilder.beginControlFlow("if ($L instanceof $T)", ctx.elementName, ctx.objectType)
-                    .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, objDest, ctx.elementName)
-                    .addStatement("$L = $L($L)", dest, methodName, objDest)
-                    .nextControlFlow("else")
-                    .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
-                            IOException.class, "Type mismatch! Expected \"JsonObject\", got \"", ctx.elementName, "\"!")
-                    .endControlFlow();
-        } else {
-            codeBuilder.addStatement("$1T $2L = $3L.get($1T.class, $4S)", ctx.objectType, objDest, ctx.objectName, name);
-            String missingErrorMessage = ctx.missingErrorMessages.get(name);
-            if (missingErrorMessage == null)
-                codeBuilder.beginControlFlow("if ($L != null)", objDest);
-            else {
-                codeBuilder.beginControlFlow("if ($L == null)", objDest)
-                        .addStatement("throw new $T($S)", IOException.class, String.format(missingErrorMessage, name))
-                        .endControlFlow();
-            }
-            codeBuilder.addStatement("$L = $L($L)", dest, methodName, objDest);
-            if (missingErrorMessage == null)
-                codeBuilder.endControlFlow();
-        }
+        if (name != null)
+            codeBuilder.addStatement("$L = $L.get($S)", ctx.elementName, ctx.objectName, name);
+        codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
         return true;
     }
 
@@ -68,37 +42,43 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
             return methodName;
         ctx.generatedMethods.add(methodName);
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
-        ParameterSpec.Builder objectParamBuilder = ParameterSpec.builder(ctx.objectType, ctx.objectName);
+        ParameterSpec.Builder elementParamBuilder = ParameterSpec.builder(ctx.elementType, ctx.elementName);
         if (ctx.nonNullAnnotation != null)
-            objectParamBuilder.addAnnotation(ctx.nonNullAnnotation);
+            elementParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
                 .returns(typeName)
-                .addParameter(objectParamBuilder.build())
+                .addParameter(elementParamBuilder.build())
                 .addException(IOException.class);
-        if (ctx.nonNullAnnotation != null)
-            methodBuilder.addAnnotation(ctx.nonNullAnnotation);
+        if (ctx.nullableAnnotation != null)
+            methodBuilder.addAnnotation(ctx.nullableAnnotation);
         String configName = "obj" + typeElement.getSimpleName();
+        String defaultMissingErrorMessage = SerializerComponent.getDefaultMissingErrorMessage(processingEnv, typeElement);
+        methodBuilder.addCode(CodeBlock.builder()
+                .beginControlFlow("if ($L == $T.INSTANCE)", ctx.elementName, ctx.nullType)
+                .addStatement("return null")
+                .nextControlFlow("else if ($L instanceof $T)", ctx.elementName, ctx.objectType)
+                .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, ctx.objectName, ctx.elementName)
+                .build());
+        methodBuilder.addCode(JanksonSerializerProvider.generateFieldChecks(processingEnv, defaultMissingErrorMessage, fields, ctx.objectName)
+                .build());
         methodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$1T $2L = new $1T()", typeName, configName)
                 .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                 .addStatement("$T $L", ctx.arrayType, ctx.arrayName)
-                .addStatement("$T $L", ctx.elementType, ctx.elementName)
                 .build());
-        HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
-        ctx.missingErrorMessages.clear();
-        String defaultMissingErrorMessage = SerializerComponent.getDefaultMissingErrorMessage(processingEnv, typeElement);
-        SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, ctx.missingErrorMessages);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             ctx.fieldElement = field;
             ctx.appendRead(field.asType(), fieldName, configName + "." + fieldName, codeBuilder);
         }
-        ctx.missingErrorMessages.clear();
-        ctx.missingErrorMessages.putAll(missingErrorMessagesBackup);
         methodBuilder.addCode(codeBuilder
                 .addStatement("return $L", configName)
+                .nextControlFlow("else")
+                .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
+                        IOException.class, "Type mismatch! Expected \"JsonObject\", got \"", ctx.elementName, "\"!")
+                .endControlFlow()
                 .build());
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;
@@ -130,16 +110,21 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
         String configName = "obj";
         ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, configName);
-        if (ctx.nonNullAnnotation != null)
-            configParamBuilder.addAnnotation(ctx.nonNullAnnotation);
+        if (ctx.nullableAnnotation != null)
+            configParamBuilder.addAnnotation(ctx.nullableAnnotation);
         MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
-                .returns(ctx.objectType)
+                .returns(ctx.elementType)
                 .addParameter(configParamBuilder.build())
                 .addException(IOException.class);
         if (ctx.nonNullAnnotation != null)
             methodBuilder.addAnnotation(ctx.nonNullAnnotation);
-        methodBuilder.addCode("$1T $2L = new $1T();\n", ctx.objectType, ctx.objectName);
+        methodBuilder.addCode(CodeBlock.builder()
+                .beginControlFlow("if ($L == null)", configName)
+                .addStatement("return $T.INSTANCE", ctx.nullType)
+                .endControlFlow()
+                .addStatement("$1T $2L = new $1T()", ctx.objectType, ctx.objectName)
+                .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();

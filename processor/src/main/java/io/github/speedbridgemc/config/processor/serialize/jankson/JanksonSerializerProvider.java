@@ -14,7 +14,9 @@ import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -24,6 +26,8 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @ApiStatus.Internal
@@ -47,6 +51,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         TypeName objectType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonObject");
         TypeName arrayType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonArray");
         TypeName primitiveType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonPrimitive");
+        TypeName nullType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonNull");
         TypeName syntaxErrorType = TypeUtils.getTypeName(processingEnv, basePackage + ".api.SyntaxError");
         classBuilder
                 .addField(FieldSpec.builder(janksonType, "JANKSON", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
@@ -55,15 +60,17 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                 .addField(FieldSpec.builder(grammarType, "GRAMMAR", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                         .initializer("$T.builder()$L.build()", grammarType, createGrammarCode(grammarMap))
                         .build());
-        JanksonContext jCtx = new JanksonContext(classBuilder, elementType, objectType, primitiveType, arrayType, ctx.nonNullAnnotation, ctx.nullableAnnotation);
+        JanksonContext jCtx = new JanksonContext(classBuilder, elementType, objectType, primitiveType, arrayType, nullType, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         jCtx.init(processingEnv);
-        String defaultMissingErrorMessage = ctx.defaultMissingErrorMessage;
-        SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, jCtx.missingErrorMessages);
         String configName = "config";
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$1T $2L = new $1T()", configType, configName)
                 .beginControlFlow("try ($T in = $T.newInputStream(path))", InputStream.class, Files.class)
                 .addStatement("$T $L = JANKSON.load(in)", objectType, jCtx.objectName)
+                .build());
+        ctx.readMethodBuilder.addCode(generateFieldChecks(processingEnv, ctx.defaultMissingErrorMessage, fields, jCtx.objectName)
+                .build());
+        ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$T $L", primitiveType, jCtx.primitiveName)
                 .addStatement("$T $L", arrayType, jCtx.arrayName)
                 .addStatement("$T $L", elementType, jCtx.elementName)
@@ -133,5 +140,23 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         return "." + grammarMap.entrySet().stream()
                 .map(entry -> String.format("%s(%b)", entry.getKey(), entry.getValue()))
                 .collect(Collectors.joining("."));
+    }
+
+    public static @NotNull CodeBlock.Builder generateFieldChecks(@NotNull ProcessingEnvironment processingEnv,
+                                                                 @Nullable String defaultMissingErrorMessage,
+                                                                 @NotNull List<VariableElement> fields,
+                                                                 @NotNull String objectName) {
+        HashMap<String, String> missingErrorMessages = new HashMap<>();
+        SerializerComponent.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, missingErrorMessages);
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+        for (Map.Entry<String, String> entry : missingErrorMessages.entrySet()) {
+            if (entry.getValue() == null)
+                continue;
+            codeBuilder
+                    .beginControlFlow("if (!$L.containsKey($S))", objectName, entry.getKey())
+                    .addStatement("throw new $T($S)", IOException.class, String.format(entry.getValue(), entry.getKey()))
+                    .endControlFlow();
+        }
+        return codeBuilder;
     }
 }

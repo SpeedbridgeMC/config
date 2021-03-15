@@ -1,5 +1,6 @@
 package io.github.speedbridgemc.config.processor.serialize.jankson;
 
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
@@ -11,29 +12,41 @@ import javax.lang.model.type.TypeMirror;
 import java.io.IOException;
 
 public final class PrimitiveJanksonDelegate extends BaseJanksonDelegate {
-    private final TypeName STRING_TYPE = TypeName.get(String.class);
+    private static final ClassName STRING_TYPE = ClassName.get(String.class);
 
     @Override
     public boolean appendRead(@NotNull JanksonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
         TypeName typeName = TypeName.get(type);
-        if (typeName.isBoxedPrimitive())
+        boolean string = STRING_TYPE.equals(typeName);
+        boolean boxed = typeName.isBoxedPrimitive();
+        if (boxed)
             typeName = typeName.unbox();
-        if (!STRING_TYPE.equals(typeName) && !typeName.isPrimitive())
+        else if (!string && !typeName.isPrimitive())
             return false;
-        String missingErrorMessage = null;
-        if (name == null)
-            codeBuilder.beginControlFlow("if ($L instanceof $T)", ctx.elementName, ctx.primitiveType)
+
+        if (name == null || boxed || string) {
+            if (name != null) {
+                codeBuilder
+                        .addStatement("$L = $L.get($S)", ctx.elementName, ctx.objectName, name);
+            }
+            if (boxed || string) {
+                // can be null
+                codeBuilder
+                        .beginControlFlow("if ($L == $T.INSTANCE)", ctx.elementName, ctx.nullType)
+                        .addStatement("$L = null", dest)
+                        .nextControlFlow("else if ($L instanceof $T)", ctx.elementName, ctx.primitiveType);
+            } else
+                codeBuilder
+                        .beginControlFlow("if ($L instanceof $T)", ctx.elementName, ctx.primitiveType);
+            codeBuilder
                     .addStatement("$L = ($T) $L", ctx.primitiveName, ctx.primitiveType, ctx.elementName);
-        else {
-            codeBuilder.addStatement("$L = $L.get($T.class, $S)", ctx.primitiveName, ctx.objectName, ctx.primitiveType, name);
-            missingErrorMessage = ctx.missingErrorMessages.get(name);
-            if (missingErrorMessage != null)
-                codeBuilder.beginControlFlow("if ($L == null)", ctx.primitiveName)
-                        .addStatement("throw new $T($S)", IOException.class, String.format(missingErrorMessage, name))
-                        .endControlFlow();
-            else
-                codeBuilder.beginControlFlow("if ($L != null)", ctx.primitiveName);
-        }
+        } else
+            codeBuilder
+                    .addStatement("$L = $L.get($T.class, $S)", ctx.primitiveName, ctx.objectName, ctx.primitiveType, name)
+                    .beginControlFlow("if ($L == null)", ctx.primitiveName)
+                    .addStatement("throw new $T($S + $L.get($S).getClass().getSimpleName() + $S)",
+                            IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.objectName, name, "\"!")
+                    .endControlFlow();
 
         String tempDest;
         String unqDest = dest;
@@ -80,22 +93,30 @@ public final class PrimitiveJanksonDelegate extends BaseJanksonDelegate {
                     .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
                             IOException.class, "Type mismatch! Expected \"double\", got \"", tempDest, "\"!")
                     .endControlFlow();
-        if (name == null) {
-            codeBuilder.nextControlFlow("else")
-                    .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
-                            IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.elementName, "\"!")
+
+        if (name == null || boxed || string) {
+            codeBuilder
+                    .nextControlFlow("else")
+                    .addStatement("throw new $T($S + $L.get($S).getClass().getSimpleName() + $S)",
+                            IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.objectName, name, "\"!")
                     .endControlFlow();
-        } else {
-            if (missingErrorMessage == null)
-                codeBuilder.endControlFlow();
         }
+
         return true;
     }
 
     @Override
     public boolean appendWrite(@NotNull JanksonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
         TypeName typeName = TypeName.get(type);
-        if (STRING_TYPE.equals(typeName) || typeName.isBoxedPrimitive() || typeName.isPrimitive()) {
+        if (STRING_TYPE.equals(typeName) || typeName.isBoxedPrimitive()) {
+            if (name == null)
+                codeBuilder.addStatement("$1L = $3L == null ? $4T.INSTANCE : new $2T($3L)",
+                        ctx.elementName, ctx.primitiveType, src, ctx.nullType);
+            else
+                codeBuilder.addStatement("$1L.put($2S, $4L == null ? $5T.INSTANCE : new $3T($4L))",
+                        ctx.objectName, name, ctx.primitiveType, src, ctx.nullType);
+            return true;
+        } else if (typeName.isPrimitive()) {
             if (name == null)
                 codeBuilder.addStatement("$L = new $T($L)", ctx.elementName, ctx.primitiveType, src);
             else

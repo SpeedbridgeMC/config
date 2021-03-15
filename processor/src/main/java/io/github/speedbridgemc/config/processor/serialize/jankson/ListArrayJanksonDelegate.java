@@ -15,6 +15,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,7 +69,6 @@ public final class ListArrayJanksonDelegate extends BaseJanksonDelegate {
             dest += "Tmp";
             compDest = dest + "Comp";
             elemDest = dest + "Elem";
-            codeBuilder.addStatement("$2T<$3T> $1L = new $2T<$3T>()", dest, ArrayList.class, componentTypeName);
         } else {
             String unqDest = dest;
             int dotI = dest.lastIndexOf('.');
@@ -76,7 +76,6 @@ public final class ListArrayJanksonDelegate extends BaseJanksonDelegate {
                 unqDest = dest.substring(dotI + 1);
             compDest = unqDest + "Comp";
             elemDest = unqDest + "Elem";
-            codeBuilder.addStatement("$L = new $T<$T>()", dest, ArrayList.class, componentTypeName);
         }
 
         VariableElement fieldElementBackup = ctx.fieldElement;
@@ -84,9 +83,23 @@ public final class ListArrayJanksonDelegate extends BaseJanksonDelegate {
         ctx.fieldElement = null;
         ctx.elementName = elemDest;
 
+        if (name != null)
+            codeBuilder
+                    .addStatement("$L = $L.get($S)", elementNameBackup, ctx.objectName, name);
+        codeBuilder
+                .beginControlFlow("if ($L == $T.INSTANCE)", elementNameBackup, ctx.nullType)
+                .addStatement("$L = null", oldDest)
+                .nextControlFlow("else if ($L instanceof $T)", elementNameBackup, ctx.arrayType)
+                .addStatement("$L = ($T) $L", ctx.arrayName, ctx.arrayType, elementNameBackup);
+        if (array)
+            codeBuilder
+                    .addStatement("$2T<$3T> $1L = new $2T<$3T>()", dest, ArrayList.class, componentTypeName);
+        else
+            codeBuilder
+                    .addStatement("$L = new $T<$T>()", dest, ArrayList.class, componentTypeName);
+
         codeBuilder
                 .addStatement("$T $L", componentType, compDest)
-                .addStatement("$L = $L.get($T.class, $S)", ctx.arrayName, ctx.objectName, ctx.arrayType, name)
                 .beginControlFlow("for ($T $L : $L)", ctx.elementType, ctx.elementName, ctx.arrayName);
         ctx.appendRead(componentType, null, compDest, codeBuilder);
         codeBuilder
@@ -101,6 +114,11 @@ public final class ListArrayJanksonDelegate extends BaseJanksonDelegate {
             } else
                 codeBuilder.addStatement("$L = $L.toArray(new $T[0])", oldDest, dest, oldComponentTypeName);
         }
+        codeBuilder
+                .nextControlFlow("else")
+                .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
+                        IOException.class, "Type mismatch! Expected \"JsonArray\", got \"", elementNameBackup, "\"!")
+                .endControlFlow();
 
         ctx.fieldElement = fieldElementBackup;
         ctx.elementName = elementNameBackup;
@@ -149,7 +167,15 @@ public final class ListArrayJanksonDelegate extends BaseJanksonDelegate {
         ctx.elementName = elemSrc;
         ctx.fieldElement = null;
 
-        codeBuilder.addStatement("$1T $2L = new $1T()", ctx.arrayType, ctx.arrayName)
+        codeBuilder
+                .beginControlFlow("if ($L == null)", src);
+        if (name == null)
+            codeBuilder.addStatement("$L = $T.INSTANCE", elementNameBackup, ctx.nullType);
+        else
+            codeBuilder.addStatement("$L.put($S, $T.INSTANCE)", ctx.objectName, name, ctx.nullType);
+        codeBuilder
+                .nextControlFlow("else")
+                .addStatement("$1T $2L = new $1T()", ctx.arrayType, ctx.arrayName)
                 .beginControlFlow("for ($T $L : $L)", componentTypeName, compSrc, src)
                 .addStatement("$T $L", ctx.elementType, ctx.elementName);
         ctx.appendWrite(componentType, null, compSrc, codeBuilder);
@@ -160,6 +186,7 @@ public final class ListArrayJanksonDelegate extends BaseJanksonDelegate {
             codeBuilder.addStatement("$L = $L", elementNameBackup, arrSrc);
         else
             codeBuilder.addStatement("$L.put($S, $L)", ctx.objectName, name, ctx.arrayName);
+        codeBuilder.endControlFlow();
 
         ctx.arrayName = arrayNameBackup;
         ctx.elementName = elementNameBackup;

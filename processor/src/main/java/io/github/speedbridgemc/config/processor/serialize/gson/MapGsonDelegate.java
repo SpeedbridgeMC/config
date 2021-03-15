@@ -100,8 +100,8 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
             String valueDestTS = Character.toUpperCase(valueDest.charAt(0)) + valueDest.substring(1);
             ctx.gotFlags.put(valueDest, "got" + valueDestTS);
             ctx.missingErrorMessages.clear();
-            ctx.missingErrorMessages.put(keyDest, "Missing map entry key!");
-            ctx.missingErrorMessages.put(valueDest, "Missing map entry value!");
+            ctx.missingErrorMessages.put(keyDest, "Missing complex map entry key!");
+            ctx.missingErrorMessages.put(valueDest, "Missing complex map entry value!");
 
             codeBuilder.add(GsonSerializerProvider.generateGotFlagDecls(ctx).build());
             codeBuilder

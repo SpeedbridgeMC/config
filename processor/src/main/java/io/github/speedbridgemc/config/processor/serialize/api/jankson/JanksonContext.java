@@ -21,8 +21,7 @@ public final class JanksonContext {
     private final NestedJanksonDelegate nestedDelegate; // separated from the standard delegates since its a "last resort" measure
     public final @NotNull TypeSpec.Builder classBuilder;
     public final @NotNull Set<@NotNull String> generatedMethods;
-    public final @NotNull Map<@NotNull String, @NotNull String> missingErrorMessages;
-    public final @NotNull TypeName elementType, objectType, primitiveType, arrayType;
+    public final @NotNull TypeName elementType, objectType, primitiveType, arrayType, nullType;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
     public @NotNull String elementName = "jElem", objectName = "jObj", primitiveName = "jPrim", arrayName = "jArr";
     public @Nullable VariableElement fieldElement;
@@ -31,18 +30,19 @@ public final class JanksonContext {
     public JanksonContext(TypeSpec.@NotNull Builder classBuilder,
                           @NotNull TypeName elementType, @NotNull TypeName objectType,
                           @NotNull TypeName primitiveType, @NotNull TypeName arrayType,
+                          @NotNull TypeName nullType,
                           @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
         this.classBuilder = classBuilder;
         this.elementType = elementType;
         this.objectType = objectType;
         this.primitiveType = primitiveType;
         this.arrayType = arrayType;
+        this.nullType = nullType;
         this.nonNullAnnotation = nonNullAnnotation;
         this.nullableAnnotation = nullableAnnotation;
         generatedMethods = new HashSet<>();
         ServiceLoader<JanksonDelegate> delegateLoader = ServiceLoader.load(JanksonDelegate.class, JanksonContext.class.getClassLoader());
         delegates = new ArrayList<>();
-        missingErrorMessages = new HashMap<>();
         delegates.add(new PrimitiveJanksonDelegate());
         for (JanksonDelegate delegate : delegateLoader)
             delegates.add(delegate);

@@ -72,94 +72,59 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
         String elementNameBackup = ctx.elementName;
         ctx.elementName = elemDest;
 
+        if (name != null)
+            codeBuilder
+                    .addStatement("$L = $L.get($S)", elementNameBackup, ctx.objectName, name);
+        codeBuilder
+                .beginControlFlow("if ($L == $T.INSTANCE)", elementNameBackup, ctx.nullType)
+                .addStatement("$L = null", dest);
         if (stringKeys) {
             // object
             codeBuilder
+                    .nextControlFlow("else if ($L instanceof $T)", elementNameBackup, ctx.objectType)
+                    .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, objDest, elementNameBackup)
+                    .addStatement("$L = new $T<$T, $T>()", dest, HashMap.class, keyType, valueType)
                     .addStatement("$T $L", valueType, valueDest)
-                    .addStatement("$L = new $T<$T, $T>()", dest, HashMap.class, keyType, valueType);
-            if (name == null) {
-                codeBuilder
-                        .beginControlFlow("if ($L instanceof $T)", elementNameBackup, ctx.objectType)
-                        .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, objDest, elementNameBackup)
-                        .beginControlFlow("for ($T<$T, $T> $L : $L.entrySet())",
-                                entryTM, stringTM, ctx.elementType, entryDest, objDest)
-                        .addStatement("$T $L = $L.getValue()", ctx.elementType, ctx.elementName, entryDest);
-                ctx.appendRead(valueType, null, valueDest, codeBuilder);
-                codeBuilder
-                        .addStatement("$L.put($L.getKey(), $L)", dest, entryDest, valueDest)
-                        .endControlFlow()
-                        .endControlFlow();
-            } else {
-                String missingErrorMessage = ctx.missingErrorMessages.get(name);
-                codeBuilder
-                        .addStatement("$1T $2L = $3L.get($1T.class, $4S)", ctx.objectType, objDest, ctx.objectName, name);
-                if (missingErrorMessage == null)
-                    codeBuilder.beginControlFlow("if ($L != null)", objDest);
-                else
-                    codeBuilder.beginControlFlow("if ($L == null)", objDest)
-                            .addStatement("throw new $T($S)", IOException.class, String.format(missingErrorMessage, name))
-                            .endControlFlow();
-                codeBuilder.beginControlFlow("for ($T<$T, $T> $L : $L.entrySet())",
-                        entryTM, stringTM, ctx.elementType, entryDest, objDest)
-                        .addStatement("$T $L = $L.getValue()", ctx.elementType, ctx.elementName, entryDest);
-                ctx.appendRead(valueType, null, valueDest, codeBuilder);
-                codeBuilder
-                        .addStatement("$L.put($L.getKey(), $L)", dest, entryDest, valueDest)
-                        .endControlFlow();
-                if (missingErrorMessage == null)
-                    codeBuilder.endControlFlow();
-            }
+                    .beginControlFlow("for ($T<$T, $T> $L : $L.entrySet())",
+                            entryTM, stringTM, ctx.elementType, entryDest, objDest)
+                    .addStatement("$T $L = $L.getValue()", ctx.elementType, ctx.elementName, entryDest);
+            ctx.appendRead(valueType, null, valueDest, codeBuilder);
+            codeBuilder
+                    .addStatement("$L.put($L.getKey(), $L)", dest, entryDest, valueDest)
+                    .endControlFlow()
+                    .nextControlFlow("else")
+                    .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
+                            IOException.class, "Type mismatch! Expected \"JsonObject\", got \"", elementNameBackup, "\"!")
+                    .endControlFlow();
         } else {
             // array of key/value pair objects
             codeBuilder
+                    .nextControlFlow("else if ($L instanceof $T)", elementNameBackup, ctx.arrayType)
+                    .addStatement("$1T $2L = ($1T) $3L", ctx.arrayType, arrDest, elementNameBackup)
+                    .addStatement("$L = new $T<$T, $T>()", dest, HashMap.class, keyType, valueType)
                     .addStatement("$T $L", keyType, keyDest)
                     .addStatement("$T $L", valueType, valueDest)
-                    .addStatement("$L = new $T<$T, $T>()", dest, HashMap.class, keyType, valueType);
-            if (name == null) {
-                codeBuilder
-                        .beginControlFlow("if ($L instanceof $T)", ctx.elementName, ctx.arrayType)
-                        .addStatement("$1T $2L = ($1T) $3L", ctx.arrayType, arrDest, ctx.elementName)
-                        .beginControlFlow("for ($T $L : $L)",
-                                ctx.elementType, elemDest, arrDest)
-                        .beginControlFlow("if ($L instanceof $T)", elemDest, ctx.objectType)
-                        .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, objDest, elemDest);
-                codeBuilder
-                        .endControlFlow()
-                        .endControlFlow();
-            } else {
-                String missingErrorMessage = ctx.missingErrorMessages.get(name);
-                codeBuilder
-                        .addStatement("$1T $2L = $3L.get($1T.class, $4S)", ctx.arrayType, arrDest, ctx.objectName, name);
-                if (missingErrorMessage == null)
-                    codeBuilder.beginControlFlow("if ($L != null)", arrDest);
-                else
-                    codeBuilder.beginControlFlow("if ($L == null)", arrDest)
-                            .addStatement("throw new $T($S)", IOException.class, String.format(missingErrorMessage, name))
-                            .endControlFlow();
-                codeBuilder.beginControlFlow("for ($T $L : $L)",
-                        ctx.elementType, elemDest, arrDest)
-                        .beginControlFlow("if ($L instanceof $T)", elemDest, ctx.objectType)
-                        .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, objDest, elemDest)
-                        .addStatement("$1T $2L = $3L.get($1T.class, $4S)", ctx.elementType, keyElemDest, objDest, "key")
-                        .beginControlFlow("if ($L == null)", keyElemDest)
-                        .addStatement("throw new $T($S)", IOException.class, "Missing field \"key\"!")
-                        .endControlFlow();
-                ctx.elementName = keyElemDest;
-                ctx.appendRead(keyType, null, keyDest, codeBuilder);
-                codeBuilder.addStatement("$1T $2L = $3L.get($1T.class, $4S)", ctx.elementType, valueElemDest, objDest, "value")
-                        .beginControlFlow("if ($L == null)", valueElemDest)
-                        .addStatement("throw new $T($S)", IOException.class, "Missing field \"value\"!")
-                        .endControlFlow();
-                ctx.elementName = valueElemDest;
-                ctx.appendRead(valueType, null, valueDest, codeBuilder);
-                ctx.elementName = elemDest;
-                codeBuilder
-                        .addStatement("$L.put($L, $L)", dest, keyDest, valueDest)
-                        .endControlFlow()
-                        .endControlFlow();
-                if (missingErrorMessage == null)
-                    codeBuilder.endControlFlow();
-            }
+                    .beginControlFlow("for ($T $L : $L)", ctx.elementType, elemDest, arrDest)
+                    .beginControlFlow("if ($L instanceof $T)", elemDest, ctx.objectType)
+                    .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, objDest, elemDest)
+                    .addStatement("$T $L = $L.get($S)", ctx.elementType, keyElemDest, objDest, "key")
+                    .beginControlFlow("if ($L == null)", keyElemDest)
+                    .addStatement("throw new $T($S)", IOException.class, "Missing complex map entry key!")
+                    .endControlFlow();
+            ctx.elementName = keyElemDest;
+            ctx.appendRead(keyType, null, keyDest, codeBuilder);
+            codeBuilder.addStatement("$T $L = $L.get($S)", ctx.elementType, valueElemDest, objDest, "value")
+                    .beginControlFlow("if ($L == null)", valueElemDest)
+                    .addStatement("throw new $T($S)", IOException.class, "Missing complex map entry value!")
+                    .endControlFlow();
+            ctx.elementName = valueElemDest;
+            ctx.appendRead(valueType, null, valueDest, codeBuilder);
+            ctx.elementName = elemDest;
+            codeBuilder
+                    .addStatement("$L.put($L, $L)", dest, keyDest, valueDest)
+                    .endControlFlow()
+                    .endControlFlow()
+                    .endControlFlow();
         }
 
         ctx.elementName = elementNameBackup;
@@ -203,6 +168,13 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
         elemSrc = unqSrc + "Elem";
         keyElemSrc = unqSrc + "KeyElem";
         valueElemSrc = unqSrc + "ValueElem";
+
+        codeBuilder.beginControlFlow("if ($L == null)", src);
+        if (name == null)
+            codeBuilder.addStatement("$L = $T.INSTANCE", ctx.elementName, ctx.nullType);
+        else
+            codeBuilder.addStatement("$L.put($S, $T.INSTANCE)", ctx.objectName, name, ctx.nullType);
+        codeBuilder.nextControlFlow("else");
 
         String elementNameBackup = ctx.elementName;
         ctx.elementName = elemSrc;
@@ -252,6 +224,8 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
         }
 
         ctx.elementName = elementNameBackup;
+
+        codeBuilder.endControlFlow();
 
         return true;
     }
