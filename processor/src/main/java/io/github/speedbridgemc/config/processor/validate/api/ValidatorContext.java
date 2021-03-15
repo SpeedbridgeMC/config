@@ -6,6 +6,7 @@ import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import io.github.speedbridgemc.config.processor.validate.NestedValidatorDelegate;
+import io.github.speedbridgemc.config.processor.validate.ObjectValidatorDelegate;
 import io.github.speedbridgemc.config.processor.validate.PrimitiveValidatorDelegate;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -40,6 +41,7 @@ public final class ValidatorContext {
         for (ValidatorDelegate delegate : delegateLoader)
             delegates.add(delegate);
         delegates.add(new NestedValidatorDelegate());
+        delegates.add(new ObjectValidatorDelegate());
     }
 
     public void init(@NotNull ProcessingEnvironment processingEnv) {

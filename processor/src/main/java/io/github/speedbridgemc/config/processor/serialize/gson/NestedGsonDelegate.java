@@ -29,6 +29,11 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
             return false;
         }
         TypeElement typeElement = (TypeElement) typeElementRaw;
+        if (!TypeUtils.hasDefaultConstructor(typeElement)) {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    "Serializer: Field has class type with no 0-parameter constructor or special delegate", ctx.fieldElement);
+            return false;
+        }
         TypeName typeName = TypeName.get(type);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
         codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.readerName);

@@ -28,11 +28,21 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
         VariableElement effectiveFieldElement = ctx.getEffectiveFieldElement();
         EnforceNotNull enforceNotNull = effectiveFieldElement.getAnnotation(EnforceNotNull.class);
         if (enforceNotNull != null && enforceNotNull.value() != EnforceMode.IGNORE) {
-            codeBuilder
-                    .beginControlFlow("if ($L == null)", src)
-                    .addStatement("throw new $T($S)",
-                            IllegalArgumentException.class, String.format("\"%s\" is null!", description))
-                    .endControlFlow();
+            codeBuilder.beginControlFlow("if ($L == null)", src);
+            switch (enforceNotNull.value()) {
+            case TRY_FIX:
+                if (TypeUtils.hasDefaultConstructor(typeElement)) {
+                    codeBuilder.addStatement("$L = new $T()", src, typeName);
+                    break;
+                } else
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+                            "Validator: Can't fix since class has no 0-parameter constructor", effectiveFieldElement);
+            case ERROR:
+                codeBuilder.addStatement("throw new $T($S)",
+                        IllegalArgumentException.class, String.format("\"%s\" is null!", description));
+                break;
+            }
+            codeBuilder.endControlFlow();
         }
         codeBuilder.addStatement("$L($L)", methodName, src);
         return true;

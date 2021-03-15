@@ -7,9 +7,10 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
-import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -61,5 +62,20 @@ public final class TypeUtils {
                     return null;
                 }).filter(Objects::nonNull)
                 .collect(Collectors.toList());
+    }
+
+    private static final HashMap<TypeElement, Boolean> DEFAULT_CONSTRUCTOR_CACHE = new HashMap<>();
+
+    public static boolean hasDefaultConstructor(@NotNull TypeElement type) {
+        return DEFAULT_CONSTRUCTOR_CACHE.computeIfAbsent(type, typeElement -> {
+            boolean hasDefaultConstructor = false;
+            for (ExecutableElement constructor : ElementFilter.constructorsIn(typeElement.getEnclosedElements())) {
+                if (constructor.getParameters().isEmpty() && constructor.getModifiers().contains(Modifier.PUBLIC)) {
+                    hasDefaultConstructor = true;
+                    break;
+                }
+            }
+            return hasDefaultConstructor;
+        });
     }
 }

@@ -104,14 +104,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             }
             TypeElement typeElement = (TypeElement) element;
 
-            boolean hasDefaultConstructor = false;
-            for (ExecutableElement constructor : ElementFilter.constructorsIn(typeElement.getEnclosedElements())) {
-                if (constructor.getParameters().isEmpty() && constructor.getModifiers().contains(Modifier.PUBLIC)) {
-                    hasDefaultConstructor = true;
-                    break;
-                }
-            }
-            if (!hasDefaultConstructor) {
+            if (!TypeUtils.hasDefaultConstructor(typeElement)) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
                         "@Config annotation applied to class with no public 0-parameter constructor", typeElement);
             }
