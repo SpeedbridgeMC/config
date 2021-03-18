@@ -10,6 +10,7 @@ import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.validate.api.BaseValidatorDelegate;
 import io.github.speedbridgemc.config.processor.validate.api.ValidatorContext;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
@@ -25,8 +26,7 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(type);
         String methodName = generateCheckMethod(ctx, typeName, typeElement);
-        VariableElement effectiveFieldElement = ctx.getEffectiveFieldElement();
-        EnforceNotNull enforceNotNull = effectiveFieldElement.getAnnotation(EnforceNotNull.class);
+        EnforceNotNull enforceNotNull = ctx.getAnnotation(EnforceNotNull.class);
         if (enforceNotNull != null && enforceNotNull.value() != EnforceMode.IGNORE) {
             codeBuilder.beginControlFlow("if ($L == null)", src);
             switch (enforceNotNull.value()) {
@@ -36,7 +36,11 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
                     break;
                 } else
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
-                            "Validator: Can't fix since class has no 0-parameter constructor", effectiveFieldElement);
+                            "Validator: Can't fix since class has no 0-parameter constructor, using default value instead",
+                            ctx.getEffectiveElement());
+            case USE_DEFAULT:
+                codeBuilder.addStatement("$1L = DEFAULTS.$1L", src);
+                break;
             case ERROR:
                 codeBuilder.addStatement("throw new $T($S)",
                         IllegalArgumentException.class, String.format("\"%s\" is null!", description));
@@ -44,15 +48,17 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
             }
             codeBuilder.endControlFlow();
         }
-        codeBuilder.addStatement("$L($L)", methodName, src);
+        if (methodName != null)
+            codeBuilder.addStatement("$L($L)", methodName, src);
         return true;
     }
 
-    private @NotNull String generateCheckMethod(@NotNull ValidatorContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
+    private @Nullable String generateCheckMethod(@NotNull ValidatorContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
         String methodName = "check" + typeElement.getSimpleName().toString();
+        if (ctx.emptyMethods.contains(methodName))
+            return null;
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
-        ctx.generatedMethods.add(methodName);
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
         ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, ctx.configName);
         if (ctx.nonNullAnnotation != null)
@@ -62,12 +68,22 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
                 .addParameter(configParamBuilder.build())
                 .addException(IllegalArgumentException.class);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = typeElement;
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            ctx.fieldElement = field;
+            ctx.element = field;
             ctx.appendCheck(field.asType(), ctx.configName + "." + fieldName, ctx.configName + "." + fieldName, codeBuilder);
         }
-        ctx.classBuilder.addMethod(methodBuilder.addCode(codeBuilder.build()).build());
-        return methodName;
+        ctx.enclosingElement = enclosingElementBackup;
+        ctx.element = elementBackup;
+        if (codeBuilder.isEmpty()) {
+            ctx.emptyMethods.add(methodName);
+            return null;
+        } else {
+            ctx.generatedMethods.add(methodName);
+            ctx.classBuilder.addMethod(methodBuilder.addCode(codeBuilder.build()).build());
+            return methodName;
+        }
     }
 }

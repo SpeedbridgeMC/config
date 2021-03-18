@@ -76,6 +76,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .build());
         HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
         HashMap<String, String> gotFlagsBackup = new HashMap<>(ctx.gotFlags);
+        VariableElement fieldElementBackup = ctx.fieldElement;
         ctx.missingErrorMessages.clear();
         ctx.gotFlags.clear();
         String defaultMissingErrorMessage = SerializerComponentProvider.getDefaultMissingErrorMessage(processingEnv, typeElement);
@@ -95,6 +96,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                     .build());
         }
         methodBuilder.addCode(GsonSerializerProvider.generateGotFlagChecks(ctx).build());
+        ctx.fieldElement = fieldElementBackup;
         ctx.missingErrorMessages.clear();
         ctx.missingErrorMessages.putAll(missingErrorMessagesBackup);
         ctx.gotFlags.clear();

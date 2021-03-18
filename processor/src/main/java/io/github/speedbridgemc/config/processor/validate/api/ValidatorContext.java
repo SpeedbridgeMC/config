@@ -12,8 +12,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
+import java.lang.annotation.Annotation;
 import java.util.*;
 
 public final class ValidatorContext {
@@ -21,10 +23,10 @@ public final class ValidatorContext {
     public final @NotNull TypeName configType;
     public final @NotNull String @NotNull [] options;
     public final @NotNull TypeSpec.Builder classBuilder;
-    public final @NotNull Set<@NotNull String> generatedMethods;
+    public final @NotNull Set<@NotNull String> generatedMethods, emptyMethods;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
     public @NotNull String configName = "config";
-    public @Nullable VariableElement enclosingFieldElement, fieldElement;
+    public @Nullable Element enclosingElement, element;
 
     public ValidatorContext(@NotNull TypeName configType, @NotNull String @NotNull [] options,
                             TypeSpec.@NotNull Builder classBuilder,
@@ -35,6 +37,7 @@ public final class ValidatorContext {
         this.nonNullAnnotation = nonNullAnnotation;
         this.nullableAnnotation = nullableAnnotation;
         generatedMethods = new HashSet<>();
+        emptyMethods = new HashSet<>();
         ServiceLoader<ValidatorDelegate> delegateLoader = ServiceLoader.load(ValidatorDelegate.class, JanksonContext.class.getClassLoader());
         delegates = new ArrayList<>();
         delegates.add(new PrimitiveValidatorDelegate());
@@ -57,12 +60,21 @@ public final class ValidatorContext {
         }
     }
 
-    public @NotNull VariableElement getEffectiveFieldElement() {
-        if (fieldElement != null)
-            return fieldElement;
-        else if (enclosingFieldElement != null)
-            return enclosingFieldElement;
+    public @NotNull Element getEffectiveElement() {
+        if (enclosingElement != null)
+            return enclosingElement;
+        else if (element != null)
+            return element;
         else
             throw new IllegalStateException();
+    }
+
+    public <T extends Annotation> @Nullable T getAnnotation(@NotNull Class<T> annotationType) {
+        T annotation = null;
+        if (enclosingElement != null)
+            annotation = enclosingElement.getAnnotation(annotationType);
+        if (annotation == null && element != null)
+            annotation = element.getAnnotation(annotationType);
+        return annotation;
     }
 }

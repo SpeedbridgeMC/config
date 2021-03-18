@@ -73,11 +73,13 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
                 .addStatement("$T $L", ctx.arrayType, ctx.arrayName)
                 .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
+        VariableElement fieldElementBackup = ctx.fieldElement;
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             ctx.fieldElement = field;
             ctx.appendRead(field.asType(), fieldName, configName + "." + fieldName, codeBuilder);
         }
+        ctx.fieldElement = fieldElementBackup;
         methodBuilder.addCode(codeBuilder
                 .addStatement("return $L", configName)
                 .nextControlFlow("else")
