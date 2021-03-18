@@ -2,7 +2,7 @@ plugins {
     id 'java'
 }
 
-group 'io.github.speedbridgemc.config'
+group 'io.github.speedbridgemc'
 version '1.0.0'
 
 repositories {
@@ -10,9 +10,9 @@ repositories {
 }
 
 dependencies {
-    implementation project(':annotations')
-    implementation project(':runtime')
-    annotationProcessor project(':processor')
+    implementation project(':config-annotations')
+    implementation project(':config-runtime')
+    annotationProcessor project(':config-processor')
 
     implementation 'org.jetbrains:annotations:20.1.0'
     implementation 'com.google.code.gson:gson:2.8.6'
