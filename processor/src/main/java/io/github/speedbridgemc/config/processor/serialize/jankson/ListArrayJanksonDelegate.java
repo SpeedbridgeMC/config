@@ -3,7 +3,6 @@ package io.github.speedbridgemc.config.processor.serialize.jankson;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.NotNull;
@@ -73,9 +72,6 @@ public final class ListArrayJanksonDelegate extends BaseJanksonDelegate {
             codeBuilder.addStatement("$T<$T> $L", ArrayList.class, componentTypeName, dest);
         }
 
-        if (name != null)
-            codeBuilder
-                    .addStatement("$L = $L.get($S)", ctx.elementName, ctx.objectName, name);
         String methodName = generateReadMethod(ctx, componentTypeName, componentType);
         codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
         if (array) {
@@ -164,10 +160,7 @@ public final class ListArrayJanksonDelegate extends BaseJanksonDelegate {
         TypeName componentTypeName = TypeName.get(componentType);
 
         String methodName = generateWriteMethod(ctx, componentTypeName, componentType);
-        if (name == null)
-            codeBuilder.addStatement("$L = $L($L)", ctx.elementName, methodName, src);
-        else
-            codeBuilder.addStatement("$L.put($S, $L($L))", ctx.objectName, name, methodName, src);
+        codeBuilder.addStatement("$L = $L($L)", ctx.elementName, methodName, src);
 
         return true;
     }

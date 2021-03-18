@@ -6,6 +6,8 @@ import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.*;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
+import io.github.speedbridgemc.config.serialize.SerializedAliases;
+import io.github.speedbridgemc.config.serialize.SerializedName;
 import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
 import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
 import org.jetbrains.annotations.ApiStatus;
@@ -17,6 +19,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.io.IOException;
@@ -27,6 +30,7 @@ import java.util.*;
 @ApiStatus.Internal
 @AutoService(ComponentProvider.class)
 public final class SerializerComponentProvider extends BaseComponentProvider {
+    private static final ClassName MAP_NAME = ClassName.get(HashMap.class);
     private HashMap<String, SerializerProvider> serializerProviders;
 
     public SerializerComponentProvider() {
@@ -51,11 +55,15 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                         @NotNull ImmutableList<VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
         String providerId = ParamUtils.allOrNothing(ctx.params, "provider");
-        if (providerId == null)
-            providerId = "speedbridge-config:jankson";
+        if (providerId == null) {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    "Serializer: No provider specified", type);
+            return;
+        }
         SerializerProvider provider = serializerProviders.get(providerId);
         if (provider == null) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Unknown provider \"" + providerId + "\"", type);
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    "Serializer: Unknown provider \"" + providerId + "\"", type);
             return;
         }
         boolean gotResolvePath = false;
@@ -135,24 +143,53 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 .build());
     }
 
+    private static final HashMap<VariableElement, String> SERIALIZED_NAME_CACHE = new HashMap<>();
+
+    public static @NotNull String getSerializedName(@NotNull VariableElement field) {
+        return SERIALIZED_NAME_CACHE.computeIfAbsent(field, variableElement -> {
+            SerializedName serializedName = variableElement.getAnnotation(SerializedName.class);
+            if (serializedName != null)
+                return serializedName.value();
+            else
+                return variableElement.getSimpleName().toString();
+        });
+    }
+
+    private static final String[] NO_ALIASES = new String[0];
+    private static final HashMap<VariableElement, String[]> SERIALIZED_ALIASES_CACHE = new HashMap<>();
+
+    public static @NotNull String @NotNull [] getSerializedAliases(@NotNull VariableElement field) {
+        return SERIALIZED_ALIASES_CACHE.computeIfAbsent(field, variableElement -> {
+            SerializedAliases serializedAliases = variableElement.getAnnotation(SerializedAliases.class);
+            if (serializedAliases != null)
+                return serializedAliases.value();
+            else
+                return NO_ALIASES;
+        });
+    }
+
+    private static final HashMap<TypeElement, String> DMEM_CACHE = new HashMap<>();
+
     public static @Nullable String getDefaultMissingErrorMessage(@NotNull ProcessingEnvironment processingEnv, @NotNull TypeElement type) {
-        String defaultMissingErrorMessage = "Missing field \"%s\"!";
-        if (type.getAnnotation(UseDefaultIfMissing.class) != null)
-            defaultMissingErrorMessage = null;
-        else {
-            ThrowIfMissing throwIfMissing = type.getAnnotation(ThrowIfMissing.class);
-            if (throwIfMissing != null) {
-                String[] defaultMissingErrorMessageIn = throwIfMissing.message();
-                if (defaultMissingErrorMessageIn.length == 1)
-                    defaultMissingErrorMessage = defaultMissingErrorMessageIn[0];
-                else if (defaultMissingErrorMessageIn.length > 1) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Class specifies more than one error message in @ThrowIfMissing", type);
-                    return null;
+        return DMEM_CACHE.computeIfAbsent(type, typeElement -> {
+            String defaultMissingErrorMessage = "Missing field \"%s\"!";
+            if (typeElement.getAnnotation(UseDefaultIfMissing.class) != null)
+                defaultMissingErrorMessage = null;
+            else {
+                ThrowIfMissing throwIfMissing = typeElement.getAnnotation(ThrowIfMissing.class);
+                if (throwIfMissing != null) {
+                    String[] defaultMissingErrorMessageIn = throwIfMissing.message();
+                    if (defaultMissingErrorMessageIn.length == 1)
+                        defaultMissingErrorMessage = defaultMissingErrorMessageIn[0];
+                    else if (defaultMissingErrorMessageIn.length > 1) {
+                        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                                "Class specifies more than one error message in @ThrowIfMissing", typeElement);
+                        return null;
+                    }
                 }
             }
-        }
-        return defaultMissingErrorMessage;
+            return defaultMissingErrorMessage;
+        });
     }
 
     public static void getMissingErrorMessages(@NotNull ProcessingEnvironment processingEnv,
@@ -178,7 +215,45 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     }
                 }
             }
-            result.put(field.getSimpleName().toString(), fieldMissingErrorMessage);
+            result.put(SerializerComponentProvider.getSerializedName(field), fieldMissingErrorMessage);
         }
+    }
+
+    public static @Nullable TypeMirror getEnumKeyType(@NotNull ProcessingEnvironment processingEnv,
+                                                      @NotNull TypeMirror keyedEnumTM,
+                                                      @NotNull TypeElement typeElement) {
+        for (TypeMirror anInterface : typeElement.getInterfaces()) {
+            TypeMirror erasedInterface = processingEnv.getTypeUtils().erasure(anInterface);
+            if (processingEnv.getTypeUtils().isSameType(erasedInterface, keyedEnumTM)) {
+                List<? extends TypeMirror> typeArgs = ((DeclaredType) anInterface).getTypeArguments();
+                if (typeArgs.isEmpty()) {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                            "Serializer: Raw keyed enum not supported", typeElement);
+                    return null;
+                }
+                return typeArgs.get(0);
+            }
+        }
+        return null;
+    }
+
+    public static @NotNull String addEnumMap(@NotNull TypeSpec.Builder classBuilder,
+                                             @NotNull TypeMirror keyType,
+                                             @NotNull TypeElement valueTypeElement) {
+        TypeName keyTypeName = TypeName.get(keyType);
+        TypeName valueTypeName = TypeName.get(valueTypeElement.asType());
+        String mapName = "MAP_" + StringUtils.camelCaseToScreamingSnakeCase(valueTypeElement.getSimpleName().toString());
+        TypeName mapType = ParameterizedTypeName.get(MAP_NAME, keyTypeName, valueTypeName);
+        classBuilder.addField(FieldSpec.builder(mapType, mapName, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL).build());
+        classBuilder.addStaticBlock(CodeBlock.builder()
+                .addStatement("$L = new $T()", mapName, mapType)
+                .beginControlFlow("for ($1T e : $1T.values())", valueTypeName)
+                .addStatement("$L.put(e.getKey(), e)", mapName)
+                .beginControlFlow("for ($T a : e.getAliases())", keyTypeName)
+                .addStatement("$L.put(a, e)", mapName)
+                .endControlFlow()
+                .endControlFlow()
+                .build());
+        return mapName;
     }
 }

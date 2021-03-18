@@ -60,8 +60,6 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             return false;
 
         String methodName = generateReadMethod(ctx, keyType, valueType);
-        if (name != null)
-            codeBuilder.addStatement("$L = $L.get($S)", ctx.elementName, ctx.objectName, name);
         codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
 
         return true;
@@ -192,10 +190,7 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             return false;
 
         String methodName = generateWriteMethod(ctx, keyType, valueType);
-        if (name == null)
-            codeBuilder.addStatement("$L = $L($L)", ctx.elementName, methodName, src);
-        else
-            codeBuilder.addStatement("$L.put($S, $L($L))", ctx.objectName, name, methodName, src);
+        codeBuilder.addStatement("$L = $L($L)", ctx.elementName, methodName, src);
 
         return true;
     }

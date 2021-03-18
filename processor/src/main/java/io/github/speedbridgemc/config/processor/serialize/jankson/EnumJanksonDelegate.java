@@ -1,8 +1,12 @@
 package io.github.speedbridgemc.config.processor.serialize.jankson;
 
-import com.squareup.javapoet.*;
+import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterSpec;
+import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import io.github.speedbridgemc.config.serialize.KeyedEnum;
@@ -10,32 +14,22 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.*;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.ElementFilter;
-import javax.tools.Diagnostic;
 import java.io.IOException;
-import java.util.HashMap;
 
 public final class EnumJanksonDelegate extends BaseJanksonDelegate {
-    private static final ClassName MAP_NAME = ClassName.get(HashMap.class);
     private TypeMirror keyedEnumTM;
-    private ExecutableElement baseGetKeyMethod;
 
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         keyedEnumTM = TypeUtils.getTypeMirror(processingEnv, KeyedEnum.class.getCanonicalName());
-        baseGetKeyMethod = null;
-        TypeElement keyedEnumElement = processingEnv.getElementUtils().getTypeElement(KeyedEnum.class.getCanonicalName());
-        for (ExecutableElement method : ElementFilter.methodsIn(keyedEnumElement.getEnclosedElements())) {
-            if (method.getSimpleName().contentEquals("getKey")) {
-                baseGetKeyMethod = method;
-                break;
-            }
-        }
-        if (baseGetKeyMethod == null)
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Failed to find method KeyedEnum.getKey");
+        if (keyedEnumTM != null)
+            keyedEnumTM = processingEnv.getTypeUtils().erasure(keyedEnumTM);
     }
 
     @Override
@@ -46,8 +40,6 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(type);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
-        if (name != null)
-            codeBuilder.addStatement("$L = $L.get($S)", ctx.elementName, ctx.objectName, name);
         codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
         return true;
     }
@@ -70,29 +62,12 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
             methodBuilder.addAnnotation(ctx.nullableAnnotation);
         CodeBlock.Builder codeBuilder = CodeBlock.builder()
                 .beginControlFlow("if ($L == $T.INSTANCE)", ctx.elementName, ctx.nullType)
-                .addStatement("return null");
-        if (typeElement.getInterfaces().contains(keyedEnumTM)) {
-            codeBuilder.endControlFlow();
-            ExecutableElement getKeyMethod = null;
-            for (ExecutableElement method : ElementFilter.methodsIn(typeElement.getEnclosedElements())) {
-                if (processingEnv.getElementUtils().overrides(method, baseGetKeyMethod, typeElement)) {
-                    getKeyMethod = method;
-                    break;
-                }
-            }
-            if (getKeyMethod == null)
-                throw new RuntimeException("Somehow got here with no getKey method implemented in " + typeElement);
-            TypeMirror keyType = getKeyMethod.getReturnType();
+                .addStatement("return null")
+                .endControlFlow();
+        TypeMirror keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, keyedEnumTM, typeElement);
+        if (keyType != null) {
             TypeName keyTypeName = TypeName.get(keyType);
-            String mapName = "MAP_" + StringUtils.camelCaseToScreamingSnakeCase(typeSimpleName);
-            TypeName mapType = ParameterizedTypeName.get(MAP_NAME, keyTypeName, typeName);
-            ctx.classBuilder.addField(FieldSpec.builder(mapType, mapName, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL).build());
-            ctx.classBuilder.addStaticBlock(CodeBlock.builder()
-                    .addStatement("$L = new $T()", mapName, mapType)
-                    .beginControlFlow("for ($1T e : $1T.values())", typeName)
-                    .addStatement("$L.put(e.getKey(), e)", mapName)
-                    .endControlFlow()
-                    .build());
+            String mapName = SerializerComponentProvider.addEnumMap(ctx.classBuilder, keyType, typeElement);
             if (keyTypeName.isBoxedPrimitive()) {
                 keyType = processingEnv.getTypeUtils().unboxedType(keyType);
                 keyTypeName = keyTypeName.unbox();
@@ -136,10 +111,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(type);
         String methodName = generateWriteMethod(ctx, typeName, typeElement);
-        if (name == null)
-            codeBuilder.addStatement("$L = $L($L)", ctx.elementName, methodName, src);
-        else
-            codeBuilder.addStatement("$L.put($S, $L($L))", ctx.objectName, name, methodName, src);
+        codeBuilder.addStatement("$L = $L($L)", ctx.elementName, methodName, src);
         return true;
     }
 
@@ -165,17 +137,8 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                 .beginControlFlow("if ($L == null)", configName)
                 .addStatement("return $T.INSTANCE", ctx.nullType)
                 .endControlFlow();
-        if (typeElement.getInterfaces().contains(keyedEnumTM)) {
-            ExecutableElement getKeyMethod = null;
-            for (ExecutableElement method : ElementFilter.methodsIn(typeElement.getEnclosedElements())) {
-                if (processingEnv.getElementUtils().overrides(method, baseGetKeyMethod, typeElement)) {
-                    getKeyMethod = method;
-                    break;
-                }
-            }
-            if (getKeyMethod == null)
-                throw new RuntimeException("Somehow got here with no getKey method implemented in " + typeElement);
-            TypeMirror keyType = getKeyMethod.getReturnType();
+        TypeMirror keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, keyedEnumTM, typeElement);
+        if (keyType != null) {
             TypeName keyTypeName = TypeName.get(keyType);
             if (keyTypeName.isBoxedPrimitive()) {
                 keyType = processingEnv.getTypeUtils().unboxedType(keyType);

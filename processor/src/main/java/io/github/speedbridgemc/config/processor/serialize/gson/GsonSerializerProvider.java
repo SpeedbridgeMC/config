@@ -58,19 +58,24 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 .addStatement("$T token = $L.peek()", tokenType, gCtx.readerName)
                 .beginControlFlow("if (token == $T.NAME)", tokenType)
                 .addStatement("String name = $L.nextName()", gCtx.readerName)
+                .beginControlFlow("switch (name)")
                 .build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
+            String serializedName = SerializerComponentProvider.getSerializedName(field);
             codeBuilder = CodeBlock.builder()
-                    .beginControlFlow("if ($S.equals(name))", fieldName);
+                    .add("case $S:\n", serializedName);
+            for (String alias : SerializerComponentProvider.getSerializedAliases(field))
+                codeBuilder.add("case $S:\n", alias);
+            codeBuilder.indent();
             gCtx.fieldElement = field;
-            gCtx.appendRead(field.asType(), fieldName, objName + "." + fieldName, codeBuilder);
+            gCtx.appendRead(field.asType(), serializedName, objName + "." + fieldName, codeBuilder);
             ctx.readMethodBuilder.addCode(codeBuilder
-                    .addStatement("continue")
-                    .endControlFlow()
+                    .addStatement("continue").unindent()
                     .build());
         }
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
+                .endControlFlow()
                 .endControlFlow()
                 .addStatement("$L.skipValue()", gCtx.readerName)
                 .endControlFlow()
@@ -89,10 +94,11 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 .build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
+            String serializedName = SerializerComponentProvider.getSerializedName(field);
             codeBuilder = CodeBlock.builder()
-                    .addStatement("$L.name($S)", gCtx.writerName, fieldName);
+                    .addStatement("$L.name($S)", gCtx.writerName, serializedName);
             gCtx.fieldElement = field;
-            gCtx.appendWrite(field.asType(), fieldName, objName + "." + fieldName, codeBuilder);
+            gCtx.appendWrite(field.asType(), serializedName, objName + "." + fieldName, codeBuilder);
             ctx.writeMethodBuilder.addCode(codeBuilder.build());
         }
         ctx.writeMethodBuilder.addCode(CodeBlock.builder()
@@ -103,7 +109,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
 
     public static void generateGotFlags(@NotNull GsonContext gCtx, @NotNull List<@NotNull VariableElement> fields) {
         for (VariableElement field : fields) {
-            String fieldName = field.getSimpleName().toString();
+            String fieldName = SerializerComponentProvider.getSerializedName(field);
             if (gCtx.missingErrorMessages.get(fieldName) != null)
                 gCtx.gotFlags.put(fieldName, "got" + StringUtils.titleCase(fieldName));
         }

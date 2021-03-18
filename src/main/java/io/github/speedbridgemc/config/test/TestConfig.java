@@ -1,9 +1,7 @@
 package io.github.speedbridgemc.config.test;
 
 import io.github.speedbridgemc.config.*;
-import io.github.speedbridgemc.config.serialize.KeyedEnum;
-import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
-import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
+import io.github.speedbridgemc.config.serialize.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -81,6 +79,7 @@ public final class TestConfig {
     }
 
     public static final class StringEntry {
+        @SerializedName("dumbAlienMeme")
         public int ayy = 2;
         public boolean[] lmao = new boolean[] { false, true, false };
     }
@@ -91,24 +90,31 @@ public final class TestConfig {
     }
 
     public static final class MapValue {
+        @SerializedName("hello_world")
+        @SerializedAliases("HELLOWORLD")
         public HelloWorld helloWorld;
     }
 
-    public enum TestEnum implements KeyedEnum {
-        FOO(0), BAR(1), BAZ(2);
+    public enum TestEnum implements KeyedEnum<String> {
+        FOO("foo"), BAR("bar"), BAZ("baz") {
+            @Override
+            public @NotNull String @NotNull [] getAliases() {
+                return new String[] { "baz_override" };
+            }
+        };
 
-        private final int id;
+        private final @NotNull String id;
 
-        TestEnum(int id) {
+        TestEnum(@NotNull String id) {
             this.id = id;
         }
 
-        public int getId() {
+        public @NotNull String getId() {
             return id;
         }
 
         @Override
-        public @NotNull Integer getKey() {
+        public @NotNull String getKey() {
             return getId();
         }
     }

@@ -35,8 +35,6 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         }
         TypeName typeName = TypeName.get(type);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
-        if (name != null)
-            codeBuilder.addStatement("$L = $L.get($S)", ctx.elementName, ctx.objectName, name);
         codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
         return true;
     }
@@ -76,8 +74,10 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         VariableElement fieldElementBackup = ctx.fieldElement;
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
+            String serializedName = SerializerComponentProvider.getSerializedName(field);
             ctx.fieldElement = field;
-            ctx.appendRead(field.asType(), fieldName, configName + "." + fieldName, codeBuilder);
+            codeBuilder.add(JanksonSerializerProvider.generateGet(ctx, field).build());
+            ctx.appendRead(field.asType(), serializedName, configName + "." + fieldName, codeBuilder);
         }
         ctx.fieldElement = fieldElementBackup;
         methodBuilder.addCode(codeBuilder
@@ -102,10 +102,7 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(type);
         String methodName = generateWriteMethod(ctx, typeName, typeElement);
-        if (name == null)
-            codeBuilder.addStatement("$L = $L($L)", ctx.elementName, methodName, src);
-        else
-            codeBuilder.addStatement("$L.put($S, $L($L))", ctx.objectName, name, methodName, src);
+        codeBuilder.addStatement("$L = $L($L)", ctx.elementName, methodName, src);
         return true;
     }
 
@@ -131,12 +128,14 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
                 .addStatement("return $T.INSTANCE", ctx.nullType)
                 .endControlFlow()
                 .addStatement("$1T $2L = new $1T()", ctx.objectType, ctx.objectName)
+                .addStatement("$T $L", ctx.elementType, ctx.elementName)
                 .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             ctx.fieldElement = null;
             ctx.appendWrite(field.asType(), fieldName, configName + "." + fieldName, codeBuilder);
+            codeBuilder.addStatement(JanksonSerializerProvider.generatePut(ctx, field).build());
         }
         methodBuilder.addCode(codeBuilder
                 .addStatement("return $L", ctx.objectName)

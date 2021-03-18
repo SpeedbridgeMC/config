@@ -1,8 +1,12 @@
 package io.github.speedbridgemc.config.processor.serialize.gson;
 
-import com.squareup.javapoet.*;
+import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.MethodSpec;
+import com.squareup.javapoet.ParameterSpec;
+import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import io.github.speedbridgemc.config.serialize.KeyedEnum;
@@ -10,35 +14,22 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.*;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.ElementFilter;
-import javax.tools.Diagnostic;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 public final class EnumGsonDelegate extends BaseGsonDelegate {
-    private static final ClassName MAP_NAME = ClassName.get(HashMap.class);
     private TypeMirror keyedEnumTM;
-    private ExecutableElement baseGetKeyMethod;
 
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
         keyedEnumTM = TypeUtils.getTypeMirror(processingEnv, KeyedEnum.class.getCanonicalName());
-        baseGetKeyMethod = null;
-        TypeElement keyedEnumElement = processingEnv.getElementUtils().getTypeElement(KeyedEnum.class.getCanonicalName());
-        for (ExecutableElement method : ElementFilter.methodsIn(keyedEnumElement.getEnclosedElements())) {
-            if (method.getSimpleName().contentEquals("getKey")) {
-                baseGetKeyMethod = method;
-                break;
-            }
-        }
-        if (baseGetKeyMethod == null)
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Serializer: Failed to find method KeyedEnum.getKey");
+        if (keyedEnumTM != null)
+            keyedEnumTM = processingEnv.getTypeUtils().erasure(keyedEnumTM);
     }
 
     @Override
@@ -79,27 +70,10 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
                 .addStatement("$L.skipValue()", ctx.readerName)
                 .addStatement("return null")
                 .endControlFlow();
-        if (typeElement.getInterfaces().contains(keyedEnumTM)) {
-            ExecutableElement getKeyMethod = null;
-            for (ExecutableElement method : ElementFilter.methodsIn(typeElement.getEnclosedElements())) {
-                if (processingEnv.getElementUtils().overrides(method, baseGetKeyMethod, typeElement)) {
-                    getKeyMethod = method;
-                    break;
-                }
-            }
-            if (getKeyMethod == null)
-                throw new RuntimeException("Somehow got here with no getKey method implemented in " + typeElement);
-            TypeMirror keyType = getKeyMethod.getReturnType();
+        TypeMirror keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, keyedEnumTM, typeElement);
+        if (keyType != null) {
             TypeName keyTypeName = TypeName.get(keyType);
-            String mapName = "MAP_" + StringUtils.camelCaseToScreamingSnakeCase(typeSimpleName);
-            TypeName mapType = ParameterizedTypeName.get(MAP_NAME, keyTypeName, typeName);
-            ctx.classBuilder.addField(FieldSpec.builder(mapType, mapName, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL).build());
-            ctx.classBuilder.addStaticBlock(CodeBlock.builder()
-                    .addStatement("$L = new $T()", mapName, mapType)
-                    .beginControlFlow("for ($1T e : $1T.values())", typeName)
-                    .addStatement("$L.put(e.getKey(), e)", mapName)
-                    .endControlFlow()
-                    .build());
+            String mapName = SerializerComponentProvider.addEnumMap(ctx.classBuilder, keyType, typeElement);
             if (keyTypeName.isBoxedPrimitive()) {
                 keyType = processingEnv.getTypeUtils().unboxedType(keyType);
                 keyTypeName = keyTypeName.unbox();
@@ -162,17 +136,8 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
                         .endControlFlow()
                         .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
-        if (typeElement.getInterfaces().contains(keyedEnumTM)) {
-            ExecutableElement getKeyMethod = null;
-            for (ExecutableElement method : ElementFilter.methodsIn(typeElement.getEnclosedElements())) {
-                if (processingEnv.getElementUtils().overrides(method, baseGetKeyMethod, typeElement)) {
-                    getKeyMethod = method;
-                    break;
-                }
-            }
-            if (getKeyMethod == null)
-                throw new RuntimeException("Somehow got here with no getKey method implemented in " + typeElement);
-            TypeMirror keyType = getKeyMethod.getReturnType();
+        TypeMirror keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, keyedEnumTM, typeElement);
+        if (keyType != null) {
             if (TypeName.get(keyType).isBoxedPrimitive())
                 keyType = processingEnv.getTypeUtils().unboxedType(keyType);
             ctx.appendWrite(keyType, null, "obj.getKey()", codeBuilder);
@@ -183,23 +148,4 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
         return methodName;
     }
 
-    private static @NotNull List<@NotNull VariableElement> getEnumConstantsIn(@NotNull TypeElement typeElement) {
-        return typeElement.getEnclosedElements().stream()
-                .map(element -> {
-                    if (element.getKind() == ElementKind.ENUM_CONSTANT)
-                        return (VariableElement) element;
-                    return null;
-                }).filter(Objects::nonNull)
-                .collect(Collectors.toList());
-    }
-
-    private static @NotNull List<@NotNull VariableElement> getNonEnumConstantFieldsIn(@NotNull TypeElement typeElement) {
-        return typeElement.getEnclosedElements().stream()
-                .map(element -> {
-                    if (element.getKind() == ElementKind.FIELD)
-                        return (VariableElement) element;
-                    return null;
-                }).filter(Objects::nonNull)
-                .collect(Collectors.toList());
-    }
 }

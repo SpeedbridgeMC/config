@@ -24,29 +24,16 @@ public final class PrimitiveJanksonDelegate extends BaseJanksonDelegate {
         else if (!string && !typeName.isPrimitive())
             return false;
 
-        if (name == null || boxed || string) {
-            if (name != null) {
-                codeBuilder
-                        .addStatement("$L = $L.get($S)", ctx.elementName, ctx.objectName, name);
-            }
-            if (boxed || string) {
-                // can be null
-                codeBuilder
-                        .beginControlFlow("if ($L == $T.INSTANCE)", ctx.elementName, ctx.nullType)
-                        .addStatement("$L = null", dest)
-                        .nextControlFlow("else if ($L instanceof $T)", ctx.elementName, ctx.primitiveType);
-            } else
-                codeBuilder
-                        .beginControlFlow("if ($L instanceof $T)", ctx.elementName, ctx.primitiveType);
+        if (boxed || string) {
+            // can be null
             codeBuilder
-                    .addStatement("$L = ($T) $L", ctx.primitiveName, ctx.primitiveType, ctx.elementName);
+                    .beginControlFlow("if ($L == $T.INSTANCE)", ctx.elementName, ctx.nullType)
+                    .addStatement("$L = null", dest)
+                    .nextControlFlow("else if ($L instanceof $T)", ctx.elementName, ctx.primitiveType);
         } else
             codeBuilder
-                    .addStatement("$L = $L.get($T.class, $S)", ctx.primitiveName, ctx.objectName, ctx.primitiveType, name)
-                    .beginControlFlow("if ($L == null)", ctx.primitiveName)
-                    .addStatement("throw new $T($S + $L.get($S).getClass().getSimpleName() + $S)",
-                            IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.objectName, name, "\"!")
-                    .endControlFlow();
+                    .beginControlFlow("if ($L instanceof $T)", ctx.elementName, ctx.primitiveType);
+        codeBuilder.addStatement("$L = ($T) $L", ctx.primitiveName, ctx.primitiveType, ctx.elementName);
 
         String tempDest;
         String unqDest = dest;
@@ -94,20 +81,10 @@ public final class PrimitiveJanksonDelegate extends BaseJanksonDelegate {
                             IOException.class, "Type mismatch! Expected \"double\", got \"", tempDest, "\"!")
                     .endControlFlow();
 
-        if (name == null || boxed || string) {
-            codeBuilder.nextControlFlow("else");
-            if (name == null) {
-                codeBuilder
-                        .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
-                                IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.elementName, "\"!");
-            } else {
-                codeBuilder
-                        .addStatement("throw new $T($S + $L.get($S).getClass().getSimpleName() + $S)",
-                                IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.objectName, name, "\"!");
-            }
-            codeBuilder.endControlFlow();
-        }
-
+        codeBuilder.nextControlFlow("else")
+                .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
+                        IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.elementName, "\"!")
+                .endControlFlow();
         return true;
     }
 
@@ -115,18 +92,11 @@ public final class PrimitiveJanksonDelegate extends BaseJanksonDelegate {
     public boolean appendWrite(@NotNull JanksonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
         TypeName typeName = TypeName.get(type);
         if (STRING_TYPE.equals(typeName) || typeName.isBoxedPrimitive()) {
-            if (name == null)
-                codeBuilder.addStatement("$1L = $3L == null ? $4T.INSTANCE : new $2T($3L)",
-                        ctx.elementName, ctx.primitiveType, src, ctx.nullType);
-            else
-                codeBuilder.addStatement("$1L.put($2S, $4L == null ? $5T.INSTANCE : new $3T($4L))",
-                        ctx.objectName, name, ctx.primitiveType, src, ctx.nullType);
+            codeBuilder.addStatement("$1L = $3L == null ? $4T.INSTANCE : new $2T($3L)",
+                    ctx.elementName, ctx.primitiveType, src, ctx.nullType);
             return true;
         } else if (typeName.isPrimitive()) {
-            if (name == null)
-                codeBuilder.addStatement("$L = new $T($L)", ctx.elementName, ctx.primitiveType, src);
-            else
-                codeBuilder.addStatement("$L.put($S, new $T($L))", ctx.objectName, name, ctx.primitiveType, src);
+            codeBuilder.addStatement("$L = new $T($L)", ctx.elementName, ctx.primitiveType, src);
             return true;
         }
         return false;

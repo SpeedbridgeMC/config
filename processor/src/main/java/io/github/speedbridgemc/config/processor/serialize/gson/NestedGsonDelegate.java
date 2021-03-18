@@ -61,53 +61,57 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .addException(IOException.class);
         if (ctx.nullableAnnotation != null)
             methodBuilder.addAnnotation(ctx.nullableAnnotation);
-        String objName = "obj" + typeElement.getSimpleName();
-        methodBuilder.addCode(CodeBlock.builder()
-                .beginControlFlow("if ($L.peek() == $T.NULL)", ctx.readerName, ctx.tokenType)
-                .addStatement("$L.skipValue()", ctx.readerName)
-                .addStatement("return null")
-                .endControlFlow()
-                .addStatement("$1T $2L = new $1T()", typeName, objName)
-                .addStatement("$L.beginObject()", ctx.readerName)
-                .beginControlFlow("while ($L.hasNext())", ctx.readerName)
-                .addStatement("$T token = $L.peek()", ctx.tokenType, ctx.readerName)
-                .beginControlFlow("if (token == $T.NAME)", ctx.tokenType)
-                .addStatement("String name = $L.nextName()", ctx.readerName)
-                .build());
+
         HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
         HashMap<String, String> gotFlagsBackup = new HashMap<>(ctx.gotFlags);
         VariableElement fieldElementBackup = ctx.fieldElement;
         ctx.missingErrorMessages.clear();
         ctx.gotFlags.clear();
+        
         String defaultMissingErrorMessage = SerializerComponentProvider.getDefaultMissingErrorMessage(processingEnv, typeElement);
         SerializerComponentProvider.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, ctx.missingErrorMessages);
         GsonSerializerProvider.generateGotFlags(ctx, fields);
-        CodeBlock.Builder codeBuilder = GsonSerializerProvider.generateGotFlagDecls(ctx);
-        methodBuilder.addCode(codeBuilder.build());
+        String objName = "obj" + typeElement.getSimpleName();
+        methodBuilder.addCode("$1T $2L = new $1T();\n", typeName, objName);
+        methodBuilder.addCode(CodeBlock.builder()
+                .add(GsonSerializerProvider.generateGotFlagDecls(ctx).build())
+                .addStatement("$L.beginObject()", ctx.readerName)
+                .beginControlFlow("while ($L.hasNext())", ctx.readerName)
+                .addStatement("$T token = $L.peek()", ctx.tokenType, ctx.readerName)
+                .beginControlFlow("if (token == $T.NAME)", ctx.tokenType)
+                .addStatement("String name = $L.nextName()", ctx.readerName)
+                .beginControlFlow("switch (name)")
+                .build());
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            codeBuilder = CodeBlock.builder()
-                    .beginControlFlow("if ($S.equals(name))", fieldName);
+            String serializedName = SerializerComponentProvider.getSerializedName(field);
+            codeBuilder.add("case $S:\n", serializedName);
+            for (String alias : SerializerComponentProvider.getSerializedAliases(field))
+                codeBuilder.add("case $S:\n", alias);
+            codeBuilder.indent();
             ctx.fieldElement = field;
-            ctx.appendRead(field.asType(), fieldName, objName + "." + field.getSimpleName(), codeBuilder);
-            methodBuilder.addCode(codeBuilder
-                    .addStatement("continue")
-                    .endControlFlow()
-                    .build());
+            ctx.appendRead(field.asType(), serializedName, objName + "." + fieldName, codeBuilder);
+            codeBuilder.addStatement("continue").unindent();
         }
-        methodBuilder.addCode(GsonSerializerProvider.generateGotFlagChecks(ctx).build());
+        codeBuilder.add(CodeBlock.builder()
+                .endControlFlow()
+                .endControlFlow()
+                .addStatement("$L.skipValue()", ctx.readerName)
+                .endControlFlow()
+                .addStatement("$L.endObject()", ctx.readerName)
+                .build());
+        codeBuilder.add(GsonSerializerProvider.generateGotFlagChecks(ctx)
+                .addStatement("return $L", objName)
+                .build());
+
         ctx.fieldElement = fieldElementBackup;
         ctx.missingErrorMessages.clear();
         ctx.missingErrorMessages.putAll(missingErrorMessagesBackup);
         ctx.gotFlags.clear();
         ctx.gotFlags.putAll(gotFlagsBackup);
-        methodBuilder.addCode(CodeBlock.builder()
-                .endControlFlow()
-                .addStatement("$L.skipValue()", ctx.readerName)
-                .endControlFlow()
-                .addStatement("$L.endObject()", ctx.readerName)
-                .addStatement("return $L", objName)
-                .build());
+
+        methodBuilder.addCode(codeBuilder.build());
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;
     }
@@ -153,9 +157,10 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                         .build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
+            String serializedName = SerializerComponentProvider.getSerializedName(field);
             CodeBlock.Builder codeBuilder = CodeBlock.builder()
-                    .addStatement("$L.name($S)", ctx.writerName, fieldName);
-            ctx.appendWrite(field.asType(), fieldName, "obj." + fieldName, codeBuilder);
+                    .addStatement("$L.name($S)", ctx.writerName, serializedName);
+            ctx.appendWrite(field.asType(), serializedName, "obj." + fieldName, codeBuilder);
             methodBuilder.addCode(codeBuilder.build());
         }
         methodBuilder.addCode("$L.endObject();\n", ctx.writerName);
