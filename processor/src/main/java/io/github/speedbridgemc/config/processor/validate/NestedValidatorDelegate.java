@@ -3,6 +3,7 @@ package io.github.speedbridgemc.config.processor.validate;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.EnforceMode;
 import io.github.speedbridgemc.config.EnforceNotNull;
+import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.validate.api.BaseValidatorDelegate;
 import io.github.speedbridgemc.config.processor.validate.api.ErrorDelegate;
@@ -60,7 +61,7 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
             return null;
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
-        String defaultsName = "DEFAULTS_" + camelCaseToScreamingSnakeCase(typeSimpleName);
+        String defaultsName = "DEFAULTS_" + StringUtils.camelCaseToScreamingSnakeCase(typeSimpleName);
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
         ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, ctx.configName);
         if (ctx.nonNullAnnotation != null)
@@ -96,14 +97,4 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
         }
     }
 
-    private static @NotNull String camelCaseToScreamingSnakeCase(@NotNull String s) {
-        StringBuilder resultBuilder = new StringBuilder();
-        for (int i = 0, length = s.length(); i < length; i++) {
-            char ch = s.charAt(i);
-            if (Character.isUpperCase(ch) && resultBuilder.length() != 0)
-                resultBuilder.append('_');
-            resultBuilder.append(Character.toUpperCase(ch));
-        }
-        return resultBuilder.toString();
-    }
 }

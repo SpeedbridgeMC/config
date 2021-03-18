@@ -95,11 +95,17 @@ public final class PrimitiveJanksonDelegate extends BaseJanksonDelegate {
                     .endControlFlow();
 
         if (name == null || boxed || string) {
-            codeBuilder
-                    .nextControlFlow("else")
-                    .addStatement("throw new $T($S + $L.get($S).getClass().getSimpleName() + $S)",
-                            IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.objectName, name, "\"!")
-                    .endControlFlow();
+            codeBuilder.nextControlFlow("else");
+            if (name == null) {
+                codeBuilder
+                        .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
+                                IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.elementName, "\"!");
+            } else {
+                codeBuilder
+                        .addStatement("throw new $T($S + $L.get($S).getClass().getSimpleName() + $S)",
+                                IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.objectName, name, "\"!");
+            }
+            codeBuilder.endControlFlow();
         }
 
         return true;

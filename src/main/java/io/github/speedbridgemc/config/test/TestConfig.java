@@ -1,8 +1,10 @@
 package io.github.speedbridgemc.config.test;
 
 import io.github.speedbridgemc.config.*;
+import io.github.speedbridgemc.config.serialize.KeyedEnum;
 import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
 import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +29,7 @@ public final class TestConfig {
     public float testFloat = 21.5f;
     @EnforceNotNull @IntegerRange(min = 24, max = 48, minMode = RangeMode.EXCLUSIVE, maxMode = RangeMode.INCLUSIVE)
     public Integer testInt = 26;
+    public TestEnum testEnum = TestEnum.FOO;
     @UseDefaultIfMissing
     public HelloWorld helloWorld = new HelloWorld();
     public Nested3 nested3 = new Nested3();
@@ -89,5 +92,24 @@ public final class TestConfig {
 
     public static final class MapEntry {
         public HelloWorld helloWorld;
+    }
+
+    public enum TestEnum implements KeyedEnum {
+        FOO(0), BAR(1), BAZ(2);
+
+        private final int id;
+
+        TestEnum(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        @Override
+        public @NotNull Integer getKey() {
+            return getId();
+        }
     }
 }

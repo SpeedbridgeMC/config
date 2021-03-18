@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
@@ -103,10 +104,8 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
     public static void generateGotFlags(@NotNull GsonContext gCtx, @NotNull List<@NotNull VariableElement> fields) {
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            if (gCtx.missingErrorMessages.get(fieldName) != null) {
-                String fieldNameTS = Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
-                gCtx.gotFlags.put(fieldName, "got" + fieldNameTS);
-            }
+            if (gCtx.missingErrorMessages.get(fieldName) != null)
+                gCtx.gotFlags.put(fieldName, "got" + StringUtils.titleCase(fieldName));
         }
     }
 

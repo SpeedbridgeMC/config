@@ -1,6 +1,7 @@
 package io.github.speedbridgemc.config.processor.serialize.gson;
 
 import com.squareup.javapoet.CodeBlock;
+import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
@@ -95,10 +96,8 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
             HashMap<String, String> gotFlagsBackup = new HashMap<>(ctx.gotFlags);
             HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
             ctx.gotFlags.clear();
-            String keyDestTS = Character.toUpperCase(keyDest.charAt(0)) + keyDest.substring(1);
-            ctx.gotFlags.put(keyDest, "got" + keyDestTS);
-            String valueDestTS = Character.toUpperCase(valueDest.charAt(0)) + valueDest.substring(1);
-            ctx.gotFlags.put(valueDest, "got" + valueDestTS);
+            ctx.gotFlags.put(keyDest, "got" + StringUtils.titleCase(keyDest));
+            ctx.gotFlags.put(valueDest, "got" + StringUtils.titleCase(valueDest));
             ctx.missingErrorMessages.clear();
             ctx.missingErrorMessages.put(keyDest, "Missing complex map entry key!");
             ctx.missingErrorMessages.put(valueDest, "Missing complex map entry value!");

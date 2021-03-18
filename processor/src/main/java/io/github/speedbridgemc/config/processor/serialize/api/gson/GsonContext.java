@@ -4,10 +4,7 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-import io.github.speedbridgemc.config.processor.serialize.gson.ListArrayGsonDelegate;
-import io.github.speedbridgemc.config.processor.serialize.gson.MapGsonDelegate;
-import io.github.speedbridgemc.config.processor.serialize.gson.NestedGsonDelegate;
-import io.github.speedbridgemc.config.processor.serialize.gson.PrimitiveGsonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.gson.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -43,6 +40,7 @@ public final class GsonContext {
         ServiceLoader<GsonDelegate> delegateLoader = ServiceLoader.load(GsonDelegate.class, GsonContext.class.getClassLoader());
         delegates = new ArrayList<>();
         delegates.add(new PrimitiveGsonDelegate());
+        delegates.add(new EnumGsonDelegate());
         for (GsonDelegate delegate : delegateLoader)
             delegates.add(delegate);
         delegates.add(new ListArrayGsonDelegate());

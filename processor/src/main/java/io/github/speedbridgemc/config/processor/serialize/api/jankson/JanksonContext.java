@@ -4,10 +4,7 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-import io.github.speedbridgemc.config.processor.serialize.jankson.ListArrayJanksonDelegate;
-import io.github.speedbridgemc.config.processor.serialize.jankson.MapJanksonDelegate;
-import io.github.speedbridgemc.config.processor.serialize.jankson.NestedJanksonDelegate;
-import io.github.speedbridgemc.config.processor.serialize.jankson.PrimitiveJanksonDelegate;
+import io.github.speedbridgemc.config.processor.serialize.jankson.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -44,6 +41,7 @@ public final class JanksonContext {
         ServiceLoader<JanksonDelegate> delegateLoader = ServiceLoader.load(JanksonDelegate.class, JanksonContext.class.getClassLoader());
         delegates = new ArrayList<>();
         delegates.add(new PrimitiveJanksonDelegate());
+        delegates.add(new EnumJanksonDelegate());
         for (JanksonDelegate delegate : delegateLoader)
             delegates.add(delegate);
         delegates.add(new ListArrayJanksonDelegate());
