@@ -11,7 +11,7 @@ repositories {
 
 dependencies {
     implementation project(':annotations')
-	implementation project(':runtime')
+    implementation project(':runtime')
     annotationProcessor project(':processor')
 
     implementation 'org.jetbrains:annotations:20.1.0'
