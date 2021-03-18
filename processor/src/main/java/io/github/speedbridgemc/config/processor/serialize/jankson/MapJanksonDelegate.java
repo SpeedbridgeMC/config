@@ -1,13 +1,16 @@
 package io.github.speedbridgemc.config.processor.serialize.jankson;
 
-import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.*;
+import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
+import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -18,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 public final class MapJanksonDelegate extends BaseJanksonDelegate {
+    private static final ClassName HASH_MAP_NAME = ClassName.get(HashMap.class),
+            MAP_NAME = ClassName.get(Map.class);
     private TypeMirror mapTM, stringTM, entryTM;
 
     @Override
@@ -54,44 +59,69 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
         if (keyType == null || valueType == null)
             return false;
 
+        String methodName = generateReadMethod(ctx, keyType, valueType);
+        if (name != null)
+            codeBuilder.addStatement("$L = $L.get($S)", ctx.elementName, ctx.objectName, name);
+        codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
+
+        return true;
+    }
+
+    private @NotNull String generateReadMethod(@NotNull JanksonContext ctx, @NotNull TypeMirror keyType, @NotNull TypeMirror valueType) {
+        String keyTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(keyType)).replaceAll("\\[]", "Array");
+        String valueTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(valueType)).replaceAll("\\[]", "Array");
+        String methodName = "read" + keyTypeSimpleName + "2" + valueTypeSimpleName + "Map";
+        if (ctx.generatedMethods.contains(methodName))
+            return methodName;
+        ctx.generatedMethods.add(methodName);
+        TypeName keyTypeName = TypeName.get(keyType);
+        TypeName valueTypeName = TypeName.get(valueType);
+        TypeName mapTypeName = ParameterizedTypeName.get(HASH_MAP_NAME, keyTypeName, valueTypeName);
+        ParameterSpec.Builder elementParamBuilder = ParameterSpec.builder(ctx.elementType, ctx.elementName);
+        if (ctx.nonNullAnnotation != null)
+            elementParamBuilder.addAnnotation(ctx.nonNullAnnotation);
+        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .returns(mapTypeName)
+                .addParameter(elementParamBuilder.build())
+                .addException(IOException.class);
+        if (ctx.nullableAnnotation != null)
+            methodBuilder.addAnnotation(ctx.nullableAnnotation);
+        String mapName = "map" + keyTypeSimpleName + "2" + valueTypeSimpleName;
+
         boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
         String objDest, arrDest, elemDest, entryDest, keyDest, valueDest, keyElemDest, valueElemDest;
-        String unqDest = dest;
-        int dotI = dest.lastIndexOf('.');
-        if (dotI > 0)
-            unqDest = dest.substring(dotI + 1);
-        objDest = unqDest + "Obj";
-        arrDest = unqDest + "Arr";
-        elemDest = unqDest + "Elem";
-        entryDest = unqDest + "Entry";
-        keyDest = unqDest + "Key";
-        valueDest = unqDest + "Value";
-        keyElemDest = unqDest + "KeyElem";
-        valueElemDest = unqDest + "ValueElem";
+        objDest = "obj";
+        arrDest = "arr";
+        elemDest = "elem" + keyTypeSimpleName + "2" + valueTypeSimpleName;
+        entryDest = "entry";
+        keyDest = "key";
+        valueDest = "value";
+        keyElemDest = "keyElem";
+        valueElemDest = "valueElem";
 
         String elementNameBackup = ctx.elementName;
         ctx.elementName = elemDest;
 
-        if (name != null)
-            codeBuilder
-                    .addStatement("$L = $L.get($S)", elementNameBackup, ctx.objectName, name);
-        codeBuilder
+        CodeBlock.Builder codeBuilder = CodeBlock.builder()
                 .beginControlFlow("if ($L == $T.INSTANCE)", elementNameBackup, ctx.nullType)
-                .addStatement("$L = null", dest);
+                .addStatement("return null");
         if (stringKeys) {
             // object
             codeBuilder
                     .nextControlFlow("else if ($L instanceof $T)", elementNameBackup, ctx.objectType)
                     .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, objDest, elementNameBackup)
-                    .addStatement("$L = new $T<$T, $T>()", dest, HashMap.class, keyType, valueType)
+                    .addStatement("$1T $2L = new $1T()", mapTypeName, mapName)
+                    .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                     .addStatement("$T $L", valueType, valueDest)
                     .beginControlFlow("for ($T<$T, $T> $L : $L.entrySet())",
                             entryTM, stringTM, ctx.elementType, entryDest, objDest)
                     .addStatement("$T $L = $L.getValue()", ctx.elementType, ctx.elementName, entryDest);
             ctx.appendRead(valueType, null, valueDest, codeBuilder);
             codeBuilder
-                    .addStatement("$L.put($L.getKey(), $L)", dest, entryDest, valueDest)
+                    .addStatement("$L.put($L.getKey(), $L)", mapName, entryDest, valueDest)
                     .endControlFlow()
+                    .addStatement("return $L", mapName)
                     .nextControlFlow("else")
                     .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
                             IOException.class, "Type mismatch! Expected \"JsonObject\", got \"", elementNameBackup, "\"!")
@@ -101,7 +131,8 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             codeBuilder
                     .nextControlFlow("else if ($L instanceof $T)", elementNameBackup, ctx.arrayType)
                     .addStatement("$1T $2L = ($1T) $3L", ctx.arrayType, arrDest, elementNameBackup)
-                    .addStatement("$L = new $T<$T, $T>()", dest, HashMap.class, keyType, valueType)
+                    .addStatement("$1T $2L = new $1T()", mapTypeName, mapName)
+                    .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                     .addStatement("$T $L", keyType, keyDest)
                     .addStatement("$T $L", valueType, valueDest)
                     .beginControlFlow("for ($T $L : $L)", ctx.elementType, elemDest, arrDest)
@@ -121,15 +152,21 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             ctx.appendRead(valueType, null, valueDest, codeBuilder);
             ctx.elementName = elemDest;
             codeBuilder
-                    .addStatement("$L.put($L, $L)", dest, keyDest, valueDest)
+                    .addStatement("$L.put($L, $L)", mapName, keyDest, valueDest)
                     .endControlFlow()
                     .endControlFlow()
+                    .addStatement("return $L", mapName)
+                    .nextControlFlow("else")
+                    .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
+                            IOException.class, "Type mismatch! Expected \"JsonArray\", got \"", elementNameBackup, "\"!")
                     .endControlFlow();
         }
 
         ctx.elementName = elementNameBackup;
 
-        return true;
+        methodBuilder.addCode(codeBuilder.build());
+        ctx.classBuilder.addMethod(methodBuilder.build());
+        return methodName;
     }
 
     @Override
@@ -154,27 +191,53 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
         if (keyType == null || valueType == null)
             return false;
 
+        String methodName = generateWriteMethod(ctx, keyType, valueType);
+        if (name == null)
+            codeBuilder.addStatement("$L = $L($L)", ctx.elementName, methodName, src);
+        else
+            codeBuilder.addStatement("$L.put($S, $L($L))", ctx.objectName, name, methodName, src);
+
+        return true;
+    }
+
+    private @NotNull String generateWriteMethod(@NotNull JanksonContext ctx, @NotNull TypeMirror keyType, @NotNull TypeMirror valueType) {
+        String keyTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(keyType)).replaceAll("\\[]", "Array");
+        String valueTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(valueType)).replaceAll("\\[]", "Array");
+        String methodName = "write" + keyTypeSimpleName + "2" + valueTypeSimpleName + "Map";
+        if (ctx.generatedMethods.contains(methodName))
+            return methodName;
+        ctx.generatedMethods.add(methodName);
+        TypeName keyTypeName = TypeName.get(keyType);
+        TypeName valueTypeName = TypeName.get(valueType);
+        TypeName mapTypeName = ParameterizedTypeName.get(MAP_NAME, keyTypeName, valueTypeName);
+        String src = "obj";
+        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(mapTypeName, src);
+        if (ctx.nullableAnnotation != null)
+            configParamBuilder.addAnnotation(ctx.nullableAnnotation);
+        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .returns(ctx.elementType)
+                .addParameter(configParamBuilder.build())
+                .addException(IOException.class)
+                .addCode(CodeBlock.builder()
+                        .beginControlFlow("if ($L == null)", src)
+                        .addStatement("return $T.INSTANCE", ctx.nullType)
+                        .endControlFlow()
+                        .build());
+        if (ctx.nonNullAnnotation != null)
+            methodBuilder.addAnnotation(ctx.nonNullAnnotation);
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+
         boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
         String entrySrc, keySrc, valueSrc, objSrc, arrSrc, elemSrc, keyElemSrc, valueElemSrc;
-        String unqSrc = src;
-        int dotI = src.lastIndexOf('.');
-        if (dotI > 0)
-            unqSrc = src.substring(dotI + 1);
-        entrySrc = unqSrc + "Entry";
-        keySrc = unqSrc + "Key";
-        valueSrc = unqSrc + "Value";
-        objSrc = unqSrc + "Obj";
-        arrSrc = unqSrc + "Arr";
-        elemSrc = unqSrc + "Elem";
-        keyElemSrc = unqSrc + "KeyElem";
-        valueElemSrc = unqSrc + "ValueElem";
-
-        codeBuilder.beginControlFlow("if ($L == null)", src);
-        if (name == null)
-            codeBuilder.addStatement("$L = $T.INSTANCE", ctx.elementName, ctx.nullType);
-        else
-            codeBuilder.addStatement("$L.put($S, $T.INSTANCE)", ctx.objectName, name, ctx.nullType);
-        codeBuilder.nextControlFlow("else");
+        entrySrc = "entry" + keyTypeSimpleName + "2" + valueTypeSimpleName;
+        keySrc = "key";
+        valueSrc = "value";
+        objSrc = "obj" + keyTypeSimpleName + "2" + valueTypeSimpleName;
+        arrSrc = "arr";
+        elemSrc = "elem";
+        keyElemSrc = "keyElem";
+        valueElemSrc = "valueElem";
 
         String elementNameBackup = ctx.elementName;
         ctx.elementName = elemSrc;
@@ -190,11 +253,8 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             ctx.appendWrite(valueType, null, valueSrc, codeBuilder);
             codeBuilder
                     .addStatement("$L.put($L.getKey(), $L)", objSrc, entrySrc, elemSrc)
-                    .endControlFlow();
-            if (name == null)
-                codeBuilder.addStatement("$L = $L", elementNameBackup, objSrc);
-            else
-                codeBuilder.addStatement("$L.put($S, $L)", ctx.objectName, name, objSrc);
+                    .endControlFlow()
+                    .addStatement("return $L", objSrc);
         } else {
             // array of key/value objects
             codeBuilder
@@ -216,17 +276,14 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
                     .addStatement("$L.put($S, $L)", objSrc, "key", keyElemSrc)
                     .addStatement("$L.put($S, $L)", objSrc, "value", valueElemSrc)
                     .addStatement("$L.add($L)", arrSrc, objSrc)
-                    .endControlFlow();
-            if (name == null)
-                codeBuilder.addStatement("$L = $L", elementNameBackup, arrSrc);
-            else
-                codeBuilder.addStatement("$L.put($S, $L)", ctx.objectName, name, arrSrc);
+                    .endControlFlow()
+                    .addStatement("return $L", arrSrc);
         }
 
         ctx.elementName = elementNameBackup;
 
-        codeBuilder.endControlFlow();
-
-        return true;
+        methodBuilder.addCode(codeBuilder.build());
+        ctx.classBuilder.addMethod(methodBuilder.build());
+        return methodName;
     }
 }

@@ -7,7 +7,7 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
-import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.*;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.util.HashMap;
@@ -77,5 +77,31 @@ public final class TypeUtils {
             }
             return hasDefaultConstructor;
         });
+    }
+
+    private static final HashMap<TypeMirror, String> SIMPLE_NAME_CACHE = new HashMap<>();
+
+    public static @NotNull String getSimpleName(@NotNull TypeMirror type) {
+        String simpleName = SIMPLE_NAME_CACHE.get(type);
+        if (simpleName == null) {
+            TypeKind kind = type.getKind();
+            if (kind.isPrimitive())
+                simpleName = type.toString();
+            else if (kind == TypeKind.ARRAY)
+                simpleName = getSimpleName(((ArrayType) type).getComponentType()) + "[]";
+            else if (kind == TypeKind.DECLARED) {
+                DeclaredType declaredType = (DeclaredType) type;
+                TypeElement typeElement = (TypeElement) declaredType.asElement();
+                List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
+                StringBuilder sb = new StringBuilder();
+                for (TypeMirror typeArg : typeArgs)
+                    sb.append(getSimpleName(typeArg));
+                sb.append(typeElement.getSimpleName().toString());
+                return sb.toString();
+            } else
+                throw new IllegalArgumentException("Cannot get simple name of type with kind " + kind);
+            SIMPLE_NAME_CACHE.put(type, simpleName);
+        }
+        return simpleName;
     }
 }

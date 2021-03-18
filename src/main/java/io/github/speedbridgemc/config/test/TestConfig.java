@@ -38,7 +38,7 @@ public final class TestConfig {
     public List<int[]> testNestedList = new ArrayList<>();
     public List<HelloWorld> testList2 = new ArrayList<>();
     public Map<String, StringEntry> testStringKeysMap = new HashMap<>();
-    public Map<MapKey, MapEntry> testMap = new HashMap<>();
+    public Map<MapKey, MapValue> testMap = new HashMap<>();
     public Map<String, Map<String, String>> testNestedMap = new HashMap<>();
 
     public TestConfig() {
@@ -90,7 +90,7 @@ public final class TestConfig {
         public float acto = 0.2f;
     }
 
-    public static final class MapEntry {
+    public static final class MapValue {
         public HelloWorld helloWorld;
     }
 

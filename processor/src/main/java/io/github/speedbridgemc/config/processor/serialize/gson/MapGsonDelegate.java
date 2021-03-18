@@ -1,6 +1,6 @@
 package io.github.speedbridgemc.config.processor.serialize.gson;
 
-import com.squareup.javapoet.CodeBlock;
+import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
@@ -9,16 +9,20 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public final class MapGsonDelegate extends BaseGsonDelegate {
+    private static final ClassName HASH_MAP_NAME = ClassName.get(HashMap.class),
+            MAP_NAME = ClassName.get(Map.class);
     private TypeMirror mapTM, stringTM, entryTM;
 
     @Override
@@ -55,23 +59,53 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
         if (keyType == null || valueType == null)
             return false;
 
-        codeBuilder
+        String methodName = generateReadMethod(ctx, keyType, valueType);
+        codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.readerName);
+
+        if (name != null) {
+            String gotFlag = ctx.gotFlags.get(name);
+            if (gotFlag != null)
+                codeBuilder.addStatement("$L = true", gotFlag);
+        }
+
+        return true;
+    }
+
+    private @NotNull String generateReadMethod(@NotNull GsonContext ctx, @NotNull TypeMirror keyType, @NotNull TypeMirror valueType) {
+        String keyTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(keyType)).replaceAll("\\[]", "Array");
+        String valueTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(valueType)).replaceAll("\\[]", "Array");
+        String methodName = "read" + keyTypeSimpleName + "2" + valueTypeSimpleName + "Map";
+        if (ctx.generatedMethods.contains(methodName))
+            return methodName;
+        ctx.generatedMethods.add(methodName);
+        TypeName keyTypeName = TypeName.get(keyType);
+        TypeName valueTypeName = TypeName.get(valueType);
+        TypeName mapTypeName = ParameterizedTypeName.get(HASH_MAP_NAME, keyTypeName, valueTypeName);
+        ParameterSpec.Builder readerParamBuilder = ParameterSpec.builder(ctx.readerType, ctx.readerName);
+        if (ctx.nonNullAnnotation != null)
+            readerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
+        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .returns(mapTypeName)
+                .addParameter(readerParamBuilder.build())
+                .addException(IOException.class);
+        if (ctx.nullableAnnotation != null)
+            methodBuilder.addAnnotation(ctx.nullableAnnotation);
+        String mapName = "map" + keyTypeSimpleName + "2" + valueTypeSimpleName;
+        methodBuilder.addCode(CodeBlock.builder()
                 .beginControlFlow("if ($L.peek() == $T.NULL)", ctx.readerName, ctx.tokenType)
                 .addStatement("$L.skipValue()", ctx.readerName)
-                .addStatement("$L = null", dest)
-                .nextControlFlow("else");
+                .addStatement("return null")
+                .endControlFlow()
+                .addStatement("$1T $2L = new $1T()", mapTypeName, mapName)
+                .build());
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
 
         boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
-        String tokenDest, nameDest, keyDest, valueDest;
-        String unqDest = dest;
-        int dotI = dest.lastIndexOf('.');
-        if (dotI > 0)
-            unqDest = dest.substring(dotI + 1);
-        tokenDest = unqDest + "Token";
-        nameDest = unqDest + "Name";
-        keyDest = unqDest + "Key";
-        valueDest = unqDest + "Value";
-
+        String tokenDest = "token";
+        String nameDest = "name";
+        String keyDest = "key";
+        String valueDest = "value";
         VariableElement fieldElementBackup = ctx.fieldElement;
         ctx.fieldElement = null;
 
@@ -79,14 +113,13 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
             // object
             codeBuilder
                     .addStatement("$T $L", valueType, valueDest)
-                    .addStatement("$L = new $T<$T, $T>()", dest, HashMap.class, keyType, valueType)
                     .addStatement("$L.beginObject()", ctx.readerName)
                     .beginControlFlow("while ($L.hasNext())", ctx.readerName)
                     .addStatement("$T $L = $L.peek()", ctx.tokenType, tokenDest, ctx.readerName)
                     .beginControlFlow("if ($L == $T.NAME)", tokenDest, ctx.tokenType)
                     .addStatement("String $L = $L.nextName()", keyDest, ctx.readerName);
             ctx.appendRead(valueType, null, valueDest, codeBuilder);
-            codeBuilder.addStatement("$L.put($L, $L)", dest, keyDest, valueDest)
+            codeBuilder.addStatement("$L.put($L, $L)", mapName, keyDest, valueDest)
                     .endControlFlow()
                     .addStatement("$L.skipValue()", ctx.readerName)
                     .endControlFlow()
@@ -127,7 +160,7 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                     .endControlFlow();
             codeBuilder.add(GsonSerializerProvider.generateGotFlagChecks(ctx).build());
             codeBuilder
-                    .addStatement("$L.put($L, $L)", dest, keyDest, valueDest)
+                    .addStatement("$L.put($L, $L)", mapName, keyDest, valueDest)
                     .addStatement("$L = null", keyDest)
                     .addStatement("$L = null", valueDest)
                     .endControlFlow()
@@ -141,14 +174,10 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
 
         ctx.fieldElement = fieldElementBackup;
 
-        codeBuilder.endControlFlow();
-        if (name != null) {
-            String gotFlag = ctx.gotFlags.get(name);
-            if (gotFlag != null)
-                codeBuilder.addStatement("$L = true", gotFlag);
-        }
-
-        return true;
+        codeBuilder.addStatement("return $L", mapName);
+        methodBuilder.addCode(codeBuilder.build());
+        ctx.classBuilder.addMethod(methodBuilder.build());
+        return methodName;
     }
 
     @Override
@@ -173,20 +202,44 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
         if (keyType == null || valueType == null)
             return false;
 
-        codeBuilder
-                .beginControlFlow("if ($L == null)", src)
-                .addStatement("$L.nullValue()", ctx.writerName)
-                .nextControlFlow("else");
+        String methodName = generateWriteMethod(ctx, keyType, valueType);
+        codeBuilder.addStatement("$L($L, $L)", methodName, ctx.writerName, src);
 
+        return true;
+    }
+
+    private @NotNull String generateWriteMethod(@NotNull GsonContext ctx, @NotNull TypeMirror keyType, @NotNull TypeMirror valueType) {
+        String keyTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(keyType)).replaceAll("\\[]", "Array");
+        String valueTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(valueType)).replaceAll("\\[]", "Array");
+        String methodName = "write" + keyTypeSimpleName + "2" + valueTypeSimpleName + "Map";
+        if (ctx.generatedMethods.contains(methodName))
+            return methodName;
+        ctx.generatedMethods.add(methodName);
+        TypeName keyTypeName = TypeName.get(keyType);
+        TypeName valueTypeName = TypeName.get(valueType);
+        TypeName mapTypeName = ParameterizedTypeName.get(MAP_NAME, keyTypeName, valueTypeName);
+        ParameterSpec.Builder writerParamBuilder = ParameterSpec.builder(ctx.writerType, "writer");
+        if (ctx.nonNullAnnotation != null)
+            writerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
+        String src = "obj";
+        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(mapTypeName, src);
+        if (ctx.nullableAnnotation != null)
+            configParamBuilder.addAnnotation(ctx.nullableAnnotation);
+        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .addParameter(writerParamBuilder.build())
+                .addParameter(configParamBuilder.build())
+                .addException(IOException.class);
+
+        CodeBlock.Builder codeBuilder = CodeBlock.builder()
+                .beginControlFlow("if (obj == null)")
+                .addStatement("$L.nullValue()", ctx.writerName)
+                .addStatement("return")
+                .endControlFlow();
         boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
-        String entrySrc, keySrc, valueSrc;
-        String unqSrc = src;
-        int dotI = src.lastIndexOf('.');
-        if (dotI > 0)
-            unqSrc = src.substring(dotI + 1);
-        entrySrc = unqSrc + "Entry";
-        keySrc = unqSrc + "Key";
-        valueSrc = unqSrc + "Value";
+        String valueSrc = "value";
+        String entrySrc = "entry";
+        String keySrc = "key";
 
         VariableElement fieldElementBackup = ctx.fieldElement;
         ctx.fieldElement = null;
@@ -225,8 +278,9 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
 
         ctx.fieldElement = fieldElementBackup;
 
-        codeBuilder.endControlFlow();
-
-        return true;
+        //codeBuilder.endControlFlow();
+        methodBuilder.addCode(codeBuilder.build());
+        ctx.classBuilder.addMethod(methodBuilder.build());
+        return methodName;
     }
 }

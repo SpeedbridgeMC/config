@@ -59,7 +59,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
 
     private @NotNull String generateReadMethod(@NotNull JanksonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
         String typeSimpleName = typeElement.getSimpleName().toString();
-        String methodName = "read" + typeSimpleName + "Enum";
+        String methodName = "read" + typeSimpleName;
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
         ctx.generatedMethods.add(methodName);
@@ -146,7 +146,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
 
     private @NotNull String generateWriteMethod(@NotNull JanksonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
         String typeSimpleName = typeElement.getSimpleName().toString();
-        String methodName = "write" + typeSimpleName + "Enum";
+        String methodName = "write" + typeSimpleName;
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
         ctx.generatedMethods.add(methodName);

@@ -60,7 +60,7 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
 
     private @NotNull String generateReadMethod(@NotNull GsonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
         String typeSimpleName = typeElement.getSimpleName().toString();
-        String methodName = "read" + typeSimpleName + "Enum";
+        String methodName = "read" + typeSimpleName;
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
         ctx.generatedMethods.add(methodName);
@@ -140,7 +140,7 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
 
     private @NotNull String generateWriteMethod(@NotNull GsonContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
         String typeSimpleName = typeElement.getSimpleName().toString();
-        String methodName = "write" + typeSimpleName + "Enum";
+        String methodName = "write" + typeSimpleName;
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
         ctx.generatedMethods.add(methodName);

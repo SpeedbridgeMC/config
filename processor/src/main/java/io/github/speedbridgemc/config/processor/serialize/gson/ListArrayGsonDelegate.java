@@ -1,7 +1,7 @@
 package io.github.speedbridgemc.config.processor.serialize.gson;
 
-import com.squareup.javapoet.CodeBlock;
-import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.*;
+import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
@@ -9,16 +9,20 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 public final class ListArrayGsonDelegate extends BaseGsonDelegate {
+    private static final ClassName ARRAY_LIST_NAME = ClassName.get(ArrayList.class),
+            ITERABLE_NAME = ClassName.get(Iterable.class);
     private TypeMirror listTM;
 
     @Override
@@ -55,45 +59,21 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
         if (componentType == null)
             return false;
 
-        codeBuilder
-                .beginControlFlow("if ($L.peek() == $T.NULL)", ctx.readerName, ctx.tokenType)
-                .addStatement("$L.skipValue()", ctx.readerName)
-                .addStatement("$L = null", dest)
-                .nextControlFlow("else");
-
         TypeName componentTypeName = TypeName.get(componentType);
         TypeName oldComponentTypeName = componentTypeName;
         String oldDest = dest;
         if (componentTypeName.isPrimitive())
             componentTypeName = componentTypeName.box();
-        String compDest;
         if (array) {
             int dotI = dest.lastIndexOf('.');
             if (dotI > 0)
                 dest = dest.substring(dotI + 1);
             dest += "Tmp";
-            compDest = dest + "Comp";
-            codeBuilder.addStatement("$2T<$3T> $1L = new $2T<$3T>()", dest, ArrayList.class, componentTypeName);
-        } else {
-            String unqDest = dest;
-            int dotI = dest.lastIndexOf('.');
-            if (dotI > 0)
-                unqDest = dest.substring(dotI + 1);
-            compDest = unqDest + "Comp";
-            codeBuilder.addStatement("$L = new $T<$T>()", dest, ArrayList.class, componentTypeName);
+            codeBuilder.addStatement("$2T<$3T> $1L", dest, ArrayList.class, componentTypeName);
         }
 
-        VariableElement fieldElementBackup = ctx.fieldElement;
-        ctx.fieldElement = null;
-
-        codeBuilder.addStatement("reader.beginArray()")
-                .beginControlFlow("while (reader.hasNext())")
-                .addStatement("$T $L", componentTypeName, compDest);
-        ctx.appendRead(componentType, null, compDest, codeBuilder);
-        codeBuilder
-                .addStatement("$L.add($L)", dest, compDest)
-                .endControlFlow()
-                .addStatement("reader.endArray()");
+        String methodName = generateReadMethod(ctx, componentTypeName, componentType);
+        codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.readerName);
         if (array) {
             if (oldComponentTypeName.isPrimitive()) {
                 codeBuilder.addStatement("$L = new $T[$L.size()]", oldDest, oldComponentTypeName, dest)
@@ -104,9 +84,6 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
                 codeBuilder.addStatement("$L = $L.toArray(new $T[0])", oldDest, dest, oldComponentTypeName);
         }
 
-        ctx.fieldElement = fieldElementBackup;
-
-        codeBuilder.endControlFlow();
         if (name != null) {
             String gotFlag = ctx.gotFlags.get(name);
             if (gotFlag != null)
@@ -114,6 +91,53 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
         }
 
         return true;
+    }
+
+    private @NotNull String generateReadMethod(@NotNull GsonContext ctx, @NotNull TypeName componentTypeName, @NotNull TypeMirror componentType) {
+        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(componentType).replaceAll("\\[]", "Array"));
+        String methodName = "read" + typeSimpleName + "List";
+        if (ctx.generatedMethods.contains(methodName))
+            return methodName;
+        ctx.generatedMethods.add(methodName);
+        TypeName listTypeName = ParameterizedTypeName.get(ARRAY_LIST_NAME, componentTypeName);
+        ParameterSpec.Builder readerParamBuilder = ParameterSpec.builder(ctx.readerType, ctx.readerName);
+        if (ctx.nonNullAnnotation != null)
+            readerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
+        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .returns(listTypeName)
+                .addParameter(readerParamBuilder.build())
+                .addException(IOException.class);
+        if (ctx.nullableAnnotation != null)
+            methodBuilder.addAnnotation(ctx.nullableAnnotation);
+        String listName = "list" + typeSimpleName;
+        methodBuilder.addCode(CodeBlock.builder()
+                .beginControlFlow("if ($L.peek() == $T.NULL)", ctx.readerName, ctx.tokenType)
+                .addStatement("$L.skipValue()", ctx.readerName)
+                .addStatement("return null")
+                .endControlFlow()
+                .addStatement("$1T $2L = new $1T()", listTypeName, listName)
+                .build());
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+
+        String compDest = "comp" + typeSimpleName;
+        codeBuilder.addStatement("$L.beginArray()", ctx.readerName)
+                .beginControlFlow("while ($L.hasNext())", ctx.readerName)
+                .addStatement("$T $L", componentTypeName, compDest);
+
+        VariableElement fieldElementBackup = ctx.fieldElement;
+        ctx.fieldElement = null;
+        ctx.appendRead(componentType, null, compDest, codeBuilder);
+        ctx.fieldElement = fieldElementBackup;
+
+        codeBuilder
+                .addStatement("$L.add($L)", listName, compDest)
+                .endControlFlow()
+                .addStatement("reader.endArray()")
+                .addStatement("return $L", listName);
+        methodBuilder.addCode(codeBuilder.build());
+        ctx.classBuilder.addMethod(methodBuilder.build());
+        return methodName;
     }
 
     @Override
@@ -141,31 +165,65 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
         if (componentType == null)
             return false;
         TypeName componentTypeName = TypeName.get(componentType);
-        String compSrc;
-        String unqSrc = src;
-        int dotI = src.lastIndexOf('.');
-        if (dotI > 0)
-            unqSrc = src.substring(dotI + 1);
-        compSrc = unqSrc + "Comp";
 
-        codeBuilder
-                .beginControlFlow("if ($L == null)", src)
+        String methodName = generateWriteMethod(ctx, componentTypeName, componentType);
+        codeBuilder.addStatement("$L($L, $L)", methodName, ctx.writerName, src);
+
+        return true;
+    }
+
+    private @NotNull String generateWriteMethod(@NotNull GsonContext ctx, @NotNull TypeName componentTypeName, @NotNull TypeMirror componentType) {
+        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(componentType).replaceAll("\\[]", "Array"));
+        String methodName = "write" + typeSimpleName + "List";
+        if (ctx.generatedMethods.contains(methodName))
+            return methodName;
+        ctx.generatedMethods.add(methodName);
+        TypeName iterableTypeName = ParameterizedTypeName.get(ITERABLE_NAME, componentTypeName.box());
+        ParameterSpec.Builder writerParamBuilder = ParameterSpec.builder(ctx.writerType, "writer");
+        if (ctx.nonNullAnnotation != null)
+            writerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
+        String src = "obj";
+        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(iterableTypeName, src);
+        if (ctx.nullableAnnotation != null)
+            configParamBuilder.addAnnotation(ctx.nullableAnnotation);
+        MethodSpec.Builder methodBuilder = MethodSpec.methodBuilder(methodName)
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .addParameter(writerParamBuilder.build())
+                .addParameter(configParamBuilder.build())
+                .addException(IOException.class);
+
+        CodeBlock.Builder codeBuilder = CodeBlock.builder()
+                .beginControlFlow("if (obj == null)")
                 .addStatement("$L.nullValue()", ctx.writerName)
-                .nextControlFlow("else");
+                .addStatement("return")
+                .endControlFlow();
 
         VariableElement fieldElementBackup = ctx.fieldElement;
         ctx.fieldElement = null;
 
         codeBuilder.addStatement("$L.beginArray()", ctx.writerName)
-                .beginControlFlow("for ($T $L : $L)", componentTypeName, compSrc, src);
-        ctx.appendWrite(componentType, null, compSrc, codeBuilder);
+                .beginControlFlow("for ($T comp : $L)", componentTypeName, src);
+        ctx.appendWrite(componentType, null, "comp", codeBuilder);
         codeBuilder.endControlFlow()
                 .addStatement("$L.endArray()", ctx.writerName);
 
         ctx.fieldElement = fieldElementBackup;
 
-        codeBuilder.endControlFlow();
+        methodBuilder.addCode(codeBuilder.build());
+        ctx.classBuilder.addMethod(methodBuilder.build());
 
-        return true;
+        if (componentTypeName.isPrimitive() || componentTypeName.isBoxedPrimitive()) {
+            ParameterSpec.Builder altParamBuilder = ParameterSpec.builder(ArrayTypeName.of(componentTypeName.unbox()), src);
+            if (ctx.nullableAnnotation != null)
+                altParamBuilder.addAnnotation(ctx.nullableAnnotation);
+            ctx.classBuilder.addMethod(MethodSpec.methodBuilder(methodName)
+                    .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                    .addParameter(writerParamBuilder.build())
+                    .addParameter(altParamBuilder.build())
+                    .addException(IOException.class)
+                    .addCode(codeBuilder.build())
+                    .build());
+        }
+        return methodName;
     }
 }
