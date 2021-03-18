@@ -5,6 +5,7 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.*;
 import io.github.speedbridgemc.config.processor.validate.api.BaseValidatorDelegate;
+import io.github.speedbridgemc.config.processor.validate.api.ErrorDelegate;
 import io.github.speedbridgemc.config.processor.validate.api.ValidatorContext;
 import org.jetbrains.annotations.NotNull;
 
@@ -24,7 +25,7 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
     }
 
     @Override
-    public boolean appendCheck(@NotNull ValidatorContext ctx, @NotNull TypeMirror type, @NotNull String src, @NotNull String description, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendCheck(@NotNull ValidatorContext ctx, @NotNull TypeMirror type, @NotNull String src, @NotNull ErrorDelegate errDelegate, CodeBlock.@NotNull Builder codeBuilder) {
         TypeName typeName = TypeName.get(type);
         boolean string = STRING_TYPE.equals(typeName);
         boolean boxed = typeName.isBoxedPrimitive();
@@ -50,8 +51,7 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                 codeBuilder.addStatement("$1L = DEFAULTS.$1L", src);
                 break;
             case ERROR:
-                codeBuilder.addStatement("throw new $T($S)",
-                        IllegalArgumentException.class, String.format("\"%s\" is null!", description));
+                codeBuilder.add(errDelegate.generateThrow(" is null!"));
                 break;
             }
             codeBuilder.endControlFlow();
@@ -68,9 +68,9 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                 if (smol && (min < Integer.MIN_VALUE || min > Integer.MAX_VALUE))
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Minimum bound of field is out of its bounds", ctx.getEffectiveElement());
-                if (min > max) {
+                if (min >= max) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Validator: Minimum bound of field is larger than maximum bound", ctx.getEffectiveElement());
+                            "Validator: Minimum bound of field is larger than or equal to maximum bound", ctx.getEffectiveElement());
                     return true;
                 }
                 boolean doMax = (smol && max != Integer.MAX_VALUE) || max != Long.MAX_VALUE;
@@ -81,31 +81,19 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                 switch (integerRange.mode()) {
                 case TRY_FIX:
                     if (doMax && doMin)
-                        codeBuilder.addStatement("$1L = $4T.min($2L, $4T.max($3L, $1L)", src, max, min, Math.class);
+                        codeBuilder.addStatement("$1L = $4T.min($2L, $4T.max($3L, $1L))", src, max, min, Math.class);
                     else if (doMax)
                         codeBuilder.addStatement("$L = $L", src, max);
                     else // if (doMin)
                         codeBuilder.addStatement("$L = $L", src, min);
                     break;
                 case USE_DEFAULT:
-                    if (ctx.canUseDefaults) {
-                        codeBuilder.addStatement("$1L = DEFAULTS.$1L", src);
+                    if (ctx.defaultSrc != null) {
+                        codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
                         break;
                     }
                 case ERROR:
-                    String errDetails;
-                    if (doMax && doMin)
-                        errDetails = "between %1$d and %2$d";
-                    else if (doMax)
-                        errDetails = "smaller than %1$d";
-                    else // if (doMin)
-                        errDetails = "larger than %2$d";
-                    errDetails = String.format(errDetails, min, max);
-                    codeBuilder.addStatement("throw new $T(\"\\\"$L\\\"$L\" + $L)",
-                            IllegalArgumentException.class,
-                            description,
-                            String.format(" is out of bounds! Should be %s, but is ", errDetails),
-                            src);
+                    codeBuilder.add(errDelegate.generateThrow(generateErrorDetails(src, max, min, doMax, doMin, integerRange)));
                     break;
                 }
                 codeBuilder.endControlFlow();
@@ -124,9 +112,9 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                 if (smol && (min < -Float.MAX_VALUE || min > Float.MAX_VALUE))
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Minimum bound of field is out of its bounds", ctx.getEffectiveElement());
-                if (min > max) {
+                if (min >= max) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Validator: Minimum bound of field is larger than maximum bound", ctx.getEffectiveElement());
+                            "Validator: Minimum bound of field is larger than or equal to maximum bound", ctx.getEffectiveElement());
                     return true;
                 }
                 boolean doMax = (smol && max != Float.MAX_VALUE) || max != Double.MAX_VALUE;
@@ -137,31 +125,20 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                 switch (floatingRange.mode()) {
                 case TRY_FIX:
                     if (doMax && doMin)
-                        codeBuilder.addStatement("$1L = $4T.min($2L, $4T.max($3L, $1L)", src, max, min, Math.class);
+                        codeBuilder.addStatement("$1L = $4T.min($2L$5L, $4T.max($3L$5L, $1L))", src, max, min, Math.class,
+                                smol ? "f" : "");
                     else if (doMax)
                         codeBuilder.addStatement("$L = $L", src, max);
                     else // if (doMin)
                         codeBuilder.addStatement("$L = $L", src, min);
                     break;
                 case USE_DEFAULT:
-                    if (ctx.canUseDefaults) {
-                        codeBuilder.addStatement("$1L = DEFAULTS.$1L", src);
+                    if (ctx.defaultSrc != null) {
+                        codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
                         break;
                     }
                 case ERROR:
-                    StringBuilder errDetails = new StringBuilder();
-                    if (doMax && doMin)
-                        errDetails.append("between ").append(DECIMAL_FORMAT.format(min))
-                                .append(" and ").append(DECIMAL_FORMAT.format(max));
-                    else if (doMax)
-                        errDetails.append("smaller than ").append(DECIMAL_FORMAT.format(max));
-                    else // if (doMin)
-                        errDetails.append("larger than ").append(DECIMAL_FORMAT.format(min));
-                    codeBuilder.addStatement("throw new $T(\"\\\"$L\\\"$L\" + $L)",
-                            IllegalArgumentException.class,
-                            description,
-                            String.format(" is out of bounds! Should be %s, but is ", errDetails.toString()),
-                            src);
+                    codeBuilder.add(errDelegate.generateThrow(generateErrorDetails(src, max, min, doMax, doMin, floatingRange)));
                     break;
                 }
                 codeBuilder.endControlFlow();
@@ -198,5 +175,41 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
 
     private @NotNull String generateRangeCheck(boolean doMax, boolean doMin, @NotNull FloatingRange floatingRange) {
         return generateRangeCheck(doMax, doMin, floatingRange.maxMode(), floatingRange.minMode());
+    }
+
+    private @NotNull CodeBlock generateErrorDetails(@NotNull String src,
+                                                    double max, double min, boolean doMax, boolean doMin,
+                                                    @NotNull RangeMode maxMode, @NotNull RangeMode minMode) {
+        StringBuilder detailsBuilder = new StringBuilder(" is out of bounds! Should be ");
+        if (doMax && doMin) {
+            detailsBuilder.append("between ").append(DECIMAL_FORMAT.format(min))
+                    .append(' ').append(minMode == RangeMode.EXCLUSIVE ? "(exclusive)" : "(inclusive)")
+                    .append(" and ").append(DECIMAL_FORMAT.format(max))
+                    .append(' ').append(maxMode == RangeMode.EXCLUSIVE ? "(exclusive)" : "(inclusive)");
+        } else if (doMax)
+            detailsBuilder.append("smaller than ")
+                    .append(maxMode == RangeMode.EXCLUSIVE ? "" : " or equal to ")
+                    .append(DECIMAL_FORMAT.format(max));
+        else if (doMin)
+            detailsBuilder.append("larger than ")
+                    .append(minMode == RangeMode.EXCLUSIVE ? "" : " or equal to ")
+                    .append(DECIMAL_FORMAT.format(min));
+        detailsBuilder.append(", but is ");
+        return CodeBlock.builder()
+                .add("$S", detailsBuilder.toString())
+                .add(" + $L", src)
+                .build();
+    }
+
+    private @NotNull CodeBlock generateErrorDetails(@NotNull String src,
+                                                    long max, long min, boolean doMax, boolean doMin,
+                                                    @NotNull IntegerRange integerRange) {
+        return generateErrorDetails(src, max, min, doMax, doMin, integerRange.maxMode(), integerRange.minMode());
+    }
+
+    private @NotNull CodeBlock generateErrorDetails(@NotNull String src,
+                                                    double max, double min, boolean doMax, boolean doMin,
+                                                    @NotNull FloatingRange floatingRange) {
+        return generateErrorDetails(src, max, min, doMax, doMin, floatingRange.maxMode(), floatingRange.minMode());
     }
 }

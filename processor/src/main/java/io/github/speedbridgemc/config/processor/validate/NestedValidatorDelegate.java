@@ -1,13 +1,11 @@
 package io.github.speedbridgemc.config.processor.validate;
 
-import com.squareup.javapoet.CodeBlock;
-import com.squareup.javapoet.MethodSpec;
-import com.squareup.javapoet.ParameterSpec;
-import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.EnforceMode;
 import io.github.speedbridgemc.config.EnforceNotNull;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.validate.api.BaseValidatorDelegate;
+import io.github.speedbridgemc.config.processor.validate.api.ErrorDelegate;
 import io.github.speedbridgemc.config.processor.validate.api.ValidatorContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -19,7 +17,7 @@ import java.util.List;
 
 public final class NestedValidatorDelegate extends BaseValidatorDelegate {
     @Override
-    public boolean appendCheck(@NotNull ValidatorContext ctx, @NotNull TypeMirror type, @NotNull String src, @NotNull String description, CodeBlock.@NotNull Builder codeBuilder) {
+    public boolean appendCheck(@NotNull ValidatorContext ctx, @NotNull TypeMirror type, @NotNull String src, @NotNull ErrorDelegate errDelegate, CodeBlock.@NotNull Builder codeBuilder) {
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS)
             return false;
@@ -39,11 +37,12 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
                             "Validator: Can't fix since class has no 0-parameter constructor, using default value instead",
                             ctx.getEffectiveElement());
             case USE_DEFAULT:
-                codeBuilder.addStatement("$1L = DEFAULTS.$1L", src);
-                break;
+                if (ctx.defaultSrc != null) {
+                    codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
+                    break;
+                }
             case ERROR:
-                codeBuilder.addStatement("throw new $T($S)",
-                        IllegalArgumentException.class, String.format("\"%s\" is null!", description));
+                codeBuilder.add(errDelegate.generateThrow(" is null!"));
                 break;
             }
             codeBuilder.endControlFlow();
@@ -53,12 +52,15 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
         return true;
     }
 
-    private @Nullable String generateCheckMethod(@NotNull ValidatorContext ctx, @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
-        String methodName = "check" + typeElement.getSimpleName().toString();
+    private @Nullable String generateCheckMethod(@NotNull ValidatorContext ctx,
+                                                 @NotNull TypeName typeName, @NotNull TypeElement typeElement) {
+        String typeSimpleName = typeElement.getSimpleName().toString();
+        String methodName = "check" + typeSimpleName;
         if (ctx.emptyMethods.contains(methodName))
             return null;
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
+        String defaultsName = "DEFAULTS_" + camelCaseToScreamingSnakeCase(typeSimpleName);
         List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
         ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, ctx.configName);
         if (ctx.nonNullAnnotation != null)
@@ -69,12 +71,16 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
                 .addException(IllegalArgumentException.class);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        String defaultSrcBackup = ctx.defaultSrc;
         ctx.enclosingElement = typeElement;
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             ctx.element = field;
-            ctx.appendCheck(field.asType(), ctx.configName + "." + fieldName, ctx.configName + "." + fieldName, codeBuilder);
+            ctx.defaultSrc = defaultsName + "." + fieldName;
+            ctx.appendCheck(field.asType(), ctx.configName + "." + fieldName,
+                    ErrorDelegate.simple(ctx.configName + "." + fieldName), codeBuilder);
         }
+        ctx.defaultSrc = defaultSrcBackup;
         ctx.enclosingElement = enclosingElementBackup;
         ctx.element = elementBackup;
         if (codeBuilder.isEmpty()) {
@@ -82,8 +88,22 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
             return null;
         } else {
             ctx.generatedMethods.add(methodName);
+            ctx.classBuilder.addField(FieldSpec.builder(typeName, defaultsName, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+                    .initializer("new $T()", typeName)
+                    .build());
             ctx.classBuilder.addMethod(methodBuilder.addCode(codeBuilder.build()).build());
             return methodName;
         }
+    }
+
+    private static @NotNull String camelCaseToScreamingSnakeCase(@NotNull String s) {
+        StringBuilder resultBuilder = new StringBuilder();
+        for (int i = 0, length = s.length(); i < length; i++) {
+            char ch = s.charAt(i);
+            if (Character.isUpperCase(ch) && resultBuilder.length() != 0)
+                resultBuilder.append('_');
+            resultBuilder.append(Character.toUpperCase(ch));
+        }
+        return resultBuilder.toString();
     }
 }

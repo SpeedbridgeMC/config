@@ -1,9 +1,6 @@
 package io.github.speedbridgemc.config.test;
 
-import io.github.speedbridgemc.config.Component;
-import io.github.speedbridgemc.config.Config;
-import io.github.speedbridgemc.config.EnforceNotNull;
-import io.github.speedbridgemc.config.FloatingRange;
+import io.github.speedbridgemc.config.*;
 import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
 import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
 
@@ -26,8 +23,10 @@ public final class TestConfig {
     public boolean testBool = false;
     @ThrowIfMissing(message = "test string is :crab:, also \"%s\" is missing")
     public String testString = "hello world";
-    public @FloatingRange(max = 50.2) float testFloat = 21.5f;
-    public @EnforceNotNull Integer testInt = 21;
+    @FloatingRange(max = 50.2)
+    public float testFloat = 21.5f;
+    @EnforceNotNull @IntegerRange(min = 24, max = 48, minMode = RangeMode.EXCLUSIVE, maxMode = RangeMode.INCLUSIVE)
+    public Integer testInt = 26;
     @UseDefaultIfMissing
     public HelloWorld helloWorld = new HelloWorld();
     public Nested3 nested3 = new Nested3();
@@ -47,11 +46,18 @@ public final class TestConfig {
         testNestedList.add(new int[] { 4, 5, 6 });
     }
 
+    @IntegerRange(max = 100)
     public static final class HelloWorld {
         public boolean enabledThis = true;
         @UseDefaultIfMissing
         public boolean enabledThat = false;
         public String mode = "modes";
+        public int intA = 25;
+        public int intB = 75;
+        @IntegerRange(min = 5, max = 55, mode = EnforceMode.USE_DEFAULT)
+        public int intC = 10;
+        @FloatingRange(min = 2, max = 22, mode = EnforceMode.TRY_FIX)
+        public float aFloat = 2.5f;
     }
 
     @UseDefaultIfMissing

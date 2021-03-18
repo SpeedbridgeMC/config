@@ -6,6 +6,7 @@ import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.BaseComponentProvider;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
+import io.github.speedbridgemc.config.processor.validate.api.ErrorDelegate;
 import io.github.speedbridgemc.config.processor.validate.api.ValidatorContext;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,7 +39,7 @@ public final class ValidatorComponentProvider extends BaseComponentProvider {
         vCtx.init(processingEnv);
         vCtx.configName = configName;
 
-        classBuilder.addField(FieldSpec.builder(ctx.configType, vCtx.defaultsName,
+        classBuilder.addField(FieldSpec.builder(ctx.configType, "DEFAULTS",
                 Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                 .initializer("new $T()", ctx.configType)
                 .build());
@@ -47,7 +48,8 @@ public final class ValidatorComponentProvider extends BaseComponentProvider {
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             vCtx.element = field;
-            vCtx.appendCheck(field.asType(), configName + "." + fieldName, fieldName, codeBuilder);
+            vCtx.defaultSrc = "DEFAULTS." + fieldName;
+            vCtx.appendCheck(field.asType(), configName + "." + fieldName, ErrorDelegate.simple(fieldName), codeBuilder);
         }
 
         checkMethodBuilder.addCode(codeBuilder.build());

@@ -9,5 +9,5 @@ import javax.lang.model.type.TypeMirror;
 public interface ValidatorDelegate {
     void init(@NotNull ProcessingEnvironment processingEnv);
     boolean appendCheck(@NotNull ValidatorContext ctx, @NotNull TypeMirror type, @NotNull String src,
-                        @NotNull String description, @NotNull CodeBlock.Builder codeBuilder);
+                        @NotNull ErrorDelegate errDelegate, @NotNull CodeBlock.Builder codeBuilder);
 }

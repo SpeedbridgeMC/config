@@ -13,7 +13,6 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import java.lang.annotation.Annotation;
 import java.util.*;
@@ -26,8 +25,7 @@ public final class ValidatorContext {
     public final @NotNull Set<@NotNull String> generatedMethods, emptyMethods;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
     public @NotNull String configName = "config";
-    public @NotNull String defaultsName = "DEFAULTS";
-    public boolean canUseDefaults = true;
+    public @Nullable String defaultSrc;
     public @Nullable Element enclosingElement, element;
 
     public ValidatorContext(@NotNull TypeName configType, @NotNull String @NotNull [] options,
@@ -54,10 +52,10 @@ public final class ValidatorContext {
             delegate.init(processingEnv);
     }
 
-    public void appendCheck(@NotNull TypeMirror type, @NotNull String src, @NotNull String description,
+    public void appendCheck(@NotNull TypeMirror type, @NotNull String src, @NotNull ErrorDelegate errDelegate,
                             @NotNull CodeBlock.Builder codeBuilder) {
         for (ValidatorDelegate delegate : delegates) {
-            if (delegate.appendCheck(this, type, src, description, codeBuilder))
+            if (delegate.appendCheck(this, type, src, errDelegate, codeBuilder))
                 break;
         }
     }
@@ -75,8 +73,11 @@ public final class ValidatorContext {
         T annotation = null;
         if (enclosingElement != null)
             annotation = enclosingElement.getAnnotation(annotationType);
-        if (annotation == null && element != null)
-            annotation = element.getAnnotation(annotationType);
+        if (element != null) {
+            T annotation2 = element.getAnnotation(annotationType);
+            if (annotation2 != null)
+                annotation = annotation2;
+        }
         return annotation;
     }
 }
