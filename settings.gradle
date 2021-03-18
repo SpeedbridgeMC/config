@@ -1,3 +1,4 @@
 rootProject.name = 'config'
+include 'runtime'
 include 'annotations'
 include 'processor'
