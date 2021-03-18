@@ -3,8 +3,6 @@ package io.github.speedbridgemc.config.processor.serialize.jankson;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import io.github.speedbridgemc.config.serialize.KeyedEnum;
@@ -18,9 +16,6 @@ import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 public final class EnumJanksonDelegate extends BaseJanksonDelegate {
     private static final ClassName MAP_NAME = ClassName.get(HashMap.class);
@@ -122,6 +117,10 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                             IOException.class,
                             "Unknown enum value name! Got ",
                             nameName)
+                    .endControlFlow()
+                    .nextControlFlow("else")
+                    .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
+                            IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.elementName, "\"!")
                     .endControlFlow();
         }
         methodBuilder.addCode(codeBuilder.build());
@@ -189,29 +188,9 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
             ctx.appendWrite(keyType, null, src, codeBuilder);
             codeBuilder.addStatement("return $L", ctx.elementName);
         } else
-            codeBuilder.addStatement("return new $T($L.name())", ctx.primitiveName, configName);
+            codeBuilder.addStatement("return new $T($L.name())", ctx.primitiveType, configName);
         methodBuilder.addCode(codeBuilder.build());
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;
-    }
-
-    private static @NotNull List<@NotNull VariableElement> getEnumConstantsIn(@NotNull TypeElement typeElement) {
-        return typeElement.getEnclosedElements().stream()
-                .map(element -> {
-                    if (element.getKind() == ElementKind.ENUM_CONSTANT)
-                        return (VariableElement) element;
-                    return null;
-                }).filter(Objects::nonNull)
-                .collect(Collectors.toList());
-    }
-
-    private static @NotNull List<@NotNull VariableElement> getNonEnumConstantFieldsIn(@NotNull TypeElement typeElement) {
-        return typeElement.getEnclosedElements().stream()
-                .map(element -> {
-                    if (element.getKind() == ElementKind.FIELD)
-                        return (VariableElement) element;
-                    return null;
-                }).filter(Objects::nonNull)
-                .collect(Collectors.toList());
     }
 }
