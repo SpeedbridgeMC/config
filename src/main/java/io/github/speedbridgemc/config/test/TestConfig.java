@@ -26,7 +26,7 @@ public final class TestConfig {
     public boolean testBool = false;
     @ThrowIfMissing(message = "test string is :crab:, also \"%s\" is missing")
     public String testString = "hello world";
-    public @FloatingRange(max = 50) float testFloat = 21.5f;
+    public @FloatingRange(max = 50.2) float testFloat = 21.5f;
     public @EnforceNotNull Integer testInt = 21;
     @UseDefaultIfMissing
     public HelloWorld helloWorld = new HelloWorld();

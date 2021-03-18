@@ -21,11 +21,6 @@ public final class ValidatorComponentProvider extends BaseComponentProvider {
 
     @Override
     public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableList<@NotNull VariableElement> fields, @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        classBuilder.addField(FieldSpec.builder(ctx.configType, "DEFAULTS",
-                Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
-                .initializer("new $T()", ctx.configType)
-                .build());
-
         String[] options = ctx.params.get("options").toArray(new String[0]);
         TypeName configType = ctx.configType;
         String configName = "config";
@@ -42,6 +37,12 @@ public final class ValidatorComponentProvider extends BaseComponentProvider {
         ValidatorContext vCtx = new ValidatorContext(configType, options, classBuilder, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         vCtx.init(processingEnv);
         vCtx.configName = configName;
+
+        classBuilder.addField(FieldSpec.builder(ctx.configType, vCtx.defaultsName,
+                Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
+                .initializer("new $T()", ctx.configType)
+                .build());
+
         vCtx.enclosingElement = type;
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();

@@ -26,6 +26,8 @@ public final class ValidatorContext {
     public final @NotNull Set<@NotNull String> generatedMethods, emptyMethods;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
     public @NotNull String configName = "config";
+    public @NotNull String defaultsName = "DEFAULTS";
+    public boolean canUseDefaults = true;
     public @Nullable Element enclosingElement, element;
 
     public ValidatorContext(@NotNull TypeName configType, @NotNull String @NotNull [] options,

@@ -11,6 +11,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.SOURCE)
 public @interface FloatingRange {
     double max();
+    @NotNull RangeMode maxMode() default RangeMode.EXCLUSIVE;
     double min() default 0;
+    @NotNull RangeMode minMode() default RangeMode.INCLUSIVE;
     @NotNull EnforceMode mode() default EnforceMode.ERROR;
 }
