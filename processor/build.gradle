@@ -1,10 +1,9 @@
 plugins {
     id 'java-library'
-    id 'maven-publish'
 }
 
-group 'io.github.speedbridgemc'
 version '1.0.0'
+description 'Speedbridge Config: Annotation Processor'
 
 repositories {
     mavenCentral()
@@ -26,10 +25,9 @@ java {
     withSourcesJar()
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-        }
+import org.apache.tools.ant.filters.ReplaceTokens
+processResources {
+    filesMatching 'version.properties', {
+        filter ReplaceTokens, tokens: [VERSION: project.version]
     }
 }
