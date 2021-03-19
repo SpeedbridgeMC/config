@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Config(name = "io/github/speedbridgemc/config/test", handlerInterface = "TestConfigHandler",
+@Config(name = "test.json", handlerInterface = "TestConfigHandler",
         components = {
         @Component(
                 value = "speedbridge-config:serializer",
@@ -28,6 +28,7 @@ public final class TestConfig {
     @EnforceNotNull @IntegerRange(min = 24, max = 48, minMode = RangeMode.EXCLUSIVE, maxMode = RangeMode.INCLUSIVE)
     public Integer testInt = 26;
     public TestEnum testEnum = TestEnum.FOO;
+    public @EnforceNotNull TestEnum2 testEnum2 = TestEnum2.ABC;
     @UseDefaultIfMissing
     public HelloWorld helloWorld = new HelloWorld();
     public Nested3 nested3 = new Nested3();
@@ -116,6 +117,20 @@ public final class TestConfig {
         @Override
         public @NotNull String getKey() {
             return getId();
+        }
+    }
+
+    public enum TestEnum2 {
+        ABC(0), DEF(1), GHI(2);
+
+        private final int id;
+
+        TestEnum2(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
         }
     }
 }

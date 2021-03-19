@@ -5,15 +5,12 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
-import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.BaseGsonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
-import io.github.speedbridgemc.config.serialize.KeyedEnum;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
@@ -22,16 +19,6 @@ import javax.lang.model.type.TypeMirror;
 import java.io.IOException;
 
 public final class EnumGsonDelegate extends BaseGsonDelegate {
-    private TypeMirror keyedEnumTM;
-
-    @Override
-    public void init(@NotNull ProcessingEnvironment processingEnv) {
-        super.init(processingEnv);
-        keyedEnumTM = TypeUtils.getTypeMirror(processingEnv, KeyedEnum.class.getCanonicalName());
-        if (keyedEnumTM != null)
-            keyedEnumTM = processingEnv.getTypeUtils().erasure(keyedEnumTM);
-    }
-
     @Override
     public boolean appendRead(@NotNull GsonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
@@ -70,17 +57,18 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
                 .addStatement("$L.skipValue()", ctx.readerName)
                 .addStatement("return null")
                 .endControlFlow();
-        TypeMirror keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, keyedEnumTM, typeElement);
+        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement);
         if (keyType != null) {
-            TypeName keyTypeName = TypeName.get(keyType);
+            TypeMirror keyTypeMirror = keyType.type;
+            TypeName keyTypeName = TypeName.get(keyType.type);
             String mapName = SerializerComponentProvider.addEnumMap(ctx.classBuilder, keyType, typeElement);
             if (keyTypeName.isBoxedPrimitive()) {
-                keyType = processingEnv.getTypeUtils().unboxedType(keyType);
+                keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyType.type);
                 keyTypeName = keyTypeName.unbox();
             }
             String keyDest = "key" + StringUtils.titleCase(typeSimpleName);
             codeBuilder.addStatement("$T $L", keyTypeName, keyDest);
-            ctx.appendRead(keyType, null, keyDest, codeBuilder);
+            ctx.appendRead(keyTypeMirror, null, keyDest, codeBuilder);
             codeBuilder.addStatement("return $L.get($L)", mapName, keyDest);
         } else {
             String nameName = "name" + StringUtils.titleCase(typeSimpleName);
@@ -136,11 +124,12 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
                         .endControlFlow()
                         .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
-        TypeMirror keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, keyedEnumTM, typeElement);
+        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement);
         if (keyType != null) {
-            if (TypeName.get(keyType).isBoxedPrimitive())
-                keyType = processingEnv.getTypeUtils().unboxedType(keyType);
-            ctx.appendWrite(keyType, null, "obj.getKey()", codeBuilder);
+            TypeMirror keyTypeMirror = keyType.type;
+            if (TypeName.get(keyTypeMirror).isBoxedPrimitive())
+                keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyTypeMirror);
+            ctx.appendWrite(keyTypeMirror, null, "obj." + keyType.target, codeBuilder);
         } else
             codeBuilder.addStatement("$L.value(obj.name())", ctx.writerName);
         methodBuilder.addCode(codeBuilder.build());

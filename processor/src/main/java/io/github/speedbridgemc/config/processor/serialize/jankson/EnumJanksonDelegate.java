@@ -5,15 +5,12 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
-import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
-import io.github.speedbridgemc.config.serialize.KeyedEnum;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Modifier;
@@ -22,16 +19,6 @@ import javax.lang.model.type.TypeMirror;
 import java.io.IOException;
 
 public final class EnumJanksonDelegate extends BaseJanksonDelegate {
-    private TypeMirror keyedEnumTM;
-
-    @Override
-    public void init(@NotNull ProcessingEnvironment processingEnv) {
-        super.init(processingEnv);
-        keyedEnumTM = TypeUtils.getTypeMirror(processingEnv, KeyedEnum.class.getCanonicalName());
-        if (keyedEnumTM != null)
-            keyedEnumTM = processingEnv.getTypeUtils().erasure(keyedEnumTM);
-    }
-
     @Override
     public boolean appendRead(@NotNull JanksonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
@@ -64,12 +51,13 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                 .beginControlFlow("if ($L == $T.INSTANCE)", ctx.elementName, ctx.nullType)
                 .addStatement("return null")
                 .endControlFlow();
-        TypeMirror keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, keyedEnumTM, typeElement);
+        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement);
         if (keyType != null) {
-            TypeName keyTypeName = TypeName.get(keyType);
+            TypeMirror keyTypeMirror = keyType.type;
+            TypeName keyTypeName = TypeName.get(keyTypeMirror);
             String mapName = SerializerComponentProvider.addEnumMap(ctx.classBuilder, keyType, typeElement);
             if (keyTypeName.isBoxedPrimitive()) {
-                keyType = processingEnv.getTypeUtils().unboxedType(keyType);
+                keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyTypeMirror);
                 keyTypeName = keyTypeName.unbox();
             }
             String keyDest = "key" + StringUtils.titleCase(typeSimpleName);
@@ -77,7 +65,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                     .addStatement("$T $L", keyTypeName, keyDest)
                     .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                     .addStatement("$T $L", ctx.arrayType, ctx.arrayName);
-            ctx.appendRead(keyType, null, keyDest, codeBuilder);
+            ctx.appendRead(keyTypeMirror, null, keyDest, codeBuilder);
             codeBuilder.addStatement("return $L.get($L)", mapName, keyDest);
         } else {
             String nameName = "name" + StringUtils.titleCase(typeSimpleName);
@@ -137,18 +125,19 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                 .beginControlFlow("if ($L == null)", configName)
                 .addStatement("return $T.INSTANCE", ctx.nullType)
                 .endControlFlow();
-        TypeMirror keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, keyedEnumTM, typeElement);
+        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement);
         if (keyType != null) {
-            TypeName keyTypeName = TypeName.get(keyType);
+            TypeMirror keyTypeMirror = keyType.type;
+            TypeName keyTypeName = TypeName.get(keyTypeMirror);
             if (keyTypeName.isBoxedPrimitive()) {
-                keyType = processingEnv.getTypeUtils().unboxedType(keyType);
+                keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyTypeMirror);
                 keyTypeName = keyTypeName.unbox();
             }
             String src = "src" + typeSimpleName;
             codeBuilder
-                    .addStatement("$T $L = $L.getKey()", keyTypeName, src, configName)
+                    .addStatement("$T $L = $L.$L", keyTypeName, src, configName, keyType.target)
                     .addStatement("$T $L", ctx.elementType, ctx.elementName);
-            ctx.appendWrite(keyType, null, src, codeBuilder);
+            ctx.appendWrite(keyTypeMirror, null, src, codeBuilder);
             codeBuilder.addStatement("return $L", ctx.elementName);
         } else
             codeBuilder.addStatement("return new $T($L.name())", ctx.primitiveType, configName);

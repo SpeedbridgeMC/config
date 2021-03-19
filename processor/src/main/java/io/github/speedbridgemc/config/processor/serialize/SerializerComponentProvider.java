@@ -6,21 +6,17 @@ import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.*;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
-import io.github.speedbridgemc.config.serialize.SerializedAliases;
-import io.github.speedbridgemc.config.serialize.SerializedName;
-import io.github.speedbridgemc.config.serialize.ThrowIfMissing;
-import io.github.speedbridgemc.config.serialize.UseDefaultIfMissing;
+import io.github.speedbridgemc.config.serialize.*;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
@@ -31,6 +27,7 @@ import java.util.*;
 @AutoService(ComponentProvider.class)
 public final class SerializerComponentProvider extends BaseComponentProvider {
     private static final ClassName MAP_NAME = ClassName.get(HashMap.class);
+    private static TypeMirror keyedEnumTM;
     private HashMap<String, SerializerProvider> serializerProviders;
 
     public SerializerComponentProvider() {
@@ -40,6 +37,12 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
+
+        if (keyedEnumTM == null) {
+            keyedEnumTM = TypeUtils.getTypeMirror(processingEnv, KeyedEnum.class.getCanonicalName());
+            if (keyedEnumTM != null)
+                keyedEnumTM = processingEnv.getTypeUtils().erasure(keyedEnumTM);
+        }
 
         serializerProviders = new HashMap<>();
         ServiceLoader<SerializerProvider> spLoader = ServiceLoader.load(SerializerProvider.class, SerializerComponentProvider.class.getClassLoader());
@@ -219,39 +222,91 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
         }
     }
 
-    public static @Nullable TypeMirror getEnumKeyType(@NotNull ProcessingEnvironment processingEnv,
-                                                      @NotNull TypeMirror keyedEnumTM,
-                                                      @NotNull TypeElement typeElement) {
-        for (TypeMirror anInterface : typeElement.getInterfaces()) {
-            TypeMirror erasedInterface = processingEnv.getTypeUtils().erasure(anInterface);
-            if (processingEnv.getTypeUtils().isSameType(erasedInterface, keyedEnumTM)) {
-                List<? extends TypeMirror> typeArgs = ((DeclaredType) anInterface).getTypeArguments();
-                if (typeArgs.isEmpty()) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Serializer: Raw keyed enum not supported", typeElement);
-                    return null;
-                }
-                return typeArgs.get(0);
-            }
+    public static final class EnumKeyType {
+        public final @NotNull TypeMirror type;
+        public final @NotNull String target;
+        public final boolean keyed;
+
+        private EnumKeyType(@NotNull TypeMirror type, @NotNull String target, boolean keyed) {
+            this.type = type;
+            this.target = target;
+            this.keyed = keyed;
         }
-        return null;
+
+        public static @NotNull EnumKeyType keyed(@NotNull TypeMirror type) {
+            return new EnumKeyType(type, "getId()", true);
+        }
+
+        public static @NotNull EnumKeyType simple(@NotNull TypeMirror type, @NotNull String target) {
+            return new EnumKeyType(type, target, false);
+        }
+    }
+    private static final HashMap<TypeElement, EnumKeyType> ENUM_KEY_TYPE_CACHE = new HashMap<>();
+
+    public static @Nullable EnumKeyType getEnumKeyType(@NotNull ProcessingEnvironment processingEnv,
+                                                       @NotNull TypeElement type) {
+        return ENUM_KEY_TYPE_CACHE.computeIfAbsent(type, typeElement -> {
+            for (TypeMirror anInterface : typeElement.getInterfaces()) {
+                TypeMirror erasedInterface = processingEnv.getTypeUtils().erasure(anInterface);
+                if (processingEnv.getTypeUtils().isSameType(erasedInterface, keyedEnumTM)) {
+                    List<? extends TypeMirror> typeArgs = ((DeclaredType) anInterface).getTypeArguments();
+                    if (typeArgs.isEmpty()) {
+                        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                                "Serializer: Raw keyed enum not supported", typeElement);
+                        return null;
+                    }
+                    return EnumKeyType.keyed(typeArgs.get(0));
+                }
+            }
+            // see if we can find a public final id field
+            for (VariableElement field : ElementFilter.fieldsIn(typeElement.getEnclosedElements())) {
+                if (field.getKind() == ElementKind.ENUM_CONSTANT)
+                    continue;
+                Set<Modifier> modifiers = field.getModifiers();
+                if (modifiers.contains(Modifier.PUBLIC) && modifiers.contains(Modifier.FINAL)
+                        && field.getSimpleName().contentEquals("id")) {
+                    TypeMirror typeMirror = field.asType();
+                    if (typeMirror.getKind().isPrimitive())
+                        typeMirror = processingEnv.getTypeUtils().boxedClass((PrimitiveType) typeMirror).asType();
+                    return EnumKeyType.simple(typeMirror, "id");
+                }
+            }
+            // see if we can find a public getId() method
+            for (ExecutableElement method : ElementFilter.methodsIn(typeElement.getEnclosedElements())) {
+                Set<Modifier> modifiers = method.getModifiers();
+                if (modifiers.contains(Modifier.PUBLIC)
+                        && method.getParameters().isEmpty()
+                        && method.getSimpleName().contentEquals("getId")) {
+                    TypeMirror typeMirror = method.getReturnType();
+                    if (typeMirror.getKind().isPrimitive())
+                        typeMirror = processingEnv.getTypeUtils().boxedClass((PrimitiveType) typeMirror).asType();
+                    return EnumKeyType.simple(typeMirror, "getId()");
+                }
+            }
+            return null;
+        });
     }
 
     public static @NotNull String addEnumMap(@NotNull TypeSpec.Builder classBuilder,
-                                             @NotNull TypeMirror keyType,
+                                             @NotNull EnumKeyType keyType,
                                              @NotNull TypeElement valueTypeElement) {
-        TypeName keyTypeName = TypeName.get(keyType);
+        TypeName keyTypeName = TypeName.get(keyType.type);
         TypeName valueTypeName = TypeName.get(valueTypeElement.asType());
         String mapName = "MAP_" + StringUtils.camelCaseToScreamingSnakeCase(valueTypeElement.getSimpleName().toString());
         TypeName mapType = ParameterizedTypeName.get(MAP_NAME, keyTypeName, valueTypeName);
         classBuilder.addField(FieldSpec.builder(mapType, mapName, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL).build());
-        classBuilder.addStaticBlock(CodeBlock.builder()
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
+        codeBuilder
                 .addStatement("$L = new $T()", mapName, mapType)
                 .beginControlFlow("for ($1T e : $1T.values())", valueTypeName)
-                .addStatement("$L.put(e.getKey(), e)", mapName)
-                .beginControlFlow("for ($T a : e.getAliases())", keyTypeName)
-                .addStatement("$L.put(a, e)", mapName)
-                .endControlFlow()
+                .addStatement("$L.put(e.$L, e)", mapName, keyType.target);
+        if (keyType.keyed) {
+            codeBuilder
+                    .beginControlFlow("for ($T a : e.getAliases())", keyTypeName)
+                    .addStatement("$L.put(a, e)", mapName)
+                    .endControlFlow();
+        }
+        classBuilder.addStaticBlock(codeBuilder
                 .endControlFlow()
                 .build());
         return mapName;
