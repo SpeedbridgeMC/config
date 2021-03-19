@@ -4,5 +4,7 @@ import org.jetbrains.annotations.NotNull;
 
 public interface KeyedEnum<T> {
     @NotNull T getKey();
-    @NotNull T @NotNull [] getAliases();
+    default @NotNull T @NotNull [] getAliases() {
+        return KeyedEnumHelpers.getEmptyAliasArray(this);
+    }
 }

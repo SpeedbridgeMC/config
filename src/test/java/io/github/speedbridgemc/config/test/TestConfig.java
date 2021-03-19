@@ -118,11 +118,6 @@ public final class TestConfig {
         public @NotNull String getKey() {
             return getId();
         }
-
-        @Override
-        public @NotNull String @NotNull [] getAliases() {
-            return new String[0];
-        }
     }
 
     public enum TestEnum2 {
