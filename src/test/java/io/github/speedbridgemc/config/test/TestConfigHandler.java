@@ -26,6 +26,6 @@ public interface TestConfigHandler {
     }
 
     default @NotNull Path resolvePath(@NotNull String name) {
-        return Paths.get(".", name + ".json5");
+        return Paths.get(".", name + ".json");
     }
 }

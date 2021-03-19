@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Config(name = "test.json", handlerInterface = "TestConfigHandler",
+@Config(name = "test", handlerInterface = "TestConfigHandler",
         components = {
         @Component(
                 value = "speedbridge-config:serializer",
