@@ -162,7 +162,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                     .add("if (!$L.containsKey($S)", objectName, serializedName);
             for (String alias : SerializerComponentProvider.getSerializedAliases(field))
                 codeBuilder
-                        .add(" || !$L.containsKey($S)", objectName, alias);
+                        .add(" && !$L.containsKey($S)", objectName, alias);
             codeBuilder
                     .beginControlFlow(")")
                     .addStatement("throw new $T($S)", IOException.class, String.format(missingErrorMessage, serializedName))

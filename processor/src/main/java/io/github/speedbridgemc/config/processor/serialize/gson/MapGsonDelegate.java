@@ -120,6 +120,7 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                     .addStatement("String $L = $L.nextName()", keyDest, ctx.readerName);
             ctx.appendRead(valueType, null, valueDest, codeBuilder);
             codeBuilder.addStatement("$L.put($L, $L)", mapName, keyDest, valueDest)
+                    .addStatement("continue")
                     .endControlFlow()
                     .addStatement("$L.skipValue()", ctx.readerName)
                     .endControlFlow()
@@ -156,8 +157,8 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                     .addStatement("continue")
                     .endControlFlow()
                     .endControlFlow()
-                    .addStatement("$L.endObject()", ctx.readerName)
-                    .endControlFlow();
+                    .endControlFlow()
+                    .addStatement("$L.endObject()", ctx.readerName);
             codeBuilder.add(GsonSerializerProvider.generateGotFlagChecks(ctx).build());
             codeBuilder
                     .addStatement("$L.put($L, $L)", mapName, keyDest, valueDest)

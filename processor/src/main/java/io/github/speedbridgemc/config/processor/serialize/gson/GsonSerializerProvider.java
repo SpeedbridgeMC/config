@@ -8,8 +8,8 @@ import com.squareup.javapoet.TypeSpec;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
-import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.BaseSerializerProvider;
+import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import org.jetbrains.annotations.ApiStatus;
@@ -33,6 +33,17 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
     public void process(@NotNull String name, @NotNull TypeElement type,
                         @NotNull ImmutableList<VariableElement> fields,
                         @NotNull SerializerContext ctx, TypeSpec.@NotNull Builder classBuilder) {
+        boolean prettyPrinting = true;
+        for (String option : ctx.options) {
+            if (option.isEmpty())
+                continue;
+            char first = option.charAt(0);
+            boolean enabled = first != '-';
+            if (!enabled || first == '+')
+                option = option.substring(1);
+            if ("prettyPrinting".equals(option))
+                prettyPrinting = enabled;
+        }
         String basePackage = "com.google.gson.stream";
         if (ctx.basePackage != null)
             basePackage = ctx.basePackage;
@@ -87,11 +98,13 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         ctx.readMethodBuilder.addCode(generateGotFlagChecks(gCtx)
                 .addStatement("return $L", objName)
                 .build());
-        ctx.writeMethodBuilder.addCode(CodeBlock.builder()
+        codeBuilder = CodeBlock.builder()
                 .beginControlFlow("try ($4T $5L = new $4T(new $3T(new $2T($1T.newOutputStream(path)))))",
-                        Files.class, OutputStreamWriter.class, BufferedWriter.class, writerType, gCtx.writerName)
-                .addStatement("$L.beginObject()", gCtx.writerName)
-                .build());
+                        Files.class, OutputStreamWriter.class, BufferedWriter.class, writerType, gCtx.writerName);
+        if (prettyPrinting)
+            codeBuilder.addStatement("$L.setIndent($S)", gCtx.writerName, "  ");
+        codeBuilder.addStatement("$L.beginObject()", gCtx.writerName);
+        ctx.writeMethodBuilder.addCode(codeBuilder.build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             String serializedName = SerializerComponentProvider.getSerializedName(field);

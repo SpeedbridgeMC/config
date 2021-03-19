@@ -9,11 +9,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Config(name = "test", handlerInterface = "TestConfigHandler",
+@Config(name = "test.gson", handlerInterface = "TestConfigHandler",
         components = {
         @Component(
                 value = "speedbridge-config:serializer",
-                params = "provider=speedbridge-config:jankson"
+                params = "provider=speedbridge-config:gson"
                 ),
                 @Component("speedbridge-config:remote-storage"),
                 @Component("speedbridge-config:validator")
@@ -25,7 +25,7 @@ public final class TestConfig {
     public String testString = "hello world";
     @FloatingRange(max = 50.2)
     public float testFloat = 21.5f;
-    @EnforceNotNull @IntegerRange(min = 24, max = 48, minMode = RangeMode.EXCLUSIVE, maxMode = RangeMode.INCLUSIVE)
+    @EnforceNotNull @IntegerRange(min = 24, max = 48, minMode = RangeMode.EXCLUSIVE, maxMode = RangeMode.INCLUSIVE, mode = EnforceMode.TRY_FIX)
     public Integer testInt = 26;
     public TestEnum testEnum = TestEnum.FOO;
     public @EnforceNotNull TestEnum2 testEnum2 = TestEnum2.ABC;
@@ -93,7 +93,7 @@ public final class TestConfig {
     public static final class MapValue {
         @SerializedName("hello_world")
         @SerializedAliases("HELLOWORLD")
-        public HelloWorld helloWorld;
+        public HelloWorld helloWorld = new HelloWorld();
     }
 
     public enum TestEnum implements KeyedEnum<String> {
@@ -117,6 +117,11 @@ public final class TestConfig {
         @Override
         public @NotNull String getKey() {
             return getId();
+        }
+
+        @Override
+        public @NotNull String @NotNull [] getAliases() {
+            return new String[0];
         }
     }
 

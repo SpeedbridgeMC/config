@@ -112,13 +112,13 @@ public final class ConfigProcessor extends AbstractProcessor {
             Config config = typeElement.getAnnotation(Config.class);
             String configPackage = processingEnv.getElementUtils().getPackageOf(typeElement).getQualifiedName().toString();
             String name = config.name();
-            String handlerInterfaceName;
-            String handlerInterfaceNameIn = config.handlerInterface();
-            if (handlerInterfaceNameIn.contains("."))
-                handlerInterfaceName = handlerInterfaceNameIn;
-            else
-                handlerInterfaceName = configPackage + "." + handlerInterfaceNameIn;
+            String handlerInterfaceName = config.handlerInterface();
             TypeElement handlerInterfaceTypeElement = processingEnv.getElementUtils().getTypeElement(handlerInterfaceName);
+            if (handlerInterfaceTypeElement == null) {
+                // try again with absolute name
+                handlerInterfaceName = configPackage + "." + handlerInterfaceName;
+                handlerInterfaceTypeElement = processingEnv.getElementUtils().getTypeElement(handlerInterfaceName);
+            }
             if (handlerInterfaceTypeElement == null) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
                         "Missing handler interface class \"" + handlerInterfaceName + "\"", typeElement);

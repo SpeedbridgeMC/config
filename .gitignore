@@ -4,4 +4,5 @@ build/
 out/
 generated/
 generated_tests/
-test.json5
+test.gson.json
+test.jankson.json5
