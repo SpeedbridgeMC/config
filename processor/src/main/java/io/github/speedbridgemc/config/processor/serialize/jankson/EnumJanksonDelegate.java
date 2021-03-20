@@ -65,7 +65,8 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                     .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                     .addStatement("$T $L", ctx.arrayType, ctx.arrayName);
             ctx.appendRead(keyTypeMirror, null, keyDest, codeBuilder);
-            codeBuilder.addStatement("return $L", String.format(keyType.deserializer, keyDest));
+            codeBuilder.add("return ")
+                    .add(keyType.generateDeserializer(keyDest));
         } else {
             String nameName = "name" + StringUtils.titleCase(typeSimpleName);
             codeBuilder
@@ -134,7 +135,8 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
             }
             String src = "src";
             codeBuilder
-                    .addStatement("$T $L = $L", keyTypeName, src, String.format(keyType.serializer, configName))
+                    .add("$T $L = ", keyTypeName, src)
+                    .add(keyType.generateSerializer(configName))
                     .addStatement("$T $L", ctx.elementType, ctx.elementName);
             ctx.appendWrite(keyTypeMirror, null, src, codeBuilder);
             codeBuilder.addStatement("return $L", ctx.elementName);

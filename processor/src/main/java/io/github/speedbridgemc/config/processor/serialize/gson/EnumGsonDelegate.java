@@ -68,7 +68,8 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
             String keyDest = "key";
             codeBuilder.addStatement("$T $L", keyTypeName, keyDest);
             ctx.appendRead(keyTypeMirror, null, keyDest, codeBuilder);
-            codeBuilder.addStatement("return $L", String.format(keyType.deserializer, keyDest));
+            codeBuilder.add("return ")
+                    .add(keyType.generateDeserializer(keyDest));
         } else {
             String nameName = "name" + StringUtils.titleCase(typeSimpleName);
             codeBuilder
@@ -126,9 +127,15 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
         SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement, ctx.classBuilder);
         if (keyType != null) {
             TypeMirror keyTypeMirror = keyType.type;
-            if (TypeName.get(keyTypeMirror).isBoxedPrimitive())
+            TypeName keyTypeName = TypeName.get(keyTypeMirror);
+            if (keyTypeName.isBoxedPrimitive()) {
                 keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyTypeMirror);
-            ctx.appendWrite(keyTypeMirror, null, String.format(keyType.serializer, "obj"), codeBuilder);
+                keyTypeName = keyTypeName.unbox();
+            }
+            String keySrc = "key";
+            codeBuilder.add("$T $L = ", keyTypeName, keySrc)
+                    .add(keyType.generateSerializer("obj"));
+            ctx.appendWrite(keyTypeMirror, null, keySrc, codeBuilder);
         } else
             codeBuilder.addStatement("$L.value(obj.name())", ctx.writerName);
         methodBuilder.addCode(codeBuilder.build());
