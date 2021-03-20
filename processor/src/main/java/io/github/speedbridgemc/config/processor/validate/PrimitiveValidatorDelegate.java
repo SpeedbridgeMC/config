@@ -51,7 +51,7 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                 codeBuilder.addStatement("$1L = DEFAULTS.$1L", src);
                 break;
             case ERROR:
-                codeBuilder.add(errDelegate.generateThrow(" is null!"));
+                codeBuilder.addStatement(errDelegate.generateThrow(" is null!"));
                 break;
             }
             codeBuilder.endControlFlow();
@@ -93,7 +93,7 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                         break;
                     }
                 case ERROR:
-                    codeBuilder.add(errDelegate.generateThrow(generateErrorDetails(src, max, min, doMax, doMin, integerRange)));
+                    codeBuilder.addStatement(errDelegate.generateThrow(generateErrorDetails(src, max, min, doMax, doMin, integerRange)));
                     break;
                 }
                 codeBuilder.endControlFlow();
@@ -138,7 +138,7 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                         break;
                     }
                 case ERROR:
-                    codeBuilder.add(errDelegate.generateThrow(generateErrorDetails(src, max, min, doMax, doMin, floatingRange)));
+                    codeBuilder.addStatement(errDelegate.generateThrow(generateErrorDetails(src, max, min, doMax, doMin, floatingRange)));
                     break;
                 }
                 codeBuilder.endControlFlow();

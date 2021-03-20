@@ -43,7 +43,7 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
                     break;
                 }
             case ERROR:
-                codeBuilder.add(errDelegate.generateThrow(" is null!"));
+                codeBuilder.addStatement(errDelegate.generateThrow(" is null!"));
                 break;
             }
             codeBuilder.endControlFlow();

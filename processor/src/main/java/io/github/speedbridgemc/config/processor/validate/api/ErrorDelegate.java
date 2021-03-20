@@ -16,7 +16,7 @@ public interface ErrorDelegate {
                 .add("throw new $T(", IllegalArgumentException.class)
                 .add("$S", '"' + description + '"')
                 .add(" + ").add(details)
-                .addStatement(")")
+                .add(")")
                 .build();
     }
 }

@@ -69,7 +69,7 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
             codeBuilder.addStatement("$T $L", keyTypeName, keyDest);
             ctx.appendRead(keyTypeMirror, null, keyDest, codeBuilder);
             codeBuilder.add("return ")
-                    .add(keyType.generateDeserializer(keyDest));
+                    .addStatement(keyType.generateDeserializer(keyDest));
         } else {
             String nameName = "name" + StringUtils.titleCase(typeSimpleName);
             codeBuilder
@@ -134,7 +134,7 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
             }
             String keySrc = "key";
             codeBuilder.add("$T $L = ", keyTypeName, keySrc)
-                    .add(keyType.generateSerializer("obj"));
+                    .addStatement(keyType.generateSerializer("obj"));
             ctx.appendWrite(keyTypeMirror, null, keySrc, codeBuilder);
         } else
             codeBuilder.addStatement("$L.value(obj.name())", ctx.writerName);
