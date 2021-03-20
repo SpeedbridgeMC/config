@@ -6,7 +6,6 @@ import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.BaseComponentProvider;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
-import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.ExecutableElement;
@@ -42,7 +41,8 @@ public final class RemoteStorageComponentProvider extends BaseComponentProvider 
         }
         if (!gotSetRemote)
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Handler interface is missing required method: void setRemote(" + type.getSimpleName() + ")", ctx.handlerInterfaceTypeElement);
+                    "Handler interface is missing required method: void setRemote(" + type.getSimpleName() + ")",
+                    ctx.handlerInterfaceTypeElement);
         if (!gotSetRemote)
             return;
 
