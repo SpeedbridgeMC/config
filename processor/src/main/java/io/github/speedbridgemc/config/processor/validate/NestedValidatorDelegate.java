@@ -62,7 +62,7 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
         String defaultsName = "DEFAULTS_" + StringUtils.camelCaseToScreamingSnakeCase(typeSimpleName);
-        List<VariableElement> fields = TypeUtils.getFieldsIn(typeElement);
+        List<VariableElement> fields = TypeUtils.getFieldsToSerialize(typeElement);
         ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, ctx.configName);
         if (ctx.nonNullAnnotation != null)
             configParamBuilder.addAnnotation(ctx.nonNullAnnotation);

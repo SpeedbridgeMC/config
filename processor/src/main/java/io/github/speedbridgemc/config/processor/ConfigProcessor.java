@@ -20,7 +20,6 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.io.*;
 import java.time.OffsetDateTime;
@@ -261,7 +260,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             if (nonNullAnnotation != null)
                 saveMethodBuilder.addAnnotation(nonNullAnnotation);
 
-            ImmutableList<@NotNull VariableElement> fields = ImmutableList.copyOf(TypeUtils.getFieldsIn(typeElement));
+            ImmutableList<@NotNull VariableElement> fields = ImmutableList.copyOf(TypeUtils.getFieldsToSerialize(typeElement));
 
             Component[] components = config.components();
             for (Component component : components) {

@@ -10,10 +10,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.*;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public final class TypeUtils {
@@ -37,21 +34,23 @@ public final class TypeUtils {
         return type.asType();
     }
 
-    public static @NotNull List<@NotNull VariableElement> getFieldsIn(@NotNull TypeElement typeElement) {
-        return typeElement.getEnclosedElements().stream()
-                .map(element -> {
-                    if (element.getKind() == ElementKind.FIELD)
-                        return (VariableElement) element;
-                    return null;
-                }).filter(Objects::nonNull)
-                .filter(variableElement -> variableElement.getAnnotation(Exclude.class) == null)
-                .filter(variableElement -> {
-                    Set<Modifier> modifiers = variableElement.getModifiers();
-                    return !modifiers.contains(Modifier.TRANSIENT)
-                            && !modifiers.contains(Modifier.STATIC)
-                            && !modifiers.contains(Modifier.FINAL);
-                })
-                .collect(Collectors.toList());
+    public static @NotNull List<@NotNull VariableElement> fieldsIn(@NotNull List<@NotNull ? extends Element> elements) {
+        List<VariableElement> fields = new ArrayList<>();
+        for (Element element : elements) {
+            if (element.getKind() != ElementKind.FIELD)
+                continue;
+            fields.add((VariableElement) element);
+        }
+        return fields;
+    }
+
+    public static @NotNull List<@NotNull VariableElement> getFieldsToSerialize(@NotNull TypeElement typeElement) {
+        List<VariableElement> list = new ArrayList<>();
+        for (VariableElement field : fieldsIn(typeElement.getEnclosedElements())) {
+            if (field.getAnnotation(Exclude.class) == null)
+                list.add(field);
+        }
+        return list;
     }
 
     public static @NotNull List<@NotNull ExecutableElement> getMethodsIn(@NotNull TypeElement typeElement) {

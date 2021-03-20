@@ -51,22 +51,21 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                 .beginControlFlow("if ($L == $T.INSTANCE)", ctx.elementName, ctx.nullType)
                 .addStatement("return null")
                 .endControlFlow();
-        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement);
+        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement, ctx.classBuilder);
         if (keyType != null) {
             TypeMirror keyTypeMirror = keyType.type;
             TypeName keyTypeName = TypeName.get(keyTypeMirror);
-            String mapName = SerializerComponentProvider.addEnumMap(ctx.classBuilder, keyType, typeElement);
             if (keyTypeName.isBoxedPrimitive()) {
                 keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyTypeMirror);
                 keyTypeName = keyTypeName.unbox();
             }
-            String keyDest = "key" + StringUtils.titleCase(typeSimpleName);
+            String keyDest = "key";
             codeBuilder
                     .addStatement("$T $L", keyTypeName, keyDest)
                     .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                     .addStatement("$T $L", ctx.arrayType, ctx.arrayName);
             ctx.appendRead(keyTypeMirror, null, keyDest, codeBuilder);
-            codeBuilder.addStatement("return $L.get($L)", mapName, keyDest);
+            codeBuilder.addStatement("return $L", String.format(keyType.deserializer, keyDest));
         } else {
             String nameName = "name" + StringUtils.titleCase(typeSimpleName);
             codeBuilder
@@ -125,7 +124,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                 .beginControlFlow("if ($L == null)", configName)
                 .addStatement("return $T.INSTANCE", ctx.nullType)
                 .endControlFlow();
-        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement);
+        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement, ctx.classBuilder);
         if (keyType != null) {
             TypeMirror keyTypeMirror = keyType.type;
             TypeName keyTypeName = TypeName.get(keyTypeMirror);
@@ -133,9 +132,9 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                 keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyTypeMirror);
                 keyTypeName = keyTypeName.unbox();
             }
-            String src = "src" + typeSimpleName;
+            String src = "src";
             codeBuilder
-                    .addStatement("$T $L = $L.$L", keyTypeName, src, configName, keyType.target)
+                    .addStatement("$T $L = $L", keyTypeName, src, String.format(keyType.serializer, configName))
                     .addStatement("$T $L", ctx.elementType, ctx.elementName);
             ctx.appendWrite(keyTypeMirror, null, src, codeBuilder);
             codeBuilder.addStatement("return $L", ctx.elementName);

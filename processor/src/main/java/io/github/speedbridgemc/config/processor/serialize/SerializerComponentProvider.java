@@ -224,27 +224,30 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
 
     public static final class EnumKeyType {
         public final @NotNull TypeMirror type;
-        public final @NotNull String target;
+        public final @NotNull String serializer;
+        public final @NotNull String deserializer;
         public final boolean keyed;
 
-        private EnumKeyType(@NotNull TypeMirror type, @NotNull String target, boolean keyed) {
+        private EnumKeyType(@NotNull TypeMirror type, @NotNull String serializer, @NotNull String deserializer, boolean keyed) {
             this.type = type;
-            this.target = target;
+            this.serializer = serializer;
+            this.deserializer = deserializer;
             this.keyed = keyed;
         }
 
-        public static @NotNull EnumKeyType keyed(@NotNull TypeMirror type) {
-            return new EnumKeyType(type, "getId()", true);
+        public static @NotNull EnumKeyType keyed(@NotNull TypeMirror type, @NotNull String deserializer) {
+            return new EnumKeyType(type, "%s.getId()", deserializer, true);
         }
 
-        public static @NotNull EnumKeyType simple(@NotNull TypeMirror type, @NotNull String target) {
-            return new EnumKeyType(type, target, false);
+        public static @NotNull EnumKeyType simple(@NotNull TypeMirror type, @NotNull String serializer, @NotNull String deserializer) {
+            return new EnumKeyType(type, serializer, deserializer, false);
         }
     }
     private static final HashMap<TypeElement, EnumKeyType> ENUM_KEY_TYPE_CACHE = new HashMap<>();
 
     public static @Nullable EnumKeyType getEnumKeyType(@NotNull ProcessingEnvironment processingEnv,
-                                                       @NotNull TypeElement type) {
+                                                       @NotNull TypeElement type,
+                                                       @NotNull TypeSpec.Builder classBuilder) {
         return ENUM_KEY_TYPE_CACHE.computeIfAbsent(type, typeElement -> {
             for (TypeMirror anInterface : typeElement.getInterfaces()) {
                 TypeMirror erasedInterface = processingEnv.getTypeUtils().erasure(anInterface);
@@ -255,20 +258,29 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                                 "Serializer: Raw keyed enum not supported", typeElement);
                         return null;
                     }
-                    return EnumKeyType.keyed(typeArgs.get(0));
+                    TypeMirror keyType = typeArgs.get(0);
+                    ExecutableElement enumDeserializerMethod = findEnumDeserializer(processingEnv, type, keyType);
+                    String deserializer;
+                    if (enumDeserializerMethod == null) {
+                        String mapName = addEnumMap(classBuilder, keyType, "%s.getId()", true, type);
+                        deserializer = mapName + ".get(%s)";
+                    } else
+                        deserializer = ClassName.get(type) + "." + enumDeserializerMethod.getSimpleName() + "(%s)";
+                    return EnumKeyType.keyed(typeArgs.get(0), deserializer);
                 }
             }
             // see if we can find a public final id field
-            for (VariableElement field : ElementFilter.fieldsIn(typeElement.getEnclosedElements())) {
+            for (VariableElement field : TypeUtils.fieldsIn(typeElement.getEnclosedElements())) {
                 if (field.getKind() == ElementKind.ENUM_CONSTANT)
                     continue;
                 Set<Modifier> modifiers = field.getModifiers();
                 if (modifiers.contains(Modifier.PUBLIC) && modifiers.contains(Modifier.FINAL)
                         && field.getSimpleName().contentEquals("id")) {
-                    TypeMirror typeMirror = field.asType();
-                    if (typeMirror.getKind().isPrimitive())
-                        typeMirror = processingEnv.getTypeUtils().boxedClass((PrimitiveType) typeMirror).asType();
-                    return EnumKeyType.simple(typeMirror, "id");
+                    TypeMirror keyType = field.asType();
+                    if (keyType.getKind().isPrimitive())
+                        keyType = processingEnv.getTypeUtils().boxedClass((PrimitiveType) keyType).asType();
+                    String mapName = addEnumMap(classBuilder, keyType, "%s.id", false, type);
+                    return EnumKeyType.simple(keyType, "%s.id", mapName + ".get(%s)");
                 }
             }
             // see if we can find a public getId() method
@@ -277,20 +289,50 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 if (modifiers.contains(Modifier.PUBLIC)
                         && method.getParameters().isEmpty()
                         && method.getSimpleName().contentEquals("getId")) {
-                    TypeMirror typeMirror = method.getReturnType();
-                    if (typeMirror.getKind().isPrimitive())
-                        typeMirror = processingEnv.getTypeUtils().boxedClass((PrimitiveType) typeMirror).asType();
-                    return EnumKeyType.simple(typeMirror, "getId()");
+                    TypeMirror keyType = method.getReturnType();
+                    if (keyType.getKind().isPrimitive())
+                        keyType = processingEnv.getTypeUtils().boxedClass((PrimitiveType) keyType).asType();
+                    String mapName = addEnumMap(classBuilder, keyType, "%s.getId()", false, type);
+                    return EnumKeyType.simple(keyType, "%s.getId()", mapName + ".get(%s)");
                 }
             }
             return null;
         });
     }
 
-    public static @NotNull String addEnumMap(@NotNull TypeSpec.Builder classBuilder,
-                                             @NotNull EnumKeyType keyType,
+    private static @Nullable ExecutableElement findEnumDeserializer(@NotNull ProcessingEnvironment processingEnv,
+                                                                    @NotNull TypeElement type,
+                                                                    @NotNull TypeMirror keyType) {
+        TypeMirror unboxedKeyType = keyType;
+        if (TypeName.get(keyType).isBoxedPrimitive())
+            unboxedKeyType = processingEnv.getTypeUtils().unboxedType(keyType);
+        for (ExecutableElement method : ElementFilter.methodsIn(type.getEnclosedElements())) {
+            if (method.getAnnotation(KeyedEnumDeserializer.class) == null)
+                continue;
+            Set<Modifier> modifiers = method.getModifiers();
+            List<? extends VariableElement> params = method.getParameters();
+            if (params.size() == 1) {
+                TypeMirror paramType = params.get(0).asType();
+                if (processingEnv.getTypeUtils().isSameType(keyType, paramType)
+                    || processingEnv.getTypeUtils().isSameType(unboxedKeyType, paramType)) {
+                    if (modifiers.contains(Modifier.PUBLIC) && modifiers.contains(Modifier.STATIC)
+                            && processingEnv.getTypeUtils().isSameType(type.asType(), method.getReturnType()))
+                        return method;
+                }
+            }
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+                    "Serializer: Invalid @KeyedEnumDeserializer method. Should be public and static, return the enum type and take the key type as its only parameter",
+                    method);
+        }
+        return null;
+    }
+
+    private static @NotNull String addEnumMap(@NotNull TypeSpec.Builder classBuilder,
+                                             @NotNull TypeMirror keyType,
+                                             @NotNull String serializer,
+                                             boolean keyed,
                                              @NotNull TypeElement valueTypeElement) {
-        TypeName keyTypeName = TypeName.get(keyType.type);
+        TypeName keyTypeName = TypeName.get(keyType);
         TypeName valueTypeName = TypeName.get(valueTypeElement.asType());
         String mapName = "MAP_" + StringUtils.camelCaseToScreamingSnakeCase(valueTypeElement.getSimpleName().toString());
         TypeName mapType = ParameterizedTypeName.get(MAP_NAME, keyTypeName, valueTypeName);
@@ -299,8 +341,8 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
         codeBuilder
                 .addStatement("$L = new $T()", mapName, mapType)
                 .beginControlFlow("for ($1T e : $1T.values())", valueTypeName)
-                .addStatement("$L.put(e.$L, e)", mapName, keyType.target);
-        if (keyType.keyed) {
+                .addStatement("$L.put($L, e)", mapName, String.format(serializer, "e"));
+        if (keyed) {
             codeBuilder
                     .beginControlFlow("for ($T a : e.getAliases())", keyTypeName)
                     .addStatement("$L.put(a, e)", mapName)

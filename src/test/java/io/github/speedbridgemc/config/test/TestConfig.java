@@ -29,6 +29,7 @@ public final class TestConfig {
     public Integer testInt = 26;
     public TestEnum testEnum = TestEnum.FOO;
     public @EnforceNotNull TestEnum2 testEnum2 = TestEnum2.ABC;
+    public NetworkEnum networkEnum = NetworkEnum.ACTION_TWO;
     @UseDefaultIfMissing
     public HelloWorld helloWorld = new HelloWorld();
     public Nested3 nested3 = new Nested3();
@@ -131,6 +132,38 @@ public final class TestConfig {
 
         public int getId() {
             return id;
+        }
+    }
+
+    public enum NetworkEnum implements KeyedEnum<Integer> {
+        ACTION_ONE(0), ACTION_TWO(1), ACTION_THREE(2);
+
+        private final int id;
+
+        NetworkEnum(int id) {
+            this.id = id;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        @Override
+        public @NotNull Integer getKey() {
+            return id;
+        }
+
+        @KeyedEnumDeserializer
+        public static @NotNull NetworkEnum fromId(int id) {
+            return ID_TO_VALUE.get(id);
+        }
+
+        private static final HashMap<Integer, NetworkEnum> ID_TO_VALUE;
+
+        static {
+            ID_TO_VALUE = new HashMap<>();
+            for (NetworkEnum e : values())
+                ID_TO_VALUE.put(e.getId(), e);
         }
     }
 }

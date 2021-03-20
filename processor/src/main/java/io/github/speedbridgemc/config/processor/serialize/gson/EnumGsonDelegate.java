@@ -57,19 +57,18 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
                 .addStatement("$L.skipValue()", ctx.readerName)
                 .addStatement("return null")
                 .endControlFlow();
-        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement);
+        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement, ctx.classBuilder);
         if (keyType != null) {
             TypeMirror keyTypeMirror = keyType.type;
             TypeName keyTypeName = TypeName.get(keyType.type);
-            String mapName = SerializerComponentProvider.addEnumMap(ctx.classBuilder, keyType, typeElement);
             if (keyTypeName.isBoxedPrimitive()) {
                 keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyType.type);
                 keyTypeName = keyTypeName.unbox();
             }
-            String keyDest = "key" + StringUtils.titleCase(typeSimpleName);
+            String keyDest = "key";
             codeBuilder.addStatement("$T $L", keyTypeName, keyDest);
             ctx.appendRead(keyTypeMirror, null, keyDest, codeBuilder);
-            codeBuilder.addStatement("return $L.get($L)", mapName, keyDest);
+            codeBuilder.addStatement("return $L", String.format(keyType.deserializer, keyDest));
         } else {
             String nameName = "name" + StringUtils.titleCase(typeSimpleName);
             codeBuilder
@@ -124,12 +123,12 @@ public final class EnumGsonDelegate extends BaseGsonDelegate {
                         .endControlFlow()
                         .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
-        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement);
+        SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement, ctx.classBuilder);
         if (keyType != null) {
             TypeMirror keyTypeMirror = keyType.type;
             if (TypeName.get(keyTypeMirror).isBoxedPrimitive())
                 keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyTypeMirror);
-            ctx.appendWrite(keyTypeMirror, null, "obj." + keyType.target, codeBuilder);
+            ctx.appendWrite(keyTypeMirror, null, String.format(keyType.serializer, "obj"), codeBuilder);
         } else
             codeBuilder.addStatement("$L.value(obj.name())", ctx.writerName);
         methodBuilder.addCode(codeBuilder.build());
