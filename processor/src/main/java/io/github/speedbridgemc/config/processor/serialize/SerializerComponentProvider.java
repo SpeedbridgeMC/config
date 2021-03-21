@@ -228,7 +228,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
         private final @NotNull String deserializer;
         public final boolean keyed;
         private final @NotNull List<Object> deserializerArgs;
-        private @Nullable Object[] cachedDeserializerArgsArray;
+        private @Nullable Object[] deserializerArgsArr;
 
         private EnumKeyType(@NotNull TypeMirror type, @NotNull String serializer, @NotNull String deserializer, boolean keyed,
                             @NotNull List<Object> deserializerArgs) {
@@ -246,15 +246,15 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
         }
 
         public @NotNull CodeBlock generateDeserializer(@NotNull String src) {
-            if (cachedDeserializerArgsArray == null) {
+            if (deserializerArgsArr == null) {
                 int max = deserializerArgs.size();
-                cachedDeserializerArgsArray = new Object[max + 1];
+                deserializerArgsArr = new Object[max + 1];
                 for (int i = 0; i < max; i++)
-                    cachedDeserializerArgsArray[i + 1] = deserializerArgs.get(i);
+                    deserializerArgsArr[i + 1] = deserializerArgs.get(i);
             }
-            cachedDeserializerArgsArray[0] = src;
+            deserializerArgsArr[0] = src;
             return CodeBlock.builder()
-                    .add(deserializer, cachedDeserializerArgsArray)
+                    .add(deserializer, deserializerArgsArr)
                     .build();
         }
 
