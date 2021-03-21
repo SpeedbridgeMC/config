@@ -34,6 +34,7 @@ public final class TestConfig {
     public HelloWorld helloWorld = new HelloWorld();
     public Nested3 nested3 = new Nested3();
     public int[] testArray = new int[] { 1, 2, 3 };
+    public int[][] testNestedArray = new int[][] { new int[] { 1, 2, 3 } };
     public List<String> testList = new ArrayList<>();
     public List<int[]> testNestedList = new ArrayList<>();
     public List<HelloWorld> testList2 = new ArrayList<>();

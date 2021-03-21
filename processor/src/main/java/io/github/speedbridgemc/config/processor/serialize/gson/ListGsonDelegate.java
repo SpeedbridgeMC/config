@@ -11,7 +11,6 @@ import org.jetbrains.annotations.Nullable;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -20,7 +19,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class ListArrayGsonDelegate extends BaseGsonDelegate {
+public final class ListGsonDelegate extends BaseGsonDelegate {
     private static final ClassName ARRAY_LIST_NAME = ClassName.get(ArrayList.class),
             ITERABLE_NAME = ClassName.get(Iterable.class);
     private TypeMirror listTM;
@@ -36,12 +35,8 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
 
     @Override
     public boolean appendRead(@NotNull GsonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
-        boolean array = false;
         TypeMirror componentType = null;
-        if (type.getKind() == TypeKind.ARRAY) {
-            array = true;
-            componentType = ((ArrayType) type).getComponentType();
-        } else if (type.getKind() == TypeKind.DECLARED) {
+        if (type.getKind() == TypeKind.DECLARED) {
             DeclaredType declaredType = (DeclaredType) type;
             if (listTM == null)
                 return false;
@@ -60,29 +55,11 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
             return false;
 
         TypeName componentTypeName = TypeName.get(componentType);
-        TypeName oldComponentTypeName = componentTypeName;
-        String oldDest = dest;
         if (componentTypeName.isPrimitive())
             componentTypeName = componentTypeName.box();
-        if (array) {
-            int dotI = dest.lastIndexOf('.');
-            if (dotI > 0)
-                dest = dest.substring(dotI + 1);
-            dest += "Tmp";
-            codeBuilder.addStatement("$2T<$3T> $1L", dest, ArrayList.class, componentTypeName);
-        }
 
         String methodName = generateReadMethod(ctx, componentTypeName, componentType);
         codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.readerName);
-        if (array) {
-            if (oldComponentTypeName.isPrimitive()) {
-                codeBuilder.addStatement("$L = new $T[$L.size()]", oldDest, oldComponentTypeName, dest)
-                    .beginControlFlow("for (int i = 0; i < $L.length; i++)", oldDest)
-                    .addStatement("$L[i] = $L.get(i)", oldDest, dest)
-                    .endControlFlow();
-            } else
-                codeBuilder.addStatement("$L = $L.toArray(new $T[0])", oldDest, dest, oldComponentTypeName);
-        }
 
         if (name != null) {
             String gotFlag = ctx.gotFlags.get(name);
@@ -143,9 +120,7 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
     @Override
     public boolean appendWrite(@NotNull GsonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
         TypeMirror componentType = null;
-        if (type.getKind() == TypeKind.ARRAY)
-            componentType = ((ArrayType) type).getComponentType();
-        else if (type.getKind() == TypeKind.DECLARED) {
+        if (type.getKind() == TypeKind.DECLARED) {
             DeclaredType declaredType = (DeclaredType) type;
             TypeMirror listTM = TypeUtils.getTypeMirror(processingEnv, List.class.getCanonicalName());
             if (listTM == null)
@@ -211,19 +186,6 @@ public final class ListArrayGsonDelegate extends BaseGsonDelegate {
 
         methodBuilder.addCode(codeBuilder.build());
         ctx.classBuilder.addMethod(methodBuilder.build());
-
-        if (componentTypeName.isPrimitive() || componentTypeName.isBoxedPrimitive()) {
-            ParameterSpec.Builder altParamBuilder = ParameterSpec.builder(ArrayTypeName.of(componentTypeName.unbox()), src);
-            if (ctx.nullableAnnotation != null)
-                altParamBuilder.addAnnotation(ctx.nullableAnnotation);
-            ctx.classBuilder.addMethod(MethodSpec.methodBuilder(methodName)
-                    .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
-                    .addParameter(writerParamBuilder.build())
-                    .addParameter(altParamBuilder.build())
-                    .addException(IOException.class)
-                    .addCode(codeBuilder.build())
-                    .build());
-        }
         return methodName;
     }
 }

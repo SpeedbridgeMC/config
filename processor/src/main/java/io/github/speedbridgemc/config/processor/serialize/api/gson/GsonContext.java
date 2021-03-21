@@ -43,7 +43,8 @@ public final class GsonContext {
         delegates.add(new EnumGsonDelegate());
         for (GsonDelegate delegate : delegateLoader)
             delegates.add(delegate);
-        delegates.add(new ListArrayGsonDelegate());
+        delegates.add(new ArrayGsonDelegate());
+        delegates.add(new ListGsonDelegate());
         delegates.add(new MapGsonDelegate());
         nestedDelegate = new NestedGsonDelegate();
     }
