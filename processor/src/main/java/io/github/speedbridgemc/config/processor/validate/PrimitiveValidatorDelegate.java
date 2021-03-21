@@ -40,21 +40,27 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
             codeBuilder.beginControlFlow("if ($L == null)", src);
             switch (enforceNotNull.value()) {
             case TRY_FIX:
-                if (string)
-                    codeBuilder.addStatement("$L = $S", src, "");
-                else if (TypeName.BOOLEAN.equals(typeName))
-                    codeBuilder.addStatement("$L = false", src);
-                else
-                    codeBuilder.addStatement("$L = 0", src);
-                break;
+                if (ctx.canSet) {
+                    if (string)
+                        codeBuilder.addStatement("$L = $S", src, "");
+                    else if (TypeName.BOOLEAN.equals(typeName))
+                        codeBuilder.addStatement("$L = false", src);
+                    else
+                        codeBuilder.addStatement("$L = 0", src);
+                    break;
+                }
             case USE_DEFAULT:
-                codeBuilder.addStatement("$1L = DEFAULTS.$1L", src);
-                break;
+                if (ctx.canSet) {
+                    codeBuilder.addStatement("$1L = DEFAULTS.$1L", src);
+                    break;
+                }
             case ERROR:
                 codeBuilder.addStatement(errDelegate.generateThrow(" is null!"));
                 break;
             }
             codeBuilder.endControlFlow();
+            if (string)
+                return true;
         }
         boolean smol = TypeName.INT.equals(typeName);
         if (smol || TypeName.LONG.equals(typeName)) {
@@ -80,17 +86,21 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                 codeBuilder.beginControlFlow(generateRangeCheck(doMax, doMin, integerRange), src, max, min);
                 switch (integerRange.mode()) {
                 case TRY_FIX:
-                    if (doMax && doMin)
-                        codeBuilder.addStatement("$1L = $4T.min($2L, $4T.max($3L, $1L))", src, max, min, Math.class);
-                    else if (doMax)
-                        codeBuilder.addStatement("$L = $L", src, max);
-                    else // if (doMin)
-                        codeBuilder.addStatement("$L = $L", src, min);
-                    break;
-                case USE_DEFAULT:
-                    if (ctx.defaultSrc != null) {
-                        codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
+                    if (ctx.canSet) {
+                        if (doMax && doMin)
+                            codeBuilder.addStatement("$1L = $4T.min($2L, $4T.max($3L, $1L))", src, max, min, Math.class);
+                        else if (doMax)
+                            codeBuilder.addStatement("$L = $L", src, max);
+                        else // if (doMin)
+                            codeBuilder.addStatement("$L = $L", src, min);
                         break;
+                    }
+                case USE_DEFAULT:
+                    if (ctx.canSet) {
+                        if (ctx.defaultSrc != null) {
+                            codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
+                            break;
+                        }
                     }
                 case ERROR:
                     codeBuilder.addStatement(errDelegate.generateThrow(generateErrorDetails(src, max, min, doMax, doMin, integerRange)));
@@ -124,18 +134,22 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                 codeBuilder.beginControlFlow(generateRangeCheck(doMax, doMin, floatingRange), src, max, min);
                 switch (floatingRange.mode()) {
                 case TRY_FIX:
-                    if (doMax && doMin)
-                        codeBuilder.addStatement("$1L = $4T.min($2L$5L, $4T.max($3L$5L, $1L))", src, max, min, Math.class,
-                                smol ? "f" : "");
-                    else if (doMax)
-                        codeBuilder.addStatement("$L = $L", src, max);
-                    else // if (doMin)
-                        codeBuilder.addStatement("$L = $L", src, min);
-                    break;
-                case USE_DEFAULT:
-                    if (ctx.defaultSrc != null) {
-                        codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
+                    if (ctx.canSet) {
+                        if (doMax && doMin)
+                            codeBuilder.addStatement("$1L = $4T.min($2L$5L, $4T.max($3L$5L, $1L))", src, max, min, Math.class,
+                                    smol ? "f" : "");
+                        else if (doMax)
+                            codeBuilder.addStatement("$L = $L", src, max);
+                        else // if (doMin)
+                            codeBuilder.addStatement("$L = $L", src, min);
                         break;
+                    }
+                case USE_DEFAULT:
+                    if (ctx.canSet) {
+                        if (ctx.defaultSrc != null) {
+                            codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
+                            break;
+                        }
                     }
                 case ERROR:
                     codeBuilder.addStatement(errDelegate.generateThrow(generateErrorDetails(src, max, min, doMax, doMin, floatingRange)));

@@ -5,9 +5,7 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
-import io.github.speedbridgemc.config.processor.validate.NestedValidatorDelegate;
-import io.github.speedbridgemc.config.processor.validate.ObjectValidatorDelegate;
-import io.github.speedbridgemc.config.processor.validate.PrimitiveValidatorDelegate;
+import io.github.speedbridgemc.config.processor.validate.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -27,6 +25,7 @@ public final class ValidatorContext {
     public @NotNull String configName = "config";
     public @Nullable String defaultSrc;
     public @Nullable Element enclosingElement, element;
+    public boolean canSet = true;
 
     public ValidatorContext(@NotNull TypeName configType, @NotNull String @NotNull [] options,
                             TypeSpec.@NotNull Builder classBuilder,
@@ -43,6 +42,8 @@ public final class ValidatorContext {
         delegates.add(new PrimitiveValidatorDelegate());
         for (ValidatorDelegate delegate : delegateLoader)
             delegates.add(delegate);
+        delegates.add(new ArrayValidatorDelegate());
+        delegates.add(new ListValidatorDelegate());
         delegates.add(new NestedValidatorDelegate());
         delegates.add(new ObjectValidatorDelegate());
     }
@@ -61,10 +62,10 @@ public final class ValidatorContext {
     }
 
     public @NotNull Element getEffectiveElement() {
-        if (enclosingElement != null)
-            return enclosingElement;
-        else if (element != null)
+        if (element != null)
             return element;
+        else if (enclosingElement != null)
+            return enclosingElement;
         else
             throw new IllegalStateException();
     }

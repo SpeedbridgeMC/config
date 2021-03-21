@@ -88,10 +88,10 @@ public final class GsonContext {
     }
 
     public @NotNull Element getEffectiveElement() {
-        if (enclosingElement != null)
-            return enclosingElement;
-        else if (element != null)
+        if (element != null)
             return element;
+        else if (enclosingElement != null)
+            return enclosingElement;
         else
             throw new IllegalStateException();
     }

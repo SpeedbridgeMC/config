@@ -19,9 +19,11 @@ public final class ObjectValidatorDelegate extends BaseValidatorDelegate {
             switch (enforceNotNull.value()) {
             case TRY_FIX:
             case USE_DEFAULT:
-                if (ctx.defaultSrc != null) {
-                    codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
-                    break;
+                if (ctx.canSet) {
+                    if (ctx.defaultSrc != null) {
+                        codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
+                        break;
+                    }
                 }
             case ERROR:
                 codeBuilder.addStatement(errDelegate.generateThrow(" is null!"));

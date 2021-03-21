@@ -30,17 +30,21 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
             codeBuilder.beginControlFlow("if ($L == null)", src);
             switch (enforceNotNull.value()) {
             case TRY_FIX:
-                if (TypeUtils.hasDefaultConstructor(typeElement)) {
-                    codeBuilder.addStatement("$L = new $T()", src, typeName);
-                    break;
-                } else
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
-                            "Validator: Can't fix since class has no 0-parameter constructor, using default value instead",
-                            ctx.getEffectiveElement());
+                if (ctx.canSet) {
+                    if (TypeUtils.hasDefaultConstructor(typeElement)) {
+                        codeBuilder.addStatement("$L = new $T()", src, typeName);
+                        break;
+                    } else
+                        processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+                                "Validator: Can't fix since class has no 0-parameter constructor, using default value instead",
+                                ctx.getEffectiveElement());
+                }
             case USE_DEFAULT:
-                if (ctx.defaultSrc != null) {
-                    codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
-                    break;
+                if (ctx.canSet) {
+                    if (ctx.defaultSrc != null) {
+                        codeBuilder.addStatement("$L = $L", src, ctx.defaultSrc);
+                        break;
+                    }
                 }
             case ERROR:
                 codeBuilder.addStatement(errDelegate.generateThrow(" is null!"));

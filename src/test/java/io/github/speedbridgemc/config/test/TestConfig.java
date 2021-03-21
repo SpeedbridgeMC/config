@@ -35,6 +35,8 @@ public final class TestConfig {
     public Nested3 nested3 = new Nested3();
     public int[] testArray = new int[] { 1, 2, 3 };
     public int[][] testNestedArray = new int[][] { new int[] { 1, 2, 3 } };
+    public @EnforceNotNull String @EnforceNotNull [] testArray2 = new String[] { "abc", "def", "ghi" };
+    public @FloatingRange(max = 20) float @EnforceNotNull [] testArray3 = new float[] { 1.2f, 2.44f, 4.8f };
     public List<String> testList = new ArrayList<>();
     public List<int[]> testNestedList = new ArrayList<>();
     public List<HelloWorld> testList2 = new ArrayList<>();

@@ -1,5 +1,6 @@
 package io.github.speedbridgemc.config.processor.api;
 
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Exclude;
 import org.jetbrains.annotations.NotNull;
@@ -47,7 +48,8 @@ public final class TypeUtils {
     public static @NotNull List<@NotNull VariableElement> getFieldsToSerialize(@NotNull TypeElement typeElement) {
         List<VariableElement> list = new ArrayList<>();
         for (VariableElement field : fieldsIn(typeElement.getEnclosedElements())) {
-            if (field.getAnnotation(Exclude.class) == null)
+            Set<Modifier> modifiers = field.getModifiers();
+            if (!modifiers.contains(Modifier.FINAL) && field.getAnnotation(Exclude.class) == null)
                 list.add(field);
         }
         return list;
@@ -85,18 +87,13 @@ public final class TypeUtils {
         if (simpleName == null) {
             TypeKind kind = type.getKind();
             if (kind.isPrimitive())
-                simpleName = type.toString();
+                simpleName = TypeName.get(type).toString();
             else if (kind == TypeKind.ARRAY)
                 simpleName = getSimpleName(((ArrayType) type).getComponentType()) + "[]";
             else if (kind == TypeKind.DECLARED) {
                 DeclaredType declaredType = (DeclaredType) type;
                 TypeElement typeElement = (TypeElement) declaredType.asElement();
-                List<? extends TypeMirror> typeArgs = declaredType.getTypeArguments();
-                StringBuilder sb = new StringBuilder();
-                for (TypeMirror typeArg : typeArgs)
-                    sb.append(getSimpleName(typeArg));
-                sb.append(typeElement.getSimpleName().toString());
-                return sb.toString();
+                return ClassName.get(typeElement).withoutAnnotations().simpleName();
             } else
                 throw new IllegalArgumentException("Cannot get simple name of type with kind " + kind);
             SIMPLE_NAME_CACHE.put(type, simpleName);
