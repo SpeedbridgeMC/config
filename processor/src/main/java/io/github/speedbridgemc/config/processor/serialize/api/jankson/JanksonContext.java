@@ -44,7 +44,8 @@ public final class JanksonContext {
         delegates.add(new EnumJanksonDelegate());
         for (JanksonDelegate delegate : delegateLoader)
             delegates.add(delegate);
-        delegates.add(new ListArrayJanksonDelegate());
+        delegates.add(new ArrayJanksonDelegate());
+        delegates.add(new ListJanksonDelegate());
         delegates.add(new MapJanksonDelegate());
         nestedDelegate = new NestedJanksonDelegate();
     }
