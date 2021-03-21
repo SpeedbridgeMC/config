@@ -61,6 +61,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                         .build());
         JanksonContext jCtx = new JanksonContext(classBuilder, elementType, objectType, primitiveType, arrayType, nullType, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         jCtx.init(processingEnv);
+        jCtx.enclosingElement = type;
         String configName = "config";
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$1T $2L = new $1T()", configType, configName)
@@ -78,7 +79,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             String serializedName = SerializerComponentProvider.getSerializedName(field);
-            jCtx.fieldElement = field;
+            jCtx.element = field;
             codeBuilder.add(generateGet(jCtx, field).build());
             jCtx.appendRead(field.asType(), serializedName, configName + "." + fieldName, codeBuilder);
         }
@@ -97,7 +98,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             String serializedName = SerializerComponentProvider.getSerializedName(field);
-            jCtx.fieldElement = field;
+            jCtx.element = field;
             jCtx.appendWrite(field.asType(), serializedName, configName + "." + fieldName, codeBuilder);
             codeBuilder.addStatement(generatePut(jCtx, field).build());
         }

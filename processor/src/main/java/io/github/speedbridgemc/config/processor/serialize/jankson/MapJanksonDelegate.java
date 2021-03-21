@@ -3,13 +3,13 @@ package io.github.speedbridgemc.config.processor.serialize.jankson;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
@@ -49,7 +49,7 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Serializer: Raw maps are unsupported", ctx.fieldElement);
+                            "Serializer: Raw maps are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
                 keyType = typeArguments.get(0);
@@ -98,6 +98,9 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
         keyElemDest = "keyElem";
         valueElemDest = "valueElem";
 
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
         String elementNameBackup = ctx.elementName;
         ctx.elementName = elemDest;
 
@@ -160,6 +163,8 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
                     .endControlFlow();
         }
 
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
         ctx.elementName = elementNameBackup;
 
         methodBuilder.addCode(codeBuilder.build());
@@ -179,7 +184,7 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Serializer: Raw maps are unsupported", ctx.fieldElement);
+                            "Serializer: Raw maps are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
                 keyType = typeArguments.get(0);
@@ -234,6 +239,9 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
         keyElemSrc = "keyElem";
         valueElemSrc = "valueElem";
 
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
         String elementNameBackup = ctx.elementName;
         ctx.elementName = elemSrc;
 
@@ -276,6 +284,8 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
         }
 
         ctx.elementName = elementNameBackup;
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
 
         methodBuilder.addCode(codeBuilder.build());
         ctx.classBuilder.addMethod(methodBuilder.build());

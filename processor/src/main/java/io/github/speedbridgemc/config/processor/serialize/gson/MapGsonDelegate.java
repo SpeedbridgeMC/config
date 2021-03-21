@@ -283,7 +283,6 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
         ctx.element = elementBackup;
         ctx.enclosingElement = enclosingElementBackup;
 
-        //codeBuilder.endControlFlow();
         methodBuilder.addCode(codeBuilder.build());
         ctx.classBuilder.addMethod(methodBuilder.build());
         return methodName;

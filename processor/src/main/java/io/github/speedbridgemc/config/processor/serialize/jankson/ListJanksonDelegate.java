@@ -9,8 +9,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -45,7 +45,7 @@ public final class ListJanksonDelegate extends BaseJanksonDelegate {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Serializer: Raw lists are unsupported", ctx.fieldElement);
+                            "Serializer: Raw lists are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
                 componentType = typeArguments.get(0);
@@ -93,10 +93,20 @@ public final class ListJanksonDelegate extends BaseJanksonDelegate {
                 .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                 .addStatement("$T $L", componentType, compDest)
                 .beginControlFlow("for ($T $L : $L)", ctx.elementType, elemDest, ctx.arrayName);
+
         String elementNameBackup = ctx.elementName;
         ctx.elementName = elemDest;
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
+
         ctx.appendRead(componentType, null, compDest, codeBuilder);
+
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
         ctx.elementName = elementNameBackup;
+        ctx.elementName = elementNameBackup;
+
         codeBuilder
                 .addStatement("$L.add($L)", listName, compDest)
                 .endControlFlow()
@@ -124,7 +134,7 @@ public final class ListJanksonDelegate extends BaseJanksonDelegate {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Serializer: Raw lists are unsupported", ctx.fieldElement);
+                            "Serializer: Raw lists are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
                 componentType = declaredType.getTypeArguments().get(0);
@@ -166,10 +176,11 @@ public final class ListJanksonDelegate extends BaseJanksonDelegate {
 
         String arrayNameBackup = ctx.arrayName;
         String elementNameBackup = ctx.elementName;
-        VariableElement fieldElementBackup = ctx.fieldElement;
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
         ctx.arrayName = arrSrc;
         ctx.elementName = elemSrc;
-        ctx.fieldElement = null;
 
         codeBuilder
                 .beginControlFlow("if ($L == null)", src)
@@ -184,7 +195,8 @@ public final class ListJanksonDelegate extends BaseJanksonDelegate {
                 .endControlFlow()
                 .addStatement("return $L", arrSrc);
 
-        ctx.fieldElement = fieldElementBackup;
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
         ctx.arrayName = arrayNameBackup;
         ctx.elementName = elementNameBackup;
 

@@ -24,13 +24,13 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Serializer: Field has non-class type with no special delegate", ctx.fieldElement);
+                    "Serializer: Field has non-class type with no special delegate", ctx.getEffectiveElement());
             return false;
         }
         TypeElement typeElement = (TypeElement) typeElementRaw;
         if (!TypeUtils.hasDefaultConstructor(typeElement)) {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Serializer: Field has class type with no 0-parameter constructor or special delegate", ctx.fieldElement);
+                    "Serializer: Field has class type with no 0-parameter constructor or special delegate", ctx.getEffectiveElement());
             return false;
         }
         TypeName typeName = TypeName.get(type);
@@ -71,15 +71,21 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
                 .addStatement("$T $L", ctx.arrayType, ctx.arrayName)
                 .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
-        VariableElement fieldElementBackup = ctx.fieldElement;
+
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             String serializedName = SerializerComponentProvider.getSerializedName(field);
-            ctx.fieldElement = field;
+            ctx.element = field;
             codeBuilder.add(JanksonSerializerProvider.generateGet(ctx, field).build());
             ctx.appendRead(field.asType(), serializedName, configName + "." + fieldName, codeBuilder);
         }
-        ctx.fieldElement = fieldElementBackup;
+
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
+
         methodBuilder.addCode(codeBuilder
                 .addStatement("return $L", configName)
                 .nextControlFlow("else")
@@ -96,7 +102,7 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Serializer: Field has non-class type with no special delegate", ctx.fieldElement);
+                    "Serializer: Field has non-class type with no special delegate", ctx.getEffectiveElement());
             return false;
         }
         TypeElement typeElement = (TypeElement) typeElementRaw;
@@ -131,12 +137,20 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
                 .addStatement("$T $L", ctx.elementType, ctx.elementName)
                 .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
+
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            ctx.fieldElement = null;
+            ctx.element = null;
             ctx.appendWrite(field.asType(), fieldName, configName + "." + fieldName, codeBuilder);
             codeBuilder.addStatement(JanksonSerializerProvider.generatePut(ctx, field).build());
         }
+
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
+
         methodBuilder.addCode(codeBuilder
                 .addStatement("return $L", ctx.objectName)
                 .build());
