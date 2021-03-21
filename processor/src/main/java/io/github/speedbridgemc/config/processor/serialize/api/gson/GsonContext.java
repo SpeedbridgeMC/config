@@ -9,7 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeMirror;
 import java.util.*;
 
@@ -23,7 +23,7 @@ public final class GsonContext {
     public final @NotNull TypeName readerType, writerType, tokenType;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
     public @NotNull String readerName = "reader", writerName = "writer";
-    public @Nullable VariableElement fieldElement;
+    public @Nullable Element enclosingElement, element;
 
     @SuppressWarnings("RedundantSuppression")
     public GsonContext(TypeSpec.@NotNull Builder classBuilder, @NotNull TypeName readerType, @NotNull TypeName writerType,
@@ -85,5 +85,14 @@ public final class GsonContext {
 
     public boolean appendWriteNested(@NotNull TypeMirror type, @Nullable String name, @NotNull String src, @NotNull CodeBlock.Builder codeBuilder) {
         return nestedDelegate.appendWrite(this, type, name, src, codeBuilder);
+    }
+
+    public @NotNull Element getEffectiveElement() {
+        if (enclosingElement != null)
+            return enclosingElement;
+        else if (element != null)
+            return element;
+        else
+            throw new IllegalStateException();
     }
 }

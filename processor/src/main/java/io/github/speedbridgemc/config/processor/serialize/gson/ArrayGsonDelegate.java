@@ -8,8 +8,8 @@ import io.github.speedbridgemc.config.processor.serialize.api.gson.GsonContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -74,10 +74,12 @@ public final class ArrayGsonDelegate extends BaseGsonDelegate {
                 .beginControlFlow("while ($L.hasNext())", ctx.readerName)
                 .addStatement("$T $L", componentTypeName, compDest);
 
-        VariableElement fieldElementBackup = ctx.fieldElement;
-        ctx.fieldElement = null;
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
         ctx.appendRead(componentType, null, compDest, codeBuilder);
-        ctx.fieldElement = fieldElementBackup;
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
 
         codeBuilder
                 .addStatement("$L.add($L)", listName, compDest)
@@ -145,8 +147,9 @@ public final class ArrayGsonDelegate extends BaseGsonDelegate {
                 .addStatement("return")
                 .endControlFlow();
 
-        VariableElement fieldElementBackup = ctx.fieldElement;
-        ctx.fieldElement = null;
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
 
         codeBuilder.addStatement("$L.beginArray()", ctx.writerName)
                 .beginControlFlow("for ($T comp : $L)", componentTypeName, src);
@@ -154,7 +157,8 @@ public final class ArrayGsonDelegate extends BaseGsonDelegate {
         codeBuilder.endControlFlow()
                 .addStatement("$L.endArray()", ctx.writerName);
 
-        ctx.fieldElement = fieldElementBackup;
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
 
         methodBuilder.addCode(codeBuilder.build());
         ctx.classBuilder.addMethod(methodBuilder.build());

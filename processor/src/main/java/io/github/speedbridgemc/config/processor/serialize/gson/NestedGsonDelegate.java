@@ -25,13 +25,13 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Serializer: Field has non-class type with no special delegate", ctx.fieldElement);
+                    "Serializer: Field has non-class type with no special delegate", ctx.getEffectiveElement());
             return false;
         }
         TypeElement typeElement = (TypeElement) typeElementRaw;
         if (!TypeUtils.hasDefaultConstructor(typeElement)) {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Serializer: Field has class type with no 0-parameter constructor or special delegate", ctx.fieldElement);
+                    "Serializer: Field has class type with no 0-parameter constructor or special delegate", ctx.getEffectiveElement());
             return false;
         }
         TypeName typeName = TypeName.get(type);
@@ -64,9 +64,10 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
 
         HashMap<String, String> missingErrorMessagesBackup = new HashMap<>(ctx.missingErrorMessages);
         HashMap<String, String> gotFlagsBackup = new HashMap<>(ctx.gotFlags);
-        VariableElement fieldElementBackup = ctx.fieldElement;
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
         ctx.missingErrorMessages.clear();
         ctx.gotFlags.clear();
+        ctx.enclosingElement = elementBackup;
         
         String defaultMissingErrorMessage = SerializerComponentProvider.getDefaultMissingErrorMessage(processingEnv, typeElement);
         SerializerComponentProvider.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, ctx.missingErrorMessages);
@@ -90,7 +91,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
             for (String alias : SerializerComponentProvider.getSerializedAliases(field))
                 codeBuilder.add("case $S:\n", alias);
             codeBuilder.indent();
-            ctx.fieldElement = field;
+            ctx.element = field;
             ctx.appendRead(field.asType(), serializedName, objName + "." + fieldName, codeBuilder);
             codeBuilder.addStatement("continue").unindent();
         }
@@ -105,7 +106,8 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                 .addStatement("return $L", objName)
                 .build());
 
-        ctx.fieldElement = fieldElementBackup;
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
         ctx.missingErrorMessages.clear();
         ctx.missingErrorMessages.putAll(missingErrorMessagesBackup);
         ctx.gotFlags.clear();
@@ -121,7 +123,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                    "Serializer: Field has non-class type with no special delegate", ctx.fieldElement);
+                    "Serializer: Field has non-class type with no special delegate", ctx.getEffectiveElement());
             return false;
         }
         TypeElement typeElement = (TypeElement) typeElementRaw;

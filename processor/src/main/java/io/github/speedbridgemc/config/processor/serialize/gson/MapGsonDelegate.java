@@ -9,8 +9,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -49,7 +49,7 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Serializer: Raw maps are unsupported", ctx.fieldElement);
+                            "Serializer: Raw maps are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
                 keyType = typeArguments.get(0);
@@ -106,8 +106,9 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
         String nameDest = "name";
         String keyDest = "key";
         String valueDest = "value";
-        VariableElement fieldElementBackup = ctx.fieldElement;
-        ctx.fieldElement = null;
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
 
         if (stringKeys) {
             // object
@@ -173,7 +174,8 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
             ctx.missingErrorMessages.putAll(missingErrorMessagesBackup);
         }
 
-        ctx.fieldElement = fieldElementBackup;
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
 
         codeBuilder.addStatement("return $L", mapName);
         methodBuilder.addCode(codeBuilder.build());
@@ -193,7 +195,7 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Serializer: Raw maps are unsupported", ctx.fieldElement);
+                            "Serializer: Raw maps are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
                 keyType = typeArguments.get(0);
@@ -242,8 +244,9 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
         String entrySrc = "entry";
         String keySrc = "key";
 
-        VariableElement fieldElementBackup = ctx.fieldElement;
-        ctx.fieldElement = null;
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
 
         if (stringKeys) {
             // object
@@ -277,7 +280,8 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                     .addStatement("$L.endArray()", ctx.writerName);
         }
 
-        ctx.fieldElement = fieldElementBackup;
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
 
         //codeBuilder.endControlFlow();
         methodBuilder.addCode(codeBuilder.build());

@@ -55,6 +55,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         GsonContext gCtx = new GsonContext(classBuilder, readerType, writerType, tokenType,
                 ctx.nonNullAnnotation, ctx.nullableAnnotation);
         gCtx.init(processingEnv);
+        gCtx.enclosingElement = type;
         SerializerComponentProvider.getMissingErrorMessages(processingEnv, fields, ctx.defaultMissingErrorMessage, gCtx.missingErrorMessages);
         generateGotFlags(gCtx, fields);
         String objName = "config";
@@ -79,7 +80,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
             for (String alias : SerializerComponentProvider.getSerializedAliases(field))
                 codeBuilder.add("case $S:\n", alias);
             codeBuilder.indent();
-            gCtx.fieldElement = field;
+            gCtx.element = field;
             gCtx.appendRead(field.asType(), serializedName, objName + "." + fieldName, codeBuilder);
             ctx.readMethodBuilder.addCode(codeBuilder
                     .addStatement("continue").unindent()
@@ -110,7 +111,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
             String serializedName = SerializerComponentProvider.getSerializedName(field);
             codeBuilder = CodeBlock.builder()
                     .addStatement("$L.name($S)", gCtx.writerName, serializedName);
-            gCtx.fieldElement = field;
+            gCtx.element = field;
             gCtx.appendWrite(field.asType(), serializedName, objName + "." + fieldName, codeBuilder);
             ctx.writeMethodBuilder.addCode(codeBuilder.build());
         }

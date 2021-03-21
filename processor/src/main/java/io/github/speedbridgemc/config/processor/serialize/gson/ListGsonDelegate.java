@@ -9,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -45,7 +46,7 @@ public final class ListGsonDelegate extends BaseGsonDelegate {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Serializer: Raw lists are unsupported", ctx.fieldElement);
+                            "Serializer: Raw lists are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
                 componentType = typeArguments.get(0);
@@ -102,10 +103,12 @@ public final class ListGsonDelegate extends BaseGsonDelegate {
                 .beginControlFlow("while ($L.hasNext())", ctx.readerName)
                 .addStatement("$T $L", componentTypeName, compDest);
 
-        VariableElement fieldElementBackup = ctx.fieldElement;
-        ctx.fieldElement = null;
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
         ctx.appendRead(componentType, null, compDest, codeBuilder);
-        ctx.fieldElement = fieldElementBackup;
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
 
         codeBuilder
                 .addStatement("$L.add($L)", listName, compDest)
@@ -131,7 +134,7 @@ public final class ListGsonDelegate extends BaseGsonDelegate {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
                     processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                            "Serializer: Raw lists are unsupported", ctx.fieldElement);
+                            "Serializer: Raw lists are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
                 componentType = declaredType.getTypeArguments().get(0);
@@ -173,8 +176,9 @@ public final class ListGsonDelegate extends BaseGsonDelegate {
                 .addStatement("return")
                 .endControlFlow();
 
-        VariableElement fieldElementBackup = ctx.fieldElement;
-        ctx.fieldElement = null;
+        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
+        ctx.enclosingElement = elementBackup;
+        ctx.element = null;
 
         codeBuilder.addStatement("$L.beginArray()", ctx.writerName)
                 .beginControlFlow("for ($T comp : $L)", componentTypeName, src);
@@ -182,7 +186,8 @@ public final class ListGsonDelegate extends BaseGsonDelegate {
         codeBuilder.endControlFlow()
                 .addStatement("$L.endArray()", ctx.writerName);
 
-        ctx.fieldElement = fieldElementBackup;
+        ctx.element = elementBackup;
+        ctx.enclosingElement = enclosingElementBackup;
 
         methodBuilder.addCode(codeBuilder.build());
         ctx.classBuilder.addMethod(methodBuilder.build());
