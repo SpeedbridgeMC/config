@@ -8,14 +8,13 @@ import com.squareup.javapoet.TypeName;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 
 public final class ComponentContext {
     public final @NotNull String handlerName;
     public final @NotNull TypeName handlerInterfaceTypeName;
     public final @NotNull TypeElement handlerInterfaceTypeElement;
-    public final @NotNull ImmutableList<ExecutableElement> handlerInterfaceMethods;
+    public final @NotNull ImmutableList<MethodSignature> handlerInterfaceMethods;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
     public final @NotNull TypeName configType;
     public final @NotNull Multimap<String, String> params;
@@ -24,7 +23,7 @@ public final class ComponentContext {
     public ComponentContext(@NotNull String handlerName,
                             @NotNull TypeName handlerInterfaceTypeName,
                             @NotNull TypeElement handlerInterfaceTypeElement,
-                            @NotNull ImmutableList<ExecutableElement> handlerInterfaceMethods,
+                            @NotNull ImmutableList<MethodSignature> handlerInterfaceMethods,
                             @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation,
                             @NotNull TypeName configType,
                             @NotNull Multimap<String, String> params,
@@ -42,5 +41,9 @@ public final class ComponentContext {
         this.resetMethodBuilder = resetMethodBuilder;
         this.loadMethodBuilder = loadMethodBuilder;
         this.saveMethodBuilder = saveMethodBuilder;
+    }
+
+    public boolean hasMethod(@NotNull MethodSignature signature) {
+        return MethodSignature.contains(handlerInterfaceMethods, signature);
     }
 }

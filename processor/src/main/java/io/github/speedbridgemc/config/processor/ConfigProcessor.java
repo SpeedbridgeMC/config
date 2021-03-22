@@ -9,6 +9,7 @@ import io.github.speedbridgemc.config.Component;
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
+import io.github.speedbridgemc.config.processor.api.MethodSignature;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
@@ -18,7 +19,6 @@ import javax.annotation.Generated;
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
-import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.io.*;
@@ -123,7 +123,11 @@ public final class ConfigProcessor extends AbstractProcessor {
                         "Missing handler interface class \"" + handlerInterfaceName + "\"", typeElement);
                 continue;
             }
-            ImmutableList<ExecutableElement> handlerInterfaceMethods = ImmutableList.copyOf(TypeUtils.getMethodsIn(handlerInterfaceTypeElement));
+            List<ExecutableElement> methods = TypeUtils.getMethodsIn(handlerInterfaceTypeElement);
+            ImmutableList.Builder<MethodSignature> signatureBuilder = ImmutableList.builder();
+            for (ExecutableElement method : methods)
+                signatureBuilder.add(MethodSignature.fromElement(method));
+            ImmutableList<MethodSignature> handlerInterfaceMethods = signatureBuilder.build();
             TypeName handlerInterfaceTypeName = TypeName.get(handlerInterfaceTypeElement.asType());
             String handlerInterfacePackage = "";
             int splitIndex = handlerInterfaceName.lastIndexOf('.');
@@ -149,47 +153,24 @@ public final class ConfigProcessor extends AbstractProcessor {
                 continue;
             }
 
-            boolean gotGet = false, gotReset = false, gotLoad = false, gotSave = false, gotLog = false;
             TypeMirror configTM = typeElement.asType();
             TypeMirror stringTM = TypeUtils.getTypeMirror(processingEnv, String.class.getCanonicalName());
             TypeMirror exceptionTM = TypeUtils.getTypeMirror(processingEnv, Exception.class.getCanonicalName());
             if (stringTM == null || exceptionTM == null)
                 continue;
-            for (ExecutableElement method : handlerInterfaceMethods) {
-                String methodName = method.getSimpleName().toString();
-                List<? extends VariableElement> params = method.getParameters();
-                TypeMirror returnType = method.getReturnType();
-                switch (methodName) {
-                case "get":
-                    if (params.size() == 0 && processingEnv.getTypeUtils().isSameType(returnType, configTM))
-                        gotGet = true;
-                    break;
-                case "reset":
-                case "load":
-                case "save":
-                    if (params.size() == 0 && returnType.getKind() == TypeKind.VOID) {
-                        switch (methodName) {
-                        case "reset":
-                            gotReset = true;
-                            break;
-                        case "load":
-                            gotLoad = true;
-                            break;
-                        case "save":
-                            gotSave = true;
-                            break;
-                        }
-                    }
-                    break;
-                case "log":
-                    if (method.isDefault()
-                            && params.size() == 2
-                            && processingEnv.getTypeUtils().isSameType(params.get(0).asType(), stringTM)
-                            && processingEnv.getTypeUtils().isSameType(params.get(1).asType(), exceptionTM))
-                        gotLog = true;
-                    break;
-                }
-            }
+            TypeName configName = TypeName.get(configTM);
+            TypeName stringName = ClassName.get(String.class);
+            TypeName exceptionName = ClassName.get(Exception.class);
+            boolean gotGet = MethodSignature.contains(handlerInterfaceMethods,
+                    MethodSignature.of(configName, "get"));
+            boolean gotReset = MethodSignature.contains(handlerInterfaceMethods,
+                    MethodSignature.of(TypeName.VOID, "reset"));
+            boolean gotLoad = MethodSignature.contains(handlerInterfaceMethods,
+                    MethodSignature.of(TypeName.VOID, "load"));
+            boolean gotSave = MethodSignature.contains(handlerInterfaceMethods,
+                    MethodSignature.of(TypeName.VOID, "save"));
+            boolean gotLog = MethodSignature.contains(handlerInterfaceMethods,
+                    MethodSignature.of("log", stringName, exceptionName));
             if (!gotGet)
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: " + typeElement.getSimpleName() + " get()", handlerInterfaceTypeElement);

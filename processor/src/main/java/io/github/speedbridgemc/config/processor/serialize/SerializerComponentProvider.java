@@ -69,25 +69,13 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     "Serializer: Unknown provider \"" + providerId + "\"", type);
             return;
         }
-        boolean gotResolvePath = false;
         TypeMirror pathTM = TypeUtils.getTypeMirror(processingEnv, Path.class.getCanonicalName());
         TypeMirror stringTM = TypeUtils.getTypeMirror(processingEnv, String.class.getCanonicalName());
         if (pathTM == null || stringTM == null)
             return;
-        for (ExecutableElement method : ctx.handlerInterfaceMethods) {
-            if (!method.isDefault())
-                continue;
-            String methodName = method.getSimpleName().toString();
-            List<? extends VariableElement> params = method.getParameters();
-            TypeMirror returnType = method.getReturnType();
-            if ("resolvePath".equals(methodName)) {
-                if (processingEnv.getTypeUtils().isSameType(returnType, pathTM)) {
-                    if (params.size() == 1
-                            && processingEnv.getTypeUtils().isSameType(params.get(0).asType(), stringTM))
-                        gotResolvePath = true;
-                }
-            }
-        }
+        TypeName pathName = ClassName.get(Path.class);
+        TypeName stringName = ClassName.get(String.class);
+        boolean gotResolvePath = ctx.hasMethod(MethodSignature.ofDefault(pathName, "resolvePath", stringName));
         if (!gotResolvePath) {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required default method: Path resolvePath(String)", ctx.handlerInterfaceTypeElement);
