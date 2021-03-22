@@ -49,7 +49,10 @@ public final class TypeUtils {
         List<VariableElement> list = new ArrayList<>();
         for (VariableElement field : fieldsIn(typeElement.getEnclosedElements())) {
             Set<Modifier> modifiers = field.getModifiers();
-            if (!modifiers.contains(Modifier.FINAL) && field.getAnnotation(Exclude.class) == null)
+            if (!modifiers.contains(Modifier.TRANSIENT)
+                    && !modifiers.contains(Modifier.STATIC)
+                    && !modifiers.contains(Modifier.FINAL)
+                    && field.getAnnotation(Exclude.class) == null)
                 list.add(field);
         }
         return list;
