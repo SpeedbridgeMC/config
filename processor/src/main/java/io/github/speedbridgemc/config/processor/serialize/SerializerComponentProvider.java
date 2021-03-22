@@ -88,17 +88,20 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 }
             }
         }
-        if (!gotResolvePath)
+        if (!gotResolvePath) {
             processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required default method: Path resolvePath(String)", ctx.handlerInterfaceTypeElement);
-        if (!gotResolvePath)
-            return;
+        }
         String defaultMissingErrorMessage = getDefaultMissingErrorMessage(processingEnv, type);
         classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
                 .initializer("resolvePath($S)", name)
                 .build());
         String basePackage = ParamUtils.allOrNothing(ctx.params, "base_package");
         String[] options = ctx.params.get("options").toArray(new String[0]);
+        HashMap<String, Boolean> optionMap = new HashMap<>(); // TODO use these options!
+        optionMap.put("backupOnFail", true);
+        optionMap.put("useReplaceSemantics", true);
+        parseOptions(options, optionMap);
         TypeName configType = ctx.configType;
         ParameterSpec.Builder pathParamBuilder = ParameterSpec.builder(Path.class, "path");
         if (ctx.nonNullAnnotation != null)
@@ -144,6 +147,19 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 .addStatement("log($S + path + $S, e)", "Failed to read from config file at \"", "\"!")
                 .endControlFlow()
                 .build());
+    }
+
+    public static void parseOptions(@NotNull String[] options, @NotNull Map<@NotNull String, @NotNull Boolean> map) {
+        for (String option : options) {
+            if (option.isEmpty())
+                continue;
+            char first = option.charAt(0);
+            boolean enabled = first != '-';
+            if (!enabled || first == '+')
+                option = option.substring(1);
+            if (map.containsKey(option))
+                map.put(option, enabled);
+        }
     }
 
     private static final HashMap<VariableElement, String> SERIALIZED_NAME_CACHE = new HashMap<>();

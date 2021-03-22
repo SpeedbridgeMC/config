@@ -121,17 +121,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         grammarMap.put("bareSpecialNumerics", true);
         grammarMap.put("bareRootObject", false);
         grammarMap.put("printUnquotedKeys", true);
-        for (String option : options) {
-            if (option.isEmpty())
-                continue;
-            char first = option.charAt(0);
-            boolean enabled = first != '-';
-            if (!enabled || first == '+')
-                option = option.substring(1);
-            if (!grammarMap.containsKey(option))
-                continue;
-            grammarMap.put(option, enabled);
-        }
+        SerializerComponentProvider.parseOptions(options, grammarMap);
         return grammarMap;
     }
 
