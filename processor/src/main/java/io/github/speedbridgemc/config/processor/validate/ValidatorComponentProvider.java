@@ -3,6 +3,7 @@ package io.github.speedbridgemc.config.processor.validate;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.*;
+import io.github.speedbridgemc.config.LogLevel;
 import io.github.speedbridgemc.config.processor.api.BaseComponentProvider;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
@@ -58,7 +59,8 @@ public final class ValidatorComponentProvider extends BaseComponentProvider {
                 .beginControlFlow("try")
                 .addStatement("validate(config)")
                 .nextControlFlow("catch ($T e)", IllegalArgumentException.class)
-                .addStatement("log($S, e)", "Failed to validate config! Loading default values")
+                .addStatement("log($T.ERROR, $S, e)",
+                        LogLevel.class, "Failed to validate config! Loading default values")
                 .addStatement("reset()")
                 .endControlFlow()
                 .build());

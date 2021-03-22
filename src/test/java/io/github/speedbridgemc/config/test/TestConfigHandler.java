@@ -1,8 +1,10 @@
 package io.github.speedbridgemc.config.test;
 
+import io.github.speedbridgemc.config.LogLevel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -19,10 +21,13 @@ public interface TestConfigHandler {
     void save();
     void setRemote(@Nullable TestConfig remoteConfig);
 
-    default void log(@NotNull String message, @Nullable Exception e) {
-        System.err.println(message);
+    default void log(@NotNull LogLevel level, @NotNull String msg, @Nullable Exception e) {
+        PrintStream out = System.out;
+        if (level == LogLevel.ERROR || level == LogLevel.FATAL)
+            out = System.err;
+        out.println(msg);
         if (e != null)
-            e.printStackTrace();
+            e.printStackTrace(out);
     }
 
     default @NotNull Path resolvePath(@NotNull String name) {

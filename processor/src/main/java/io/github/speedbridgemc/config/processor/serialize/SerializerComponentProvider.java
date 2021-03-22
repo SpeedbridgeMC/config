@@ -3,6 +3,7 @@ package io.github.speedbridgemc.config.processor.serialize;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.*;
+import io.github.speedbridgemc.config.LogLevel;
 import io.github.speedbridgemc.config.processor.api.*;
 import io.github.speedbridgemc.config.processor.serialize.api.NamingStrategyProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
@@ -21,8 +22,10 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 @ApiStatus.Internal
@@ -144,26 +147,97 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
         provider.process(name, type, fields, sCtx, classBuilder);
         classBuilder.addMethod(readMethodBuilder.build()).addMethod(writeMethodBuilder.build());
         ctx.resetMethodBuilder.addCode("save();\n");
-        ctx.loadMethodBuilder.addCode(CodeBlock.builder()
+
+        CodeBlock.Builder loadCodeBuilder = CodeBlock.builder()
                 .beginControlFlow("try")
                 .addStatement("config = read(path)")
                 .nextControlFlow("catch ($T e)", NoSuchFileException.class)
-                .addStatement("log($S + path + $S, null)", "File \"", "\" does not exist, loading default values")
+                .addStatement("log($T.INFO, $S + path + $S, null)",
+                        LogLevel.class, "File \"", "\" does not exist, loading default values")
                 .nextControlFlow("catch ($T e)", IOException.class)
-                .addStatement("log($S + path + $S, e)", "Failed to read from config file at \"", "\"! Loading default values")
-                // TODO backup
-                .endControlFlow()
-                .beginControlFlow("if (config == null)")
-                .addStatement("reset()")
-                .endControlFlow()
-                .build());
-        ctx.saveMethodBuilder.addCode(CodeBlock.builder()
-                .beginControlFlow("try")
-                .addStatement("write(config, path)")
-                .nextControlFlow("catch ($T e)", IOException.class)
-                .addStatement("log($S + path + $S, e)", "Failed to read from config file at \"", "\"!")
-                .endControlFlow()
-                .build());
+                .addStatement("log($T.ERROR, $S + path + $S, e)",
+                        LogLevel.class, "Failed to read from config file at \"", "\"!");
+        boolean crashOnFail = options.getOrDefault("crashOnFail", false);
+        if (options.getOrDefault("backupOnFail", true)) {
+            loadCodeBuilder
+                    .addStatement("$T backupPath = $T.resolveTimestampedSibling(path, $S)",
+                            Path.class, PathUtils.class, "BACKUP")
+                    .addStatement("boolean backupSuccess = true");
+            loadCodeBuilder
+                    .beginControlFlow("try")
+                    .addStatement("$T.move(path, backupPath, $T.REPLACE_EXISTING)",
+                            Files.class, StandardCopyOption.class)
+                    .nextControlFlow("catch ($T be)", IOException.class)
+                    .addStatement("log($T.ERROR, $S + backupPath + $S, be)",
+                            LogLevel.class, "Failed to back up config file to \"", "\"!")
+                    .addStatement("backupSuccess = false")
+                    .endControlFlow();
+            if (crashOnFail) {
+                loadCodeBuilder
+                        .beginControlFlow("if (backupSuccess)")
+                        .addStatement("reset()")
+                        .addStatement("save()")
+                        .addStatement("throw new $T($S + path + $S + backupPath + $S)",
+                                RuntimeException.class, "Failed to read from config file \"",
+                                "\"! File has been replaced with default values, with the original backed up at \"", "\"")
+                        .nextControlFlow("else")
+                        .addStatement("throw new $T($S + path + $S)",
+                                RuntimeException.class, "Failed to read from config file \"", "\"!")
+                        .endControlFlow();
+            } else
+                loadCodeBuilder
+                        .beginControlFlow("if (backupSuccess)")
+                        .addStatement("log($T.INFO, $S + backupPath + $S, null)",
+                                LogLevel.class, "Backed up config file to \"", "\"")
+                        .endControlFlow()
+                        .addStatement("log($T.WARN, $S, null)",
+                                LogLevel.class, "Loading and saving default config values")
+                        .addStatement("reset()")
+                        .addStatement("save()");
+        } else if (crashOnFail) {
+            loadCodeBuilder.addStatement("throw new $T($S + path + $S)",
+                    RuntimeException.class, "Failed to read from config file \"", "\"!");
+        }
+        loadCodeBuilder.endControlFlow();
+        ctx.loadMethodBuilder.addCode(loadCodeBuilder.build());
+
+        // FIXME find better name for this
+        boolean saveToTempAndMoveOver = options.getOrDefault("saveToTempAndMoveOver", true);
+        CodeBlock.Builder saveCodeBuilder = CodeBlock.builder();
+        if (saveToTempAndMoveOver) {
+            saveCodeBuilder
+                    .addStatement("$T tempPath = $T.resolveTimestampedSibling(path, $S)",
+                            Path.class, PathUtils.class, "TEMP")
+                    .addStatement("log($T.INFO, $S + tempPath + $S, null)",
+                            LogLevel.class, "Writing config to temp file \"", "\"")
+                    .beginControlFlow("try")
+                    .addStatement("write(config, tempPath)")
+                    .nextControlFlow("catch ($T e)", IOException.class)
+                    .addStatement("log($T.ERROR, $S + tempPath + $S, e)",
+                            LogLevel.class, "Failed to write to temp file at \"", "\"!")
+                    .addStatement("return")
+                    .endControlFlow()
+                    .addStatement("log($T.INFO, $S + tempPath + $S + path + $S, null)",
+                            LogLevel.class, "Moving temp file \"", "\" over config file \"", "\"")
+                    .beginControlFlow("try")
+                    .addStatement("$T.move(tempPath, path, $T.REPLACE_EXISTING)",
+                            Files.class, StandardCopyOption.class)
+                    .nextControlFlow("catch ($T e)", IOException.class)
+                    .addStatement("log($T.ERROR, $S + tempPath + $S + path + $S, e)",
+                            LogLevel.class, "Failed to move temp file \"", "\" over config file at \"", "\"!")
+                    .endControlFlow();
+        } else {
+            saveCodeBuilder
+                    .addStatement("log($T.INFO, $S + path + $S, null)",
+                            LogLevel.class, "Writing config to file \"", "\"")
+                    .beginControlFlow("try")
+                    .addStatement("write(config, path)")
+                    .nextControlFlow("catch ($T e)", IOException.class)
+                    .addStatement("log($T.ERROR, $S + path + $S, e)",
+                            LogLevel.class, "Failed to write to config file at \"", "\"!")
+                    .endControlFlow();
+        }
+        ctx.saveMethodBuilder.addCode(saveCodeBuilder.build());
     }
 
     public static void parseOptions(@NotNull String[] options, @NotNull Map<@NotNull String, @NotNull Boolean> map) {

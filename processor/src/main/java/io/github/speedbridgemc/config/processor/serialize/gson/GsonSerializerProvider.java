@@ -91,7 +91,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         codeBuilder = CodeBlock.builder()
                 .beginControlFlow("try ($4T $5L = new $4T(new $3T(new $2T($1T.newOutputStream(path)))))",
                         Files.class, OutputStreamWriter.class, BufferedWriter.class, writerType, gCtx.writerName);
-        if (ctx.options.get("prettyPrinting"))
+        if (ctx.options.getOrDefault("prettyPrinting", true))
             codeBuilder.addStatement("$L.setIndent($S)", gCtx.writerName, "  ");
         codeBuilder.addStatement("$L.beginObject()", gCtx.writerName);
         ctx.writeMethodBuilder.addCode(codeBuilder.build());

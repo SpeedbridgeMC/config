@@ -7,6 +7,7 @@ import com.google.common.collect.MultimapBuilder;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.Component;
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.LogLevel;
 import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
 import io.github.speedbridgemc.config.processor.api.MethodSignature;
@@ -165,6 +166,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             if (stringTM == null || exceptionTM == null)
                 continue;
             TypeName configName = TypeName.get(configTM);
+            TypeName logLvlName = ClassName.get(LogLevel.class);
             TypeName stringName = ClassName.get(String.class);
             TypeName exceptionName = ClassName.get(Exception.class);
             boolean gotGet = MethodSignature.contains(handlerInterfaceMethods,
@@ -176,7 +178,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             boolean gotSave = MethodSignature.contains(handlerInterfaceMethods,
                     MethodSignature.of(TypeName.VOID, "save"));
             boolean gotLog = MethodSignature.contains(handlerInterfaceMethods,
-                    MethodSignature.ofDefault("log", stringName, exceptionName));
+                    MethodSignature.ofDefault("log", logLvlName, stringName, exceptionName));
             if (!gotGet)
                 messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: " + typeElement.getSimpleName() + " get()", handlerInterfaceTypeElement);
@@ -191,7 +193,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                         "Handler interface is missing required method: void load()", handlerInterfaceTypeElement);
             if (!gotLog)
                 messager.printMessage(Diagnostic.Kind.ERROR,
-                        "Handler interface is missing required default method: <ignored> log(String, Exception)", handlerInterfaceTypeElement);
+                        "Handler interface is missing required default method: <ignored> log(LogLevel, String, Exception)", handlerInterfaceTypeElement);
             if (!gotGet || !gotReset || !gotLoad || !gotSave || !gotLog)
                 continue;
 
