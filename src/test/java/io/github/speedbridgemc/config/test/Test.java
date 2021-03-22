@@ -9,7 +9,7 @@ public class Test {
     public static void main(String[] args) {
         Random rnd = new Random();
 
-        TestConfig cfg = TestConfigHandler.instance().get();
+        TestConfig cfg = TestConfigHandler.INSTANCE.get();
         System.out.println("testString = \"" + cfg.testString + "\"");
         cfg.testBool = !cfg.testBool;
         cfg.testString = "Hello world! " + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
@@ -38,6 +38,6 @@ public class Test {
         nested.put("does this actually...", "work??");
         cfg.testNestedMap.put("aaaaa", nested);
 
-        TestConfigHandler.instance().save();
+        TestConfigHandler.INSTANCE.save();
     }
 }

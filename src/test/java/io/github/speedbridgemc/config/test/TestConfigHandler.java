@@ -11,10 +11,6 @@ import java.nio.file.Paths;
 public interface TestConfigHandler {
     TestConfigHandler INSTANCE = new TestConfigHandlerImpl();
 
-    static @NotNull TestConfigHandler instance() {
-        return INSTANCE;
-    }
-
     @NotNull TestConfig get();
     void reset();
     void load();
