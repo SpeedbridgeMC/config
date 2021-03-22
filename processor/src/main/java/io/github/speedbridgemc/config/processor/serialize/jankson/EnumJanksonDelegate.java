@@ -21,7 +21,7 @@ import java.io.IOException;
 public final class EnumJanksonDelegate extends BaseJanksonDelegate {
     @Override
     public boolean appendRead(@NotNull JanksonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
-        Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
+        Element typeElementRaw = types.asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.ENUM)
             return false;
         TypeElement typeElement = (TypeElement) typeElementRaw;
@@ -56,7 +56,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
             TypeMirror keyTypeMirror = keyType.type;
             TypeName keyTypeName = TypeName.get(keyTypeMirror);
             if (keyTypeName.isBoxedPrimitive()) {
-                keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyTypeMirror);
+                keyTypeMirror = types.unboxedType(keyTypeMirror);
                 keyTypeName = keyTypeName.unbox();
             }
             String keyDest = "key";
@@ -93,7 +93,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
 
     @Override
     public boolean appendWrite(@NotNull JanksonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
-        Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
+        Element typeElementRaw = types.asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.ENUM)
             return false;
         TypeElement typeElement = (TypeElement) typeElementRaw;
@@ -130,7 +130,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
             TypeMirror keyTypeMirror = keyType.type;
             TypeName keyTypeName = TypeName.get(keyTypeMirror);
             if (keyTypeName.isBoxedPrimitive()) {
-                keyTypeMirror = processingEnv.getTypeUtils().unboxedType(keyTypeMirror);
+                keyTypeMirror = types.unboxedType(keyTypeMirror);
                 keyTypeName = keyTypeName.unbox();
             }
             String src = "src";

@@ -30,11 +30,11 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
         super.init(processingEnv);
         mapTM = TypeUtils.getTypeMirror(processingEnv, Map.class.getCanonicalName());
         if (mapTM != null)
-            mapTM = processingEnv.getTypeUtils().erasure(mapTM);
+            mapTM = types.erasure(mapTM);
         stringTM = TypeUtils.getTypeMirror(processingEnv, String.class.getCanonicalName());
         entryTM = TypeUtils.getTypeMirror(processingEnv, Map.Entry.class.getCanonicalName());
         if (entryTM != null)
-            entryTM = processingEnv.getTypeUtils().erasure(entryTM);
+            entryTM = types.erasure(entryTM);
     }
 
     @Override
@@ -44,11 +44,11 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             DeclaredType declaredType = (DeclaredType) type;
             if (mapTM == null)
                 return false;
-            TypeMirror erasedType = processingEnv.getTypeUtils().erasure(declaredType);
-            if (processingEnv.getTypeUtils().isSameType(erasedType, mapTM)) {
+            TypeMirror erasedType = types.erasure(declaredType);
+            if (types.isSameType(erasedType, mapTM)) {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    messager.printMessage(Diagnostic.Kind.ERROR,
                             "Serializer: Raw maps are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
@@ -87,7 +87,7 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             methodBuilder.addAnnotation(ctx.nullableAnnotation);
         String mapName = "map" + keyTypeSimpleName + "2" + valueTypeSimpleName;
 
-        boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
+        boolean stringKeys = types.isSameType(keyType, stringTM);
         String objDest, arrDest, elemDest, entryDest, keyDest, valueDest, keyElemDest, valueElemDest;
         objDest = "obj";
         arrDest = "arr";
@@ -179,11 +179,11 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             DeclaredType declaredType = (DeclaredType) type;
             if (mapTM == null)
                 return false;
-            TypeMirror erasedType = processingEnv.getTypeUtils().erasure(declaredType);
-            if (processingEnv.getTypeUtils().isSameType(erasedType, mapTM)) {
+            TypeMirror erasedType = types.erasure(declaredType);
+            if (types.isSameType(erasedType, mapTM)) {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    messager.printMessage(Diagnostic.Kind.ERROR,
                             "Serializer: Raw maps are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
@@ -228,7 +228,7 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             methodBuilder.addAnnotation(ctx.nonNullAnnotation);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
 
-        boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
+        boolean stringKeys = types.isSameType(keyType, stringTM);
         String entrySrc, keySrc, valueSrc, objSrc, arrSrc, elemSrc, keyElemSrc, valueElemSrc;
         entrySrc = "entry" + keyTypeSimpleName + "2" + valueTypeSimpleName;
         keySrc = "key";

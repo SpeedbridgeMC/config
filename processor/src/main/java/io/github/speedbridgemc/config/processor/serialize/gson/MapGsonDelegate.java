@@ -30,11 +30,11 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
         super.init(processingEnv);
         mapTM = TypeUtils.getTypeMirror(processingEnv, Map.class.getCanonicalName());
         if (mapTM != null)
-            mapTM = processingEnv.getTypeUtils().erasure(mapTM);
+            mapTM = types.erasure(mapTM);
         stringTM = TypeUtils.getTypeMirror(processingEnv, String.class.getCanonicalName());
         entryTM = TypeUtils.getTypeMirror(processingEnv, Map.Entry.class.getCanonicalName());
         if (entryTM != null)
-            entryTM = processingEnv.getTypeUtils().erasure(entryTM);
+            entryTM = types.erasure(entryTM);
     }
 
     @Override
@@ -44,11 +44,11 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
             DeclaredType declaredType = (DeclaredType) type;
             if (mapTM == null)
                 return false;
-            TypeMirror erasedType = processingEnv.getTypeUtils().erasure(declaredType);
-            if (processingEnv.getTypeUtils().isSameType(erasedType, mapTM)) {
+            TypeMirror erasedType = types.erasure(declaredType);
+            if (types.isSameType(erasedType, mapTM)) {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    messager.printMessage(Diagnostic.Kind.ERROR,
                             "Serializer: Raw maps are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
@@ -101,7 +101,7 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                 .build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
 
-        boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
+        boolean stringKeys = types.isSameType(keyType, stringTM);
         String tokenDest = "token";
         String nameDest = "name";
         String keyDest = "key";
@@ -190,11 +190,11 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
             DeclaredType declaredType = (DeclaredType) type;
             if (mapTM == null)
                 return false;
-            TypeMirror erasedType = processingEnv.getTypeUtils().erasure(declaredType);
-            if (processingEnv.getTypeUtils().isSameType(erasedType, mapTM)) {
+            TypeMirror erasedType = types.erasure(declaredType);
+            if (types.isSameType(erasedType, mapTM)) {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    messager.printMessage(Diagnostic.Kind.ERROR,
                             "Serializer: Raw maps are unsupported", ctx.getEffectiveElement());
                     return false;
                 }
@@ -239,7 +239,7 @@ public final class MapGsonDelegate extends BaseGsonDelegate {
                 .addStatement("$L.nullValue()", ctx.writerName)
                 .addStatement("return")
                 .endControlFlow();
-        boolean stringKeys = processingEnv.getTypeUtils().isSameType(keyType, stringTM);
+        boolean stringKeys = types.isSameType(keyType, stringTM);
         String valueSrc = "value";
         String entrySrc = "entry";
         String keySrc = "key";

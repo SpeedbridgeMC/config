@@ -17,6 +17,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
@@ -41,7 +42,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
         if (keyedEnumTM == null) {
             keyedEnumTM = TypeUtils.getTypeMirror(processingEnv, KeyedEnum.class.getCanonicalName());
             if (keyedEnumTM != null)
-                keyedEnumTM = processingEnv.getTypeUtils().erasure(keyedEnumTM);
+                keyedEnumTM = types.erasure(keyedEnumTM);
         }
 
         serializerProviders = new HashMap<>();
@@ -59,13 +60,13 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
         String providerId = ParamUtils.allOrNothing(ctx.params, "provider");
         if (providerId == null) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Serializer: No provider specified", type);
             return;
         }
         SerializerProvider provider = serializerProviders.get(providerId);
         if (provider == null) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Serializer: Unknown provider \"" + providerId + "\"", type);
             return;
         }
@@ -77,7 +78,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
         TypeName stringName = ClassName.get(String.class);
         boolean gotResolvePath = ctx.hasMethod(MethodSignature.ofDefault(pathName, "resolvePath", stringName));
         if (!gotResolvePath) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required default method: Path resolvePath(String)", ctx.handlerInterfaceTypeElement);
         }
         String defaultMissingErrorMessage = getDefaultMissingErrorMessage(processingEnv, type);
@@ -273,10 +274,11 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
     public static @Nullable EnumKeyType getEnumKeyType(@NotNull ProcessingEnvironment processingEnv,
                                                        @NotNull TypeElement type,
                                                        @NotNull TypeSpec.Builder classBuilder) {
+        final Types types = processingEnv.getTypeUtils();
         return ENUM_KEY_TYPE_CACHE.computeIfAbsent(type, typeElement -> {
             for (TypeMirror anInterface : typeElement.getInterfaces()) {
-                TypeMirror erasedInterface = processingEnv.getTypeUtils().erasure(anInterface);
-                if (processingEnv.getTypeUtils().isSameType(erasedInterface, keyedEnumTM)) {
+                TypeMirror erasedInterface = types.erasure(anInterface);
+                if (types.isSameType(erasedInterface, keyedEnumTM)) {
                     List<? extends TypeMirror> typeArgs = ((DeclaredType) anInterface).getTypeArguments();
                     if (typeArgs.isEmpty()) {
                         processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
@@ -306,7 +308,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                         && method.getSimpleName().contentEquals("getId")) {
                     TypeMirror keyType = method.getReturnType();
                     if (keyType.getKind().isPrimitive())
-                        keyType = processingEnv.getTypeUtils().boxedClass((PrimitiveType) keyType).asType();
+                        keyType = types.boxedClass((PrimitiveType) keyType).asType();
                     ArrayList<Object> deserializerArgs = new ArrayList<>();
                     deserializerArgs.add(addEnumMap(classBuilder, keyType, "%s.getId()", false, type));
                     return EnumKeyType.simple(keyType, "$L.getId()", "$2L.get($1L)", deserializerArgs);
@@ -321,7 +323,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                         && field.getSimpleName().contentEquals("id")) {
                     TypeMirror keyType = field.asType();
                     if (keyType.getKind().isPrimitive())
-                        keyType = processingEnv.getTypeUtils().boxedClass((PrimitiveType) keyType).asType();
+                        keyType = types.boxedClass((PrimitiveType) keyType).asType();
                     ArrayList<Object> deserializerArgs = new ArrayList<>();
                     deserializerArgs.add(addEnumMap(classBuilder, keyType, "%s.id", false, type));
                     return EnumKeyType.simple(keyType, "$L.id", "$2L.get($1L)", deserializerArgs);
@@ -334,9 +336,10 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
     private static @Nullable ExecutableElement findEnumDeserializer(@NotNull ProcessingEnvironment processingEnv,
                                                                     @NotNull TypeElement type,
                                                                     @NotNull TypeMirror keyType) {
+        final Types types = processingEnv.getTypeUtils();
         TypeMirror unboxedKeyType = keyType;
         if (TypeName.get(keyType).isBoxedPrimitive())
-            unboxedKeyType = processingEnv.getTypeUtils().unboxedType(keyType);
+            unboxedKeyType = types.unboxedType(keyType);
         for (ExecutableElement method : ElementFilter.methodsIn(type.getEnclosedElements())) {
             if (method.getAnnotation(KeyedEnumDeserializer.class) == null)
                 continue;
@@ -344,10 +347,10 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
             List<? extends VariableElement> params = method.getParameters();
             if (params.size() == 1) {
                 TypeMirror paramType = params.get(0).asType();
-                if (processingEnv.getTypeUtils().isSameType(keyType, paramType)
-                    || processingEnv.getTypeUtils().isSameType(unboxedKeyType, paramType)) {
+                if (types.isSameType(keyType, paramType)
+                    || types.isSameType(unboxedKeyType, paramType)) {
                     if (modifiers.contains(Modifier.PUBLIC) && modifiers.contains(Modifier.STATIC)
-                            && processingEnv.getTypeUtils().isSameType(type.asType(), method.getReturnType()))
+                            && types.isSameType(type.asType(), method.getReturnType()))
                         return method;
                 }
             }

@@ -21,15 +21,15 @@ import java.util.List;
 public final class NestedJanksonDelegate extends BaseJanksonDelegate {
     @Override
     public boolean appendRead(@NotNull JanksonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String dest, CodeBlock.@NotNull Builder codeBuilder) {
-        Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
+        Element typeElementRaw = types.asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Serializer: Field has non-class type with no special delegate", ctx.getEffectiveElement());
             return false;
         }
         TypeElement typeElement = (TypeElement) typeElementRaw;
         if (!TypeUtils.hasDefaultConstructor(typeElement)) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Serializer: Field has class type with no 0-parameter constructor or special delegate", ctx.getEffectiveElement());
             return false;
         }
@@ -99,9 +99,9 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
 
     @Override
     public boolean appendWrite(@NotNull JanksonContext ctx, @NotNull TypeMirror type, @Nullable String name, @NotNull String src, CodeBlock.@NotNull Builder codeBuilder) {
-        Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
+        Element typeElementRaw = types.asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Serializer: Field has non-class type with no special delegate", ctx.getEffectiveElement());
             return false;
         }

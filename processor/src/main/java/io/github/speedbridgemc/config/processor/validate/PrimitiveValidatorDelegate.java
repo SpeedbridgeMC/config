@@ -68,14 +68,14 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
             if (integerRange != null && integerRange.mode() != EnforceMode.IGNORE) {
                 long max = integerRange.max();
                 if (smol && (max < Integer.MIN_VALUE || max > Integer.MAX_VALUE))
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+                    messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Maximum bound of field is out of its bounds", ctx.getEffectiveElement());
                 long min = integerRange.min();
                 if (smol && (min < Integer.MIN_VALUE || min > Integer.MAX_VALUE))
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+                    messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Minimum bound of field is out of its bounds", ctx.getEffectiveElement());
                 if (min >= max) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    messager.printMessage(Diagnostic.Kind.ERROR,
                             "Validator: Minimum bound of field is larger than or equal to maximum bound", ctx.getEffectiveElement());
                     return true;
                 }
@@ -116,14 +116,14 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
             if (floatingRange != null && floatingRange.mode() != EnforceMode.IGNORE) {
                 double max = floatingRange.max();
                 if (smol && (max < -Float.MAX_VALUE || max > Float.MAX_VALUE))
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+                    messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Maximum bound of field is out of its bounds", ctx.getEffectiveElement());
                 double min = floatingRange.min();
                 if (smol && (min < -Float.MAX_VALUE || min > Float.MAX_VALUE))
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+                    messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Minimum bound of field is out of its bounds", ctx.getEffectiveElement());
                 if (min >= max) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    messager.printMessage(Diagnostic.Kind.ERROR,
                             "Validator: Minimum bound of field is larger than or equal to maximum bound", ctx.getEffectiveElement());
                     return true;
                 }

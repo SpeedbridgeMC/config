@@ -27,7 +27,7 @@ public final class ListValidatorDelegate extends BaseValidatorDelegate {
         super.init(processingEnv);
         listTM = TypeUtils.getTypeMirror(processingEnv, List.class.getCanonicalName());
         if (listTM != null)
-            listTM = processingEnv.getTypeUtils().erasure(listTM);
+            listTM = types.erasure(listTM);
         nestCount = 1;
     }
 
@@ -38,11 +38,11 @@ public final class ListValidatorDelegate extends BaseValidatorDelegate {
             DeclaredType declaredType = (DeclaredType) type;
             if (listTM == null)
                 return false;
-            TypeMirror erasedType = processingEnv.getTypeUtils().erasure(declaredType);
-            if (processingEnv.getTypeUtils().isSameType(erasedType, listTM)) {
+            TypeMirror erasedType = types.erasure(declaredType);
+            if (types.isSameType(erasedType, listTM)) {
                 List<? extends TypeMirror> typeArguments = declaredType.getTypeArguments();
                 if (typeArguments.size() == 0) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    messager.printMessage(Diagnostic.Kind.ERROR,
                             "Serializer: Raw lists are unsupported", ctx.getEffectiveElement());
                     return false;
                 }

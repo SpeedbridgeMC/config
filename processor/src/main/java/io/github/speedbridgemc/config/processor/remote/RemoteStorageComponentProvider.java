@@ -28,7 +28,7 @@ public final class RemoteStorageComponentProvider extends BaseComponentProvider 
         TypeName configName = TypeName.get(configTM);
         boolean gotSetRemote = ctx.hasMethod(MethodSignature.ofDefault(TypeName.VOID, "setRemote", configName));
         if (!gotSetRemote) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required method: void setRemote(" + type.getSimpleName() + ")",
                     ctx.handlerInterfaceTypeElement);
         }

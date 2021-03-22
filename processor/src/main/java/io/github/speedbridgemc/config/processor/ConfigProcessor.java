@@ -20,6 +20,8 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.io.*;
 import java.time.OffsetDateTime;
@@ -32,10 +34,15 @@ import java.util.*;
 public final class ConfigProcessor extends AbstractProcessor {
     private String version;
     private HashMap<String, ComponentProvider> componentProviders;
+    private Messager messager;
+    private Elements elements;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
+
+        messager = processingEnv.getMessager();
+        elements = processingEnv.getElementUtils();
 
         try (InputStream is = getClass().getResourceAsStream("/version.properties")) {
             if (is == null)
@@ -47,23 +54,23 @@ public final class ConfigProcessor extends AbstractProcessor {
                 throw new IllegalStateException();
         } catch (FileNotFoundException e) {
             // version.properties isn't there
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Speedbridge Config's annotation processor couldn't find its \"version.properties\" file.");
         } catch (IOException e) {
             // couldn't read from version.properties
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Speedbridge Config's annotation processor couldn't read its \"version.properties\" file due to an IO error: " + e.getMessage());
         } catch (IllegalArgumentException e) {
             // version.properties is malformed
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Speedbridge Config's annotation processor couldn't parse its \"version.properties\" file: " + e.getMessage());
         } catch (IllegalStateException e) {
             // version.properties doesn't contain a "version" property
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Speedbridge Config's annotation processor's \"version.properties\" file doesn't contain a \"version\" property.");
         }
         if (version == null) {
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Your build of Speedbridge Config's annotation processor is probably broken!");
             return;
         }
@@ -85,7 +92,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);
             e.printStackTrace(pw);
-            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+            messager.printMessage(Diagnostic.Kind.ERROR,
                     "Speedbridge Config annotation processor failed exceptionally!\n" + sw.toString());
             e.printStackTrace();
         }
@@ -97,29 +104,29 @@ public final class ConfigProcessor extends AbstractProcessor {
             return;
         for (Element element : roundEnv.getElementsAnnotatedWith(Config.class)) {
             if (element.getKind() != ElementKind.CLASS) {
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                messager.printMessage(Diagnostic.Kind.ERROR,
                         "@Config annotation applied to non-class element", element);
                 continue;
             }
             TypeElement typeElement = (TypeElement) element;
 
             if (!TypeUtils.hasDefaultConstructor(typeElement)) {
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                messager.printMessage(Diagnostic.Kind.ERROR,
                         "@Config annotation applied to class with no public 0-parameter constructor", typeElement);
             }
 
             Config config = typeElement.getAnnotation(Config.class);
-            String configPackage = processingEnv.getElementUtils().getPackageOf(typeElement).getQualifiedName().toString();
+            String configPackage = elements.getPackageOf(typeElement).getQualifiedName().toString();
             String name = config.name();
             String handlerInterfaceName = config.handlerInterface();
-            TypeElement handlerInterfaceTypeElement = processingEnv.getElementUtils().getTypeElement(handlerInterfaceName);
+            TypeElement handlerInterfaceTypeElement = elements.getTypeElement(handlerInterfaceName);
             if (handlerInterfaceTypeElement == null) {
                 // try again with absolute name
                 handlerInterfaceName = configPackage + "." + handlerInterfaceName;
-                handlerInterfaceTypeElement = processingEnv.getElementUtils().getTypeElement(handlerInterfaceName);
+                handlerInterfaceTypeElement = elements.getTypeElement(handlerInterfaceName);
             }
             if (handlerInterfaceTypeElement == null) {
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                messager.printMessage(Diagnostic.Kind.ERROR,
                         "Missing handler interface class \"" + handlerInterfaceName + "\"", typeElement);
                 continue;
             }
@@ -148,7 +155,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                     handlerName = configPackage + handlerNameIn[0];
             }
             else {
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                messager.printMessage(Diagnostic.Kind.ERROR,
                         "@Config annotation specifies more than one handler name", typeElement);
                 continue;
             }
@@ -172,19 +179,19 @@ public final class ConfigProcessor extends AbstractProcessor {
             boolean gotLog = MethodSignature.contains(handlerInterfaceMethods,
                     MethodSignature.of("log", stringName, exceptionName));
             if (!gotGet)
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: " + typeElement.getSimpleName() + " get()", handlerInterfaceTypeElement);
             if (!gotReset)
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: void reset()", handlerInterfaceTypeElement);
             if (!gotSave)
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: void save()", handlerInterfaceTypeElement);
             if (!gotLoad)
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: void load()", handlerInterfaceTypeElement);
             if (!gotLog)
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required default method: <ignored> log(String, Exception)", handlerInterfaceTypeElement);
             if (!gotGet || !gotReset || !gotLoad || !gotSave || !gotLog)
                 continue;
@@ -201,7 +208,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             try {
                 classBuilder = TypeSpec.classBuilder(handlerName);
             } catch (IllegalArgumentException e) {
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Handler name \"" + handlerName + "\" is invalid", typeElement);
+                messager.printMessage(Diagnostic.Kind.ERROR, "Handler name \"" + handlerName + "\" is invalid", typeElement);
                 continue;
             }
             if (!handlerInterfacePackage.equals(handlerPackage))
@@ -247,7 +254,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             for (Component component : components) {
                 ComponentProvider provider = componentProviders.get(component.value());
                 if (provider == null) {
-                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    messager.printMessage(Diagnostic.Kind.ERROR,
                             "@Config annotation specifies @Component with unknown ID \"" + component.value() + "\"", typeElement);
                     continue;
                 }
@@ -285,7 +292,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                         .build()
                         .writeTo(processingEnv.getFiler());
             } catch (IOException e) {
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR, "Failed to write handler class");
+                messager.printMessage(Diagnostic.Kind.ERROR, "Failed to write handler class");
                 e.printStackTrace();
             }
         }
@@ -309,7 +316,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             }
             return ClassName.get(aPackage, aName);
         }
-        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+        messager.printMessage(Diagnostic.Kind.ERROR,
                 "@Config annotation specifies more than one " + errName + " annotation", typeElement);
         return null;
     }

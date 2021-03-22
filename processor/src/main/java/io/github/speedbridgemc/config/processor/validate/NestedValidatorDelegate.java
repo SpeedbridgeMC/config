@@ -19,7 +19,7 @@ import java.util.List;
 public final class NestedValidatorDelegate extends BaseValidatorDelegate {
     @Override
     public boolean appendCheck(@NotNull ValidatorContext ctx, @NotNull TypeMirror type, @NotNull String src, @NotNull ErrorDelegate errDelegate, CodeBlock.@NotNull Builder codeBuilder) {
-        Element typeElementRaw = processingEnv.getTypeUtils().asElement(type);
+        Element typeElementRaw = types.asElement(type);
         if (typeElementRaw == null || typeElementRaw.getKind() != ElementKind.CLASS)
             return false;
         TypeElement typeElement = (TypeElement) typeElementRaw;
@@ -35,7 +35,7 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
                         codeBuilder.addStatement("$L = new $T()", src, typeName);
                         break;
                     } else
-                        processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING,
+                        messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                                 "Validator: Can't fix since class has no 0-parameter constructor, using default value instead",
                                 ctx.getEffectiveElement());
                 }
