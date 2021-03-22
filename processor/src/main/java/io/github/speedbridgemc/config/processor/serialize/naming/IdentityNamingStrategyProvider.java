@@ -5,14 +5,16 @@ import io.github.speedbridgemc.config.processor.serialize.api.BaseNamingStrategy
 import io.github.speedbridgemc.config.processor.serialize.api.NamingStrategyProvider;
 import org.jetbrains.annotations.NotNull;
 
+import javax.lang.model.element.VariableElement;
+
 @AutoService(NamingStrategyProvider.class)
-public final class NoOpNamingStrategyProvider extends BaseNamingStrategyProvider {
-    public NoOpNamingStrategyProvider() {
-        super("speedbridge-config:noop");
+public final class IdentityNamingStrategyProvider extends BaseNamingStrategyProvider {
+    public IdentityNamingStrategyProvider() {
+        super("speedbridge-config:identity");
     }
 
     @Override
-    public @NotNull String translate(@NotNull String name) {
-        return name;
+    public @NotNull String translate(@NotNull String variant, @NotNull VariableElement field) {
+        return field.getSimpleName().toString();
     }
 }

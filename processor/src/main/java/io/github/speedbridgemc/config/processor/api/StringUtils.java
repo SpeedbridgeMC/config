@@ -21,4 +21,20 @@ public final class StringUtils {
         }
         return resultBuilder.toString();
     }
+
+    public static @NotNull String snakeCaseToCamelCase(@NotNull String s) {
+        StringBuilder resultBuilder = new StringBuilder();
+        boolean toUpper = false;
+        for (int i = 0, length = s.length(); i < length; i++) {
+            char ch = s.charAt(i);
+            if (ch == '_') {
+                toUpper = true;
+                continue;
+            }
+            if (toUpper)
+                ch = Character.toUpperCase(ch);
+            resultBuilder.append(ch);
+        }
+        return resultBuilder.toString();
+    }
 }

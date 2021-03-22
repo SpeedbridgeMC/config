@@ -33,6 +33,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
     private HashMap<String, SerializerProvider> serializerProviders;
     private HashMap<String, NamingStrategyProvider> nameProviders;
     private static NamingStrategyProvider nameProvider;
+    private static String nameProviderVariant;
 
     public SerializerComponentProvider() {
         super("speedbridge-config:serializer");
@@ -80,12 +81,24 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
             return;
         }
         String nameId = ParamUtils.allOrNothing(ctx.params, "namingStrategy");
-        if (nameId == null)
+        if (nameId == null) {
             nameId = "speedbridge-config:snake_case";
+            nameProviderVariant = "";
+        } else if (nameId.contains("[")) {
+            int varStart = nameId.lastIndexOf('[');
+            int varEnd = nameId.lastIndexOf(']');
+            if (varEnd < 0) {
+                messager.printMessage(Diagnostic.Kind.ERROR,
+                        "Serializer: Unclosed variant specifier in naming strategy ID", type);
+            }
+            nameProviderVariant = nameId.substring(varStart + 1, varEnd);
+            nameId = nameId.substring(0, varStart);
+        } else
+            nameProviderVariant = "";
         nameProvider = nameProviders.get(nameId);
         if (nameProvider == null) {
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Serializer: Unknown naming strategy \"" + nameId + "\"");
+                    "Serializer: Unknown naming strategy \"" + nameId + "\"", type);
             return;
         }
         TypeMirror pathTM = TypeUtils.getTypeMirror(processingEnv, Path.class.getCanonicalName());
@@ -173,7 +186,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
             if (serializedName != null)
                 return serializedName.value();
             else
-                return nameProvider.translate(variableElement.getSimpleName().toString());
+                return nameProvider.translate(nameProviderVariant, variableElement);
         });
     }
 

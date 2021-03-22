@@ -6,6 +6,9 @@ import io.github.speedbridgemc.config.processor.serialize.api.BaseNamingStrategy
 import io.github.speedbridgemc.config.processor.serialize.api.NamingStrategyProvider;
 import org.jetbrains.annotations.NotNull;
 
+import javax.lang.model.element.VariableElement;
+import java.util.Locale;
+
 @AutoService(NamingStrategyProvider.class)
 public final class SnakeCaseNamingStrategyProvider extends BaseNamingStrategyProvider {
     public SnakeCaseNamingStrategyProvider() {
@@ -13,7 +16,10 @@ public final class SnakeCaseNamingStrategyProvider extends BaseNamingStrategyPro
     }
 
     @Override
-    public @NotNull String translate(@NotNull String name) {
-        return StringUtils.camelCaseToSnakeCase(name);
+    public @NotNull String translate(@NotNull String variant, @NotNull VariableElement field) {
+        String n = StringUtils.camelCaseToSnakeCase(field.getSimpleName().toString());
+        if ("screaming".equalsIgnoreCase(variant))
+            n = n.toUpperCase(Locale.ROOT);
+        return n;
     }
 }
