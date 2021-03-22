@@ -7,11 +7,20 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 
+/**
+ * Helper methods for {@link KeyedEnum}s.
+ */
 final class KeyedEnumHelpers {
     private KeyedEnumHelpers() { }
 
     private static final HashMap<KeyedEnum<?>, Class<?>> KEY_TYPE_CACHE = new HashMap<>();
 
+    /**
+     * Returns a keyed enum's key type.
+     * @param keyedEnum the keyed enum
+     * @param <T> type of key
+     * @return key type's class
+     */
     @SuppressWarnings("unchecked")
     public static <T> @NotNull Class<T> getKeyType(@NotNull KeyedEnum<T> keyedEnum) {
         // this is utterly horrible. but it works, so...
@@ -34,6 +43,12 @@ final class KeyedEnumHelpers {
 
     private static final HashMap<KeyedEnum<?>, Object> EMPTY_ALIAS_ARRAY_CACHE = new HashMap<>();
 
+    /**
+     * Returns an empty array of keys.
+     * @param keyedEnum the keyed enum
+     * @param <T> type of key
+     * @return an empty array of keys
+     */
     @SuppressWarnings("unchecked")
     public static <T> @NotNull T @NotNull [] getEmptyAliasArray(@NotNull KeyedEnum<T> keyedEnum) {
         return (T[]) EMPTY_ALIAS_ARRAY_CACHE.computeIfAbsent(keyedEnum,

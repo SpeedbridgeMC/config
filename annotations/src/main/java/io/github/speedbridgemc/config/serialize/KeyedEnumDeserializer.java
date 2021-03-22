@@ -5,6 +5,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Marks a method to be used to deserialize a {@code KeyedEnum} value.<p>
+ * Methods marked with this annotation should be public and static, take the enum's key type as its single parameter,
+ * and return an enum value.<p>
+ * Ignored outside of enums that implement that interface.
+ */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.SOURCE)
 public @interface KeyedEnumDeserializer { }

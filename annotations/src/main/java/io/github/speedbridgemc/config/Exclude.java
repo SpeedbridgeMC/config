@@ -1,10 +1,11 @@
 package io.github.speedbridgemc.config;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
+/**
+ * Excludes a (normally qualifying) field from being processed entirely.
+ */
+@Documented
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.SOURCE)
 public @interface Exclude { }

@@ -7,8 +7,16 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Specifies <em>aliases</em> for a field.<p>
+ * If the field's name isn't found, the serializer will instead try to load a value from one of these aliases.
+ */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.SOURCE)
 public @interface SerializedAliases {
-    @NotNull String @NotNull [] value() default { };
+    /**
+     * The field's aliases.
+     * @return field aliases
+     */
+    @NotNull String @NotNull [] value();
 }
