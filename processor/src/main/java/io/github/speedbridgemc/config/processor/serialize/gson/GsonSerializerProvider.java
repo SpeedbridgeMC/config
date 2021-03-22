@@ -51,16 +51,20 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         ctx.readMethodBuilder.addCode("$1T $2L = new $1T();\n", configType, objName);
         CodeBlock.Builder codeBuilder = generateGotFlagDecls(gCtx);
         ctx.readMethodBuilder.addCode(codeBuilder.build());
-        ctx.readMethodBuilder.addCode(CodeBlock.builder()
+        codeBuilder = CodeBlock.builder();
+        codeBuilder
                 .beginControlFlow("try ($4T $5L = new $4T(new $3T(new $2T($1T.newInputStream(path)))))",
-                        Files.class, InputStreamReader.class, BufferedReader.class, readerType, gCtx.readerName)
-                .addStatement("$L.beginObject()", gCtx.readerName)
-                .beginControlFlow("while ($L.hasNext())", gCtx.readerName)
-                .addStatement("$T token = $L.peek()", tokenType, gCtx.readerName)
-                .beginControlFlow("if (token == $T.NAME)", tokenType)
-                .addStatement("String name = $L.nextName()", gCtx.readerName)
-                .beginControlFlow("switch (name)")
-                .build());
+                        Files.class, InputStreamReader.class, BufferedReader.class, readerType, gCtx.readerName);
+        if (ctx.options.getOrDefault("lenient", true))
+            codeBuilder.addStatement("$L.setLenient(true)", gCtx.readerName);
+        codeBuilder
+            .addStatement("$L.beginObject()", gCtx.readerName)
+            .beginControlFlow("while ($L.hasNext())", gCtx.readerName)
+            .addStatement("$T token = $L.peek()", tokenType, gCtx.readerName)
+            .beginControlFlow("if (token == $T.NAME)", tokenType)
+            .addStatement("String name = $L.nextName()", gCtx.readerName)
+            .beginControlFlow("switch (name)");
+        ctx.readMethodBuilder.addCode(codeBuilder.build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
             String serializedName = SerializerComponentProvider.getSerializedName(field);
