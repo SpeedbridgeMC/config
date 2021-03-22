@@ -130,7 +130,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
     }
 
     private String createJanksonCode(Map<String, Boolean> options, HashMap<String, Boolean> grammarMap) {
-        if (grammarMap.getOrDefault("allowBareRootObject", false) || grammarMap.get("bareRootObject"))
+        if (options.getOrDefault("allowBareRootObject", false) || grammarMap.get("bareRootObject"))
             return ".allowBareRootObject()";
         return "";
     }
