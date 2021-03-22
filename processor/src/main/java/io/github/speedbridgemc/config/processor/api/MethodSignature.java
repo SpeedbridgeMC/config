@@ -31,20 +31,16 @@ public final class MethodSignature {
                 method.isDefault(), TypeName.get(method.getReturnType()).withoutAnnotations());
     }
 
-    public static @NotNull MethodSignature of(@NotNull String name, @NotNull TypeName... parameters) {
-        return new MethodSignature(name, parameters, false, null);
-    }
-
-    public static @NotNull MethodSignature ofDefault(@NotNull String name, @NotNull TypeName... parameters) {
-        return new MethodSignature(name, parameters, true, null);
-    }
-
     public static @NotNull MethodSignature of(@NotNull TypeName returnType, @NotNull String name, @NotNull TypeName... parameters) {
         return new MethodSignature(name, parameters, false, returnType);
     }
 
     public static @NotNull MethodSignature ofDefault(@NotNull TypeName returnType, @NotNull String name, @NotNull TypeName... parameters) {
         return new MethodSignature(name, parameters, true, returnType);
+    }
+
+    public static @NotNull MethodSignature ofDefault(@NotNull String name, @NotNull TypeName... parameters) {
+        return new MethodSignature(name, parameters, true, null);
     }
 
     public @NotNull String getName() {
@@ -73,7 +69,6 @@ public final class MethodSignature {
     public static boolean contains(@NotNull Iterable<@NotNull ? extends MethodSignature> methods,
                                    @NotNull MethodSignature signature) {
         for (MethodSignature method : methods) {
-            System.out.println("Checking if " + signature + " matches " + method);
             if (signature.matches(method))
                 return true;
         }
@@ -101,7 +96,7 @@ public final class MethodSignature {
 
     private @Nullable String cachedNRTString, cachedFullString;
 
-    public @NotNull String toStringWithoutReturnType() {
+    public @NotNull String toStringWithoutReturnType(boolean addDefault) {
         if (cachedNRTString == null) {
             StringBuilder sb = new StringBuilder(name).append('(');
             for (TypeName param : parameters)
@@ -110,18 +105,27 @@ public final class MethodSignature {
                 sb.setLength(sb.length() - 2);
             cachedNRTString = sb.append(')').toString();
         }
-        return cachedNRTString;
+        if (isDefault && addDefault)
+            return "default " + cachedNRTString;
+        else
+            return cachedNRTString;
+    }
+
+    public @NotNull String toStringWithoutReturnType() {
+        return toStringWithoutReturnType(true);
     }
 
     @Override
     public @NotNull String toString() {
         if (cachedFullString == null) {
             StringBuilder sb = new StringBuilder();
+            if (isDefault)
+                sb.append("default ");
             if (returnType == null)
                 sb.append("<ignored>");
             else
                 sb.append(returnType.toString());
-            sb.append(' ').append(toStringWithoutReturnType());
+            sb.append(' ').append(toStringWithoutReturnType(false));
             cachedFullString = sb.toString();
         }
         return cachedFullString;

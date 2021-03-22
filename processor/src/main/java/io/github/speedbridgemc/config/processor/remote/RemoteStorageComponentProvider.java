@@ -26,7 +26,7 @@ public final class RemoteStorageComponentProvider extends BaseComponentProvider 
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
         TypeMirror configTM = type.asType();
         TypeName configName = TypeName.get(configTM);
-        boolean gotSetRemote = ctx.hasMethod(MethodSignature.ofDefault(TypeName.VOID, "setRemote", configName));
+        boolean gotSetRemote = ctx.hasMethod(MethodSignature.of(TypeName.VOID, "setRemote", configName));
         if (!gotSetRemote) {
             messager.printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required method: void setRemote(" + type.getSimpleName() + ")",

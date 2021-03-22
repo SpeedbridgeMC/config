@@ -21,7 +21,6 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.io.*;
 import java.time.OffsetDateTime;
@@ -177,7 +176,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             boolean gotSave = MethodSignature.contains(handlerInterfaceMethods,
                     MethodSignature.of(TypeName.VOID, "save"));
             boolean gotLog = MethodSignature.contains(handlerInterfaceMethods,
-                    MethodSignature.of("log", stringName, exceptionName));
+                    MethodSignature.ofDefault("log", stringName, exceptionName));
             if (!gotGet)
                 messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: " + typeElement.getSimpleName() + " get()", handlerInterfaceTypeElement);
