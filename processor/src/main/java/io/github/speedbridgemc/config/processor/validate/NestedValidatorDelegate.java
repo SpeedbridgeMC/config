@@ -15,6 +15,7 @@ import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 import java.util.List;
+import java.util.Locale;
 
 public final class NestedValidatorDelegate extends BaseValidatorDelegate {
     @Override
@@ -65,7 +66,7 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
             return null;
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
-        String defaultsName = "DEFAULTS_" + StringUtils.camelCaseToScreamingSnakeCase(typeSimpleName);
+        String defaultsName = "DEFAULTS_" + StringUtils.camelCaseToSnakeCase(typeSimpleName).toUpperCase(Locale.ROOT);
         List<VariableElement> fields = TypeUtils.getFieldsToSerialize(typeElement);
         ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, ctx.configName);
         if (ctx.nonNullAnnotation != null)

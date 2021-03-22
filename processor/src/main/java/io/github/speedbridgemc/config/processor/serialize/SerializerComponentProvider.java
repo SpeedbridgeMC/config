@@ -4,6 +4,7 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.*;
+import io.github.speedbridgemc.config.processor.serialize.api.NamingStrategyProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.api.SerializerProvider;
 import io.github.speedbridgemc.config.serialize.*;
@@ -30,6 +31,8 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
     private static final ClassName MAP_NAME = ClassName.get(HashMap.class);
     private static TypeMirror keyedEnumTM;
     private HashMap<String, SerializerProvider> serializerProviders;
+    private HashMap<String, NamingStrategyProvider> nameProviders;
+    private static NamingStrategyProvider nameProvider;
 
     public SerializerComponentProvider() {
         super("speedbridge-config:serializer");
@@ -49,9 +52,15 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
         ServiceLoader<SerializerProvider> spLoader = ServiceLoader.load(SerializerProvider.class, SerializerComponentProvider.class.getClassLoader());
         for (SerializerProvider provider : spLoader)
             serializerProviders.put(provider.getId(), provider);
+        nameProviders = new HashMap<>();
+        ServiceLoader<NamingStrategyProvider> nameLoader = ServiceLoader.load(NamingStrategyProvider.class, SerializerComponentProvider.class.getClassLoader());
+        for (NamingStrategyProvider provider : nameLoader)
+            nameProviders.put(provider.getId(), provider);
 
         for (SerializerProvider componentProvider : serializerProviders.values())
             componentProvider.init(processingEnv);
+        for (NamingStrategyProvider nameProvider : nameProviders.values())
+            nameProvider.init(processingEnv);
     }
 
     @Override
@@ -68,6 +77,15 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
         if (provider == null) {
             messager.printMessage(Diagnostic.Kind.ERROR,
                     "Serializer: Unknown provider \"" + providerId + "\"", type);
+            return;
+        }
+        String nameId = ParamUtils.allOrNothing(ctx.params, "namingStrategy");
+        if (nameId == null)
+            nameId = "speedbridge-config:snake_case";
+        nameProvider = nameProviders.get(nameId);
+        if (nameProvider == null) {
+            messager.printMessage(Diagnostic.Kind.ERROR,
+                    "Serializer: Unknown naming strategy \"" + nameId + "\"");
             return;
         }
         TypeMirror pathTM = TypeUtils.getTypeMirror(processingEnv, Path.class.getCanonicalName());
@@ -155,7 +173,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
             if (serializedName != null)
                 return serializedName.value();
             else
-                return variableElement.getSimpleName().toString();
+                return nameProvider.translate(variableElement.getSimpleName().toString());
         });
     }
 
@@ -368,7 +386,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                                              @NotNull TypeElement valueTypeElement) {
         TypeName keyTypeName = TypeName.get(keyType);
         TypeName valueTypeName = TypeName.get(valueTypeElement.asType());
-        String mapName = "MAP_" + StringUtils.camelCaseToScreamingSnakeCase(valueTypeElement.getSimpleName().toString());
+        String mapName = "MAP_" + StringUtils.camelCaseToSnakeCase(valueTypeElement.getSimpleName().toString()).toUpperCase(Locale.ROOT);
         TypeName mapType = ParameterizedTypeName.get(MAP_NAME, keyTypeName, valueTypeName);
         classBuilder.addField(FieldSpec.builder(mapType, mapName, Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL).build());
         CodeBlock.Builder codeBuilder = CodeBlock.builder();

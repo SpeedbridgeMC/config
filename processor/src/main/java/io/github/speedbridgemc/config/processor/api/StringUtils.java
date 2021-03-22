@@ -11,13 +11,13 @@ public final class StringUtils {
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
-    public static @NotNull String camelCaseToScreamingSnakeCase(@NotNull String s) {
+    public static @NotNull String camelCaseToSnakeCase(@NotNull String s) {
         StringBuilder resultBuilder = new StringBuilder();
         for (int i = 0, length = s.length(); i < length; i++) {
             char ch = s.charAt(i);
             if (Character.isUpperCase(ch) && resultBuilder.length() != 0)
                 resultBuilder.append('_');
-            resultBuilder.append(Character.toUpperCase(ch));
+            resultBuilder.append(Character.toLowerCase(ch));
         }
         return resultBuilder.toString();
     }

@@ -95,7 +95,7 @@ public final class TestConfig {
     }
 
     public static final class MapValue {
-        @SerializedName("hello_world")
+        @SerializedName("helloWorld")
         @SerializedAliases("HELLOWORLD")
         public HelloWorld helloWorld = new HelloWorld();
     }
