@@ -83,7 +83,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     "Serializer: Unknown provider \"" + providerId + "\"", type);
             return;
         }
-        String nameId = ParamUtils.allOrNothing(ctx.params, "namingStrategy");
+        String nameId = ParamUtils.allOrNothing(ctx.params, "naming_strategy");
         if (nameId == null) {
             nameId = "speedbridge-config:snake_case";
             nameProviderVariant = "";
