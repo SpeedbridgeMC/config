@@ -27,6 +27,7 @@ import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @ApiStatus.Internal
@@ -112,7 +113,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                 .build());
     }
 
-    private HashMap<String, Boolean> createGrammarMap(String[] options) {
+    private HashMap<String, Boolean> createGrammarMap(Map<String, Boolean> src) {
         HashMap<String, Boolean> grammarMap = new HashMap<>();
         grammarMap.put("withComments", true);
         grammarMap.put("printWhitespace", true);
@@ -121,7 +122,10 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         grammarMap.put("bareSpecialNumerics", true);
         grammarMap.put("bareRootObject", false);
         grammarMap.put("printUnquotedKeys", true);
-        SerializerComponentProvider.parseOptions(options, grammarMap);
+        for (Map.Entry<String, Boolean> entry : src.entrySet()) {
+            if (grammarMap.containsKey(entry.getKey()))
+                grammarMap.put(entry.getKey(), entry.getValue());
+        }
         return grammarMap;
     }
 

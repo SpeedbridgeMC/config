@@ -19,7 +19,6 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import java.io.*;
 import java.nio.file.Files;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,9 +33,6 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
     public void process(@NotNull String name, @NotNull TypeElement type,
                         @NotNull ImmutableList<VariableElement> fields,
                         @NotNull SerializerContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        HashMap<String, Boolean> options = new HashMap<>();
-        options.put("prettyPrinting", true);
-        SerializerComponentProvider.parseOptions(ctx.options, options);
         String basePackage = "com.google.gson.stream";
         if (ctx.basePackage != null)
             basePackage = ctx.basePackage;
@@ -95,7 +91,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         codeBuilder = CodeBlock.builder()
                 .beginControlFlow("try ($4T $5L = new $4T(new $3T(new $2T($1T.newOutputStream(path)))))",
                         Files.class, OutputStreamWriter.class, BufferedWriter.class, writerType, gCtx.writerName);
-        if (options.get("prettyPrinting"))
+        if (ctx.options.get("prettyPrinting"))
             codeBuilder.addStatement("$L.setIndent($S)", gCtx.writerName, "  ");
         codeBuilder.addStatement("$L.beginObject()", gCtx.writerName);
         ctx.writeMethodBuilder.addCode(codeBuilder.build());

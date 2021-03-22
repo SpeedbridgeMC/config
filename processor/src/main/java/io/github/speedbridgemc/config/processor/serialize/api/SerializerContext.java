@@ -6,15 +6,18 @@ import com.squareup.javapoet.TypeName;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
+
 public final class SerializerContext {
     public final @NotNull TypeName configType;
     public final @Nullable String basePackage;
-    public final @NotNull String @NotNull [] options;
+    public final @NotNull Map<@NotNull String, @NotNull Boolean> options;
     public final @NotNull MethodSpec.Builder readMethodBuilder, writeMethodBuilder;
     public final @Nullable String defaultMissingErrorMessage;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
 
-    public SerializerContext(@NotNull TypeName configType, @Nullable String basePackage, @NotNull String @NotNull [] options,
+    public SerializerContext(@NotNull TypeName configType, @Nullable String basePackage,
+                             @NotNull Map<@NotNull String, @NotNull Boolean> options,
                              MethodSpec.@NotNull Builder readMethodBuilder, MethodSpec.@NotNull Builder writeMethodBuilder,
                              @Nullable String defaultMissingErrorMessage,
                              @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {

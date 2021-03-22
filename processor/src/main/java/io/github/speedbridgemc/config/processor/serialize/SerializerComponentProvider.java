@@ -97,11 +97,8 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 .initializer("resolvePath($S)", name)
                 .build());
         String basePackage = ParamUtils.allOrNothing(ctx.params, "base_package");
-        String[] options = ctx.params.get("options").toArray(new String[0]);
-        HashMap<String, Boolean> optionMap = new HashMap<>(); // TODO use these options!
-        optionMap.put("backupOnFail", true);
-        optionMap.put("useReplaceSemantics", true);
-        parseOptions(options, optionMap);
+        HashMap<String, Boolean> options = new HashMap<>();
+        parseOptions(ctx.params.get("options").toArray(new String[0]), options);
         TypeName configType = ctx.configType;
         ParameterSpec.Builder pathParamBuilder = ParameterSpec.builder(Path.class, "path");
         if (ctx.nonNullAnnotation != null)
@@ -157,8 +154,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
             boolean enabled = first != '-';
             if (!enabled || first == '+')
                 option = option.substring(1);
-            if (map.containsKey(option))
-                map.put(option, enabled);
+            map.put(option, enabled);
         }
     }
 
