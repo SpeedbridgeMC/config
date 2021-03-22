@@ -23,7 +23,7 @@ public interface TestConfigHandler {
 
     default void log(@NotNull LogLevel level, @NotNull String msg, @Nullable Exception e) {
         PrintStream out = System.out;
-        if (level == LogLevel.ERROR || level == LogLevel.FATAL)
+        if (LogLevel.ERROR.compareTo(level) >= 0)
             out = System.err;
         out.println(msg);
         if (e != null)
