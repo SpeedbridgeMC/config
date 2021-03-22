@@ -55,7 +55,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         TypeName syntaxErrorType = TypeUtils.getTypeName(processingEnv, basePackage + ".api.SyntaxError");
         classBuilder
                 .addField(FieldSpec.builder(janksonType, "JANKSON", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
-                        .initializer("$T.builder()$L.build()", janksonType, createJanksonCode(grammarMap))
+                        .initializer("$T.builder()$L.build()", janksonType, createJanksonCode(ctx.options, grammarMap))
                         .build())
                 .addField(FieldSpec.builder(grammarType, "GRAMMAR", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                         .initializer("$T.builder()$L.build()", grammarType, createGrammarCode(grammarMap))
@@ -129,8 +129,8 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         return grammarMap;
     }
 
-    private String createJanksonCode(HashMap<String, Boolean> grammarMap) {
-        if (grammarMap.get("bareRootObject"))
+    private String createJanksonCode(Map<String, Boolean> options, HashMap<String, Boolean> grammarMap) {
+        if (grammarMap.getOrDefault("allowBareRootObject", false) || grammarMap.get("bareRootObject"))
             return ".allowBareRootObject()";
         return "";
     }
