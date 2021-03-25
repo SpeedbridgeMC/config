@@ -1,6 +1,7 @@
 package io.github.speedbridgemc.config.processor.api;
 
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Exclude;
 import org.jetbrains.annotations.NotNull;
@@ -8,7 +9,10 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
-import javax.lang.model.type.*;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.util.*;
@@ -96,11 +100,32 @@ public final class TypeUtils {
             else if (kind == TypeKind.DECLARED) {
                 DeclaredType declaredType = (DeclaredType) type;
                 TypeElement typeElement = (TypeElement) declaredType.asElement();
-                return ClassName.get(typeElement).withoutAnnotations().simpleName();
+                StringBuilder nameBuilder = new StringBuilder(ClassName.get(typeElement).withoutAnnotations().simpleName());
+                TypeName typeName = TypeName.get(type);
+                if (typeName instanceof ParameterizedTypeName) {
+                    ParameterizedTypeName ptn = (ParameterizedTypeName) typeName;
+                    for (TypeName typeArg : ptn.typeArguments)
+                        nameBuilder.append(getSimpleName(typeArg));
+                }
+                simpleName = nameBuilder.toString();
             } else
                 throw new IllegalArgumentException("Cannot get simple name of type with kind " + kind);
             SIMPLE_NAME_CACHE.put(type, simpleName);
         }
         return simpleName;
+    }
+
+    private static @NotNull String getSimpleName(@NotNull TypeName typeName) {
+        if (typeName instanceof ClassName)
+            return ((ClassName) typeName).simpleName();
+        else if (typeName instanceof ParameterizedTypeName) {
+            ParameterizedTypeName ptn = (ParameterizedTypeName) typeName;
+            StringBuilder sb = new StringBuilder();
+            for (TypeName typeArg : ptn.typeArguments)
+                sb.append(getSimpleName(typeArg));
+            return sb.toString();
+        }
+        else
+            return typeName.withoutAnnotations().toString();
     }
 }
