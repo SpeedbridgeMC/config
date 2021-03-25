@@ -19,7 +19,7 @@ public interface TestConfigHandler {
 
     default void log(@NotNull LogLevel level, @NotNull String msg, @Nullable Exception e) {
         PrintStream out = System.out;
-        if (LogLevel.ERROR.compareTo(level) >= 0)
+        if (LogLevel.ERROR.isSameLevelOrHigher(level))
             out = System.err;
         out.println(msg);
         if (e != null)
