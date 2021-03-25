@@ -39,7 +39,7 @@ public final class ArrayGsonDelegate extends BaseGsonDelegate {
     }
 
     private @NotNull String generateReadMethod(@NotNull GsonContext ctx, @NotNull TypeName componentTypeName, @NotNull TypeMirror componentType) {
-        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(componentType).replaceAll("\\[]", "Array"));
+        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleIdSafeName(componentType));
         String methodName = "read" + typeSimpleName + "Array";
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
@@ -123,7 +123,7 @@ public final class ArrayGsonDelegate extends BaseGsonDelegate {
     }
 
     private @NotNull String generateWriteMethod(@NotNull GsonContext ctx, @NotNull TypeName componentTypeName, @NotNull TypeMirror componentType) {
-        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(componentType).replaceAll("\\[]", "Array"));
+        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleIdSafeName(componentType));
         String methodName = "write" + typeSimpleName + "Array";
         if (ctx.generatedMethods.contains(methodName))
             return methodName;

@@ -65,7 +65,7 @@ public final class ListJanksonDelegate extends BaseJanksonDelegate {
     }
 
     private @NotNull String generateReadMethod(@NotNull JanksonContext ctx, @NotNull TypeName componentTypeName, @NotNull TypeMirror componentType) {
-        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(componentType).replaceAll("\\[]", "Array"));
+        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleIdSafeName(componentType));
         String methodName = "read" + typeSimpleName + "List";
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
@@ -151,7 +151,7 @@ public final class ListJanksonDelegate extends BaseJanksonDelegate {
     }
 
     private @NotNull String generateWriteMethod(@NotNull JanksonContext ctx, @NotNull TypeName componentTypeName, @NotNull TypeMirror componentType) {
-        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(componentType).replaceAll("\\[]", "Array"));
+        String typeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleIdSafeName(componentType));
         String methodName = "write" + typeSimpleName + "List";
         if (ctx.generatedMethods.contains(methodName))
             return methodName;

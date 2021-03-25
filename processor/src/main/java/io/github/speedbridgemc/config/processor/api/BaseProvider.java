@@ -8,21 +8,11 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
 public abstract class BaseProvider implements Provider {
-    protected final String id;
     protected boolean initialized;
     protected ProcessingEnvironment processingEnv;
     protected Messager messager;
     protected Elements elements;
     protected Types types;
-
-    public BaseProvider(String id) {
-        this.id = id;
-    }
-
-    @Override
-    public @NotNull String getId() {
-        return id;
-    }
 
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {

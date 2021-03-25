@@ -66,8 +66,8 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
     }
 
     private @NotNull String generateReadMethod(@NotNull JanksonContext ctx, @NotNull TypeMirror keyType, @NotNull TypeMirror valueType) {
-        String keyTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(keyType)).replaceAll("\\[]", "Array");
-        String valueTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(valueType)).replaceAll("\\[]", "Array");
+        String keyTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleIdSafeName(keyType));
+        String valueTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleIdSafeName(valueType));
         String methodName = "read" + keyTypeSimpleName + "2" + valueTypeSimpleName + "Map";
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
@@ -201,8 +201,8 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
     }
 
     private @NotNull String generateWriteMethod(@NotNull JanksonContext ctx, @NotNull TypeMirror keyType, @NotNull TypeMirror valueType) {
-        String keyTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(keyType)).replaceAll("\\[]", "Array");
-        String valueTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleName(valueType)).replaceAll("\\[]", "Array");
+        String keyTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleIdSafeName(keyType));
+        String valueTypeSimpleName = StringUtils.titleCase(TypeUtils.getSimpleIdSafeName(valueType));
         String methodName = "write" + keyTypeSimpleName + "2" + valueTypeSimpleName + "Map";
         if (ctx.generatedMethods.contains(methodName))
             return methodName;

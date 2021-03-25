@@ -1,21 +1,17 @@
 package io.github.speedbridgemc.config.processor.api;
 
-import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
+import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.Exclude;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
-import javax.lang.model.type.ArrayType;
-import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public final class TypeUtils {
@@ -87,45 +83,37 @@ public final class TypeUtils {
         });
     }
 
-    private static final HashMap<TypeMirror, String> SIMPLE_NAME_CACHE = new HashMap<>();
+    private static final HashMap<TypeName, String> SIMPLE_NAME_CACHE = new HashMap<>();
 
-    public static @NotNull String getSimpleName(@NotNull TypeMirror type) {
-        String simpleName = SIMPLE_NAME_CACHE.get(type);
-        if (simpleName == null) {
-            TypeKind kind = type.getKind();
-            if (kind.isPrimitive())
-                simpleName = TypeName.get(type).toString();
-            else if (kind == TypeKind.ARRAY)
-                simpleName = getSimpleName(((ArrayType) type).getComponentType()) + "[]";
-            else if (kind == TypeKind.DECLARED) {
-                DeclaredType declaredType = (DeclaredType) type;
-                TypeElement typeElement = (TypeElement) declaredType.asElement();
-                StringBuilder nameBuilder = new StringBuilder(ClassName.get(typeElement).withoutAnnotations().simpleName());
-                TypeName typeName = TypeName.get(type);
-                if (typeName instanceof ParameterizedTypeName) {
-                    ParameterizedTypeName ptn = (ParameterizedTypeName) typeName;
-                    for (TypeName typeArg : ptn.typeArguments)
-                        nameBuilder.append(getSimpleName(typeArg));
-                }
-                simpleName = nameBuilder.toString();
-            } else
-                throw new IllegalArgumentException("Cannot get simple name of type with kind " + kind);
-            SIMPLE_NAME_CACHE.put(type, simpleName);
-        }
-        return simpleName;
+    public static @NotNull String getSimpleName(@NotNull TypeName typeName) {
+        return SIMPLE_NAME_CACHE.computeIfAbsent(typeName, typeName1 -> {
+            if (typeName1 instanceof ClassName)
+                return ((ClassName) typeName1).simpleName();
+            else if (typeName1 instanceof ArrayTypeName)
+                return getSimpleName(((ArrayTypeName) typeName1).componentType) + "[]";
+            else if (typeName1 instanceof ParameterizedTypeName) {
+                ParameterizedTypeName ptn = (ParameterizedTypeName) typeName1;
+                StringBuilder sb = new StringBuilder();
+                for (TypeName typeArg : ptn.typeArguments)
+                    sb.append(getSimpleName(typeArg));
+                sb.append(ptn.rawType.simpleName());
+                return sb.toString();
+            } else if (typeName1 instanceof TypeVariableName)
+                return ((TypeVariableName) typeName1).name;
+            else
+                return typeName1.withoutAnnotations().toString();
+        });
     }
 
-    private static @NotNull String getSimpleName(@NotNull TypeName typeName) {
-        if (typeName instanceof ClassName)
-            return ((ClassName) typeName).simpleName();
-        else if (typeName instanceof ParameterizedTypeName) {
-            ParameterizedTypeName ptn = (ParameterizedTypeName) typeName;
-            StringBuilder sb = new StringBuilder();
-            for (TypeName typeArg : ptn.typeArguments)
-                sb.append(getSimpleName(typeArg));
-            return sb.toString();
-        }
-        else
-            return typeName.withoutAnnotations().toString();
+    private static final HashMap<TypeMirror, TypeName> TYPE_NAME_CACHE = new HashMap<>();
+
+    public static @NotNull String getSimpleName(@NotNull TypeMirror type) {
+        return getSimpleName(TYPE_NAME_CACHE.computeIfAbsent(type, TypeName::get));
+    }
+
+    private static final Pattern ARRAY_PATTERN = Pattern.compile("\\[]");
+
+    public static @NotNull String getSimpleIdSafeName(@NotNull TypeMirror type) {
+        return ARRAY_PATTERN.matcher(getSimpleName(type)).replaceAll("Array");
     }
 }

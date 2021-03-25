@@ -7,7 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 
-public interface ComponentProvider extends Provider {
+public interface ComponentProvider extends IdentifiedProvider {
     void process(@NotNull String name, @NotNull TypeElement type,
                  @NotNull ImmutableList<@NotNull VariableElement> fields,
                  @NotNull ComponentContext ctx,
