@@ -177,11 +177,11 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                         .beginControlFlow("if (backupSuccess)")
                         .addStatement("reset()")
                         .addStatement("save()")
-                        .addStatement("throw new $T($S + path + $S + backupPath + $S)",
+                        .addStatement("throw new $T($S + path + $S + backupPath + $S, e)",
                                 RuntimeException.class, "Failed to read from config file \"",
                                 "\"! File has been replaced with default values, with the original backed up at \"", "\"")
                         .nextControlFlow("else")
-                        .addStatement("throw new $T($S + path + $S)",
+                        .addStatement("throw new $T($S + path + $S, e)",
                                 RuntimeException.class, "Failed to read from config file \"", "\"!")
                         .endControlFlow();
             } else
@@ -195,7 +195,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                         .addStatement("reset()")
                         .addStatement("save()");
         } else if (crashOnFail) {
-            loadCodeBuilder.addStatement("throw new $T($S + path + $S)",
+            loadCodeBuilder.addStatement("throw new $T($S + path + $S, e)",
                     RuntimeException.class, "Failed to read from config file \"", "\"!");
         }
         loadCodeBuilder.endControlFlow();
@@ -238,18 +238,6 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     .endControlFlow();
         }
         ctx.saveMethodBuilder.addCode(saveCodeBuilder.build());
-    }
-
-    public static void parseOptions(@NotNull String[] options, @NotNull Map<@NotNull String, @NotNull Boolean> map) {
-        for (String option : options) {
-            if (option.isEmpty())
-                continue;
-            char first = option.charAt(0);
-            boolean enabled = first != '-';
-            if (!enabled || first == '+')
-                option = option.substring(1);
-            map.put(option, enabled);
-        }
     }
 
     private static final HashMap<VariableElement, String> SERIALIZED_NAME_CACHE = new HashMap<>();

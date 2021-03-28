@@ -29,4 +29,11 @@ public interface TestConfigHandler {
     default @NotNull Path resolvePath(@NotNull String name) {
         return Paths.get(".", name + ".json");
     }
+
+    default @NotNull TestConfig postLoad(@NotNull TestConfig config) {
+        return config;
+    }
+    default void postSave(@NotNull TestConfig config) {
+
+    }
 }

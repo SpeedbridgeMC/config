@@ -14,7 +14,7 @@ import java.util.Map;
         @Component(
                 value = "speedbridge-config:serializer",
                 params = "provider=speedbridge-config:jankson"
-                ),
+        ),
                 @Component("speedbridge-config:remote_storage"),
                 @Component("speedbridge-config:validator")
         },

@@ -18,7 +18,7 @@ import java.util.*;
 public final class ValidatorContext {
     private final List<ValidatorDelegate> delegates;
     public final @NotNull TypeName configType;
-    public final @NotNull String @NotNull [] options;
+    public final @NotNull Map<@NotNull String, @NotNull Boolean> options;
     public final @NotNull TypeSpec.Builder classBuilder;
     public final @NotNull Set<@NotNull String> generatedMethods, emptyMethods;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
@@ -28,7 +28,8 @@ public final class ValidatorContext {
     public boolean canSet = true;
     public int nestingFactor = 1;
 
-    public ValidatorContext(@NotNull TypeName configType, @NotNull String @NotNull [] options,
+    public ValidatorContext(@NotNull TypeName configType,
+                            @NotNull Map<@NotNull String, @NotNull Boolean> options,
                             TypeSpec.@NotNull Builder classBuilder,
                             @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
         this.configType = configType;

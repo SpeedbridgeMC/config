@@ -179,6 +179,10 @@ public final class ConfigProcessor extends AbstractProcessor {
                     MethodSignature.of(TypeName.VOID, "save"));
             boolean gotLog = MethodSignature.contains(handlerInterfaceMethods,
                     MethodSignature.ofDefault("log", logLvlName, stringName, exceptionName));
+            boolean gotPostLoad = MethodSignature.contains(handlerInterfaceMethods,
+                    MethodSignature.ofDefault(configName, "postLoad", configName));
+            boolean gotPostSave = MethodSignature.contains(handlerInterfaceMethods,
+                    MethodSignature.ofDefault("postSave", configName));
             if (!gotGet)
                 messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: " + typeElement.getSimpleName() + " get()", handlerInterfaceTypeElement);
@@ -279,6 +283,12 @@ public final class ConfigProcessor extends AbstractProcessor {
                         configTypeName, params, getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }
+
+            if (gotPostLoad)
+                loadMethodBuilder.addCode("config = postLoad(config);");
+            if (gotPostSave)
+                saveMethodBuilder.addCode("postSave(config);");
+
             classBuilder.addMethod(getMethodBuilder.addCode(CodeBlock.builder()
                     .beginControlFlow("if (config == null)")
                     .addStatement("load()")

@@ -9,11 +9,17 @@ import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
 import io.github.speedbridgemc.config.processor.validate.api.ErrorDelegate;
 import io.github.speedbridgemc.config.processor.validate.api.ValidatorContext;
+import io.github.speedbridgemc.config.serialize.PathUtils;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.HashMap;
 
 @AutoService(ComponentProvider.class)
 public final class ValidatorComponentProvider extends BaseComponentProvider {
@@ -23,7 +29,8 @@ public final class ValidatorComponentProvider extends BaseComponentProvider {
 
     @Override
     public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableList<@NotNull VariableElement> fields, @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        String[] options = ctx.params.get("options").toArray(new String[0]);
+        HashMap<String, Boolean> options = new HashMap<>();
+        parseOptions(ctx.params.get("options").toArray(new String[0]), options);
         TypeName configType = ctx.configType;
         String configName = "config";
 
@@ -55,14 +62,55 @@ public final class ValidatorComponentProvider extends BaseComponentProvider {
 
         checkMethodBuilder.addCode(codeBuilder.build());
         classBuilder.addMethod(checkMethodBuilder.build());
-        ctx.loadMethodBuilder.addCode(CodeBlock.builder()
+
+        CodeBlock.Builder loadCodeBuilder = CodeBlock.builder()
                 .beginControlFlow("try")
                 .addStatement("validate(config)")
                 .nextControlFlow("catch ($T e)", IllegalArgumentException.class)
-                .addStatement("log($T.ERROR, $S, e)",
-                        LogLevel.class, "Failed to validate config! Loading default values")
-                .addStatement("reset()")
-                .endControlFlow()
-                .build());
+                .addStatement("log($T.ERROR, $S + path + $S, e)",
+                        LogLevel.class, "Config file at \"", "\" is invalid!");
+        boolean crashOnFail = options.getOrDefault("crashOnFail", false);
+        if (options.getOrDefault("backupOnFail", true)) {
+            loadCodeBuilder
+                    .addStatement("$T backupPath = $T.resolveTimestampedSibling(path, $S)",
+                            Path.class, PathUtils.class, "BACKUP")
+                    .addStatement("boolean backupSuccess = true");
+            loadCodeBuilder
+                    .beginControlFlow("try")
+                    .addStatement("$T.move(path, backupPath, $T.REPLACE_EXISTING)",
+                            Files.class, StandardCopyOption.class)
+                    .nextControlFlow("catch ($T be)", IOException.class)
+                    .addStatement("log($T.ERROR, $S + backupPath + $S, be)",
+                            LogLevel.class, "Failed to back up config file to \"", "\"!")
+                    .addStatement("backupSuccess = false")
+                    .endControlFlow();
+            if (crashOnFail) {
+                loadCodeBuilder
+                        .beginControlFlow("if (backupSuccess)")
+                        .addStatement("reset()")
+                        .addStatement("save()")
+                        .addStatement("throw new $T($S + path + $S + backupPath + $S, e)",
+                                RuntimeException.class, "Config file \"",
+                                "\" is invalid! File has been replaced with default values, with the original backed up at \"", "\"")
+                        .nextControlFlow("else")
+                        .addStatement("throw new $T($S + path + $S, e)",
+                                RuntimeException.class, "Config file \"", "\" is invalid!")
+                        .endControlFlow();
+            } else
+                loadCodeBuilder
+                        .beginControlFlow("if (backupSuccess)")
+                        .addStatement("log($T.INFO, $S + backupPath + $S, null)",
+                                LogLevel.class, "Backed up config file to \"", "\"")
+                        .endControlFlow()
+                        .addStatement("log($T.WARN, $S, null)",
+                                LogLevel.class, "Loading and saving default config values")
+                        .addStatement("reset()")
+                        .addStatement("save()");
+        } else if (crashOnFail) {
+            loadCodeBuilder.addStatement("throw new $T($S + path + $S, e)",
+                    RuntimeException.class, "Config file \"", "\" is invalid!");
+        }
+        loadCodeBuilder.endControlFlow();
+        ctx.loadMethodBuilder.addCode(loadCodeBuilder.build());
     }
 }
