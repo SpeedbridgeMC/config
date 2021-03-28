@@ -27,7 +27,10 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
         TypeElement typeElement = (TypeElement) typeElementRaw;
         TypeName typeName = TypeName.get(type);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
+        codeBuilder
+                .beginControlFlow("if ($L != null)", ctx.elementName)
+                .addStatement("$L = $L($L)", dest, methodName, ctx.elementName)
+                .endControlFlow();
         return true;
     }
 
@@ -61,7 +64,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
             }
             String keyDest = "key";
             codeBuilder
-                    .addStatement("$T $L", keyTypeName, keyDest)
+                    .addStatement("$T $L = $L", keyTypeName, keyDest, SerializerComponentProvider.getDefaultValue(keyTypeName))
                     .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
                     .addStatement("$T $L", ctx.arrayType, ctx.arrayName);
             ctx.appendRead(keyTypeMirror, null, keyDest, codeBuilder);

@@ -35,7 +35,10 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         }
         TypeName typeName = TypeName.get(type);
         String methodName = generateReadMethod(ctx, typeName, typeElement);
-        codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
+        codeBuilder
+                .beginControlFlow("if ($L != null)", ctx.elementName)
+                .addStatement("$L = $L($L)", dest, methodName, ctx.elementName)
+                .endControlFlow();
         return true;
     }
 

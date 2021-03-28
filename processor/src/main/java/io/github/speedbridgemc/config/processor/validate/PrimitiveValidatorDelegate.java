@@ -62,16 +62,30 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
             if (string)
                 return true;
         }
-        boolean smol = TypeName.INT.equals(typeName);
-        if (smol || TypeName.LONG.equals(typeName)) {
+        boolean isInteger = TypeName.LONG.equals(typeName);
+        long possibleMinI = Long.MIN_VALUE, possibleMaxI = Long.MAX_VALUE;
+        if (!isInteger && TypeName.INT.equals(typeName)) {
+            isInteger = true;
+            possibleMinI = Integer.MIN_VALUE;
+            possibleMaxI = Integer.MAX_VALUE;
+        } else if (TypeName.SHORT.equals(typeName)) {
+            isInteger = true;
+            possibleMinI = Short.MIN_VALUE;
+            possibleMaxI = Short.MAX_VALUE;
+        } else if (TypeName.BYTE.equals(typeName)) {
+            isInteger = true;
+            possibleMinI = Byte.MIN_VALUE;
+            possibleMaxI = Byte.MAX_VALUE;
+        }
+        if (isInteger) {
             IntegerRange integerRange = ctx.getAnnotation(IntegerRange.class);
             if (integerRange != null && integerRange.mode() != EnforceMode.IGNORE) {
                 long max = integerRange.max();
-                if (smol && (max < Integer.MIN_VALUE || max > Integer.MAX_VALUE))
+                if (max < possibleMinI || max > possibleMaxI)
                     messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Maximum bound of field is out of its bounds", ctx.getEffectiveElement());
                 long min = integerRange.min();
-                if (smol && (min < Integer.MIN_VALUE || min > Integer.MAX_VALUE))
+                if (min < possibleMinI || min > possibleMaxI)
                     messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Minimum bound of field is out of its bounds", ctx.getEffectiveElement());
                 if (min >= max) {
@@ -79,8 +93,8 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                             "Validator: Minimum bound of field is larger than or equal to maximum bound", ctx.getEffectiveElement());
                     return true;
                 }
-                boolean doMax = (smol && max != Integer.MAX_VALUE) || max != Long.MAX_VALUE;
-                boolean doMin = (smol && min != Integer.MIN_VALUE) || min != Long.MIN_VALUE;
+                boolean doMax = max != possibleMaxI;
+                boolean doMin = min != possibleMinI;
                 if (!doMax && !doMin)
                     return true;
                 codeBuilder.beginControlFlow(generateRangeCheck(doMax, doMin, integerRange), src, max, min);
@@ -110,16 +124,22 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
             }
             return true;
         }
-        smol = TypeName.FLOAT.equals(typeName);
-        if (smol || TypeName.DOUBLE.equals(typeName)) {
+        boolean isFloating = TypeName.DOUBLE.equals(typeName);
+        double possibleMaxF = Double.MAX_VALUE;
+        if (!isFloating && TypeName.FLOAT.equals(typeName)) {
+            isFloating = true;
+            possibleMaxF = Float.MAX_VALUE;
+        }
+        double possibleMinF = -possibleMaxF;
+        if (isFloating) {
             FloatingRange floatingRange = ctx.getAnnotation(FloatingRange.class);
             if (floatingRange != null && floatingRange.mode() != EnforceMode.IGNORE) {
                 double max = floatingRange.max();
-                if (smol && (max < -Float.MAX_VALUE || max > Float.MAX_VALUE))
+                if (max < possibleMinF || max > possibleMaxF)
                     messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Maximum bound of field is out of its bounds", ctx.getEffectiveElement());
                 double min = floatingRange.min();
-                if (smol && (min < -Float.MAX_VALUE || min > Float.MAX_VALUE))
+                if (min < possibleMinF || min > possibleMaxF)
                     messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
                             "Validator: Minimum bound of field is out of its bounds", ctx.getEffectiveElement());
                 if (min >= max) {
@@ -127,8 +147,8 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                             "Validator: Minimum bound of field is larger than or equal to maximum bound", ctx.getEffectiveElement());
                     return true;
                 }
-                boolean doMax = (smol && max != Float.MAX_VALUE) || max != Double.MAX_VALUE;
-                boolean doMin = (smol && min != -Float.MAX_VALUE) || min != -Double.MAX_VALUE;
+                boolean doMax = max != possibleMaxF;
+                boolean doMin = min != possibleMinF;
                 if (!doMax && !doMin)
                     return true;
                 codeBuilder.beginControlFlow(generateRangeCheck(doMax, doMin, floatingRange), src, max, min);
@@ -137,7 +157,7 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                     if (ctx.canSet) {
                         if (doMax && doMin)
                             codeBuilder.addStatement("$1L = $4T.min($2L$5L, $4T.max($3L$5L, $1L))", src, max, min, Math.class,
-                                    smol ? "f" : "");
+                                    possibleMaxF == Float.MAX_VALUE ? "f" : "");
                         else if (doMax)
                             codeBuilder.addStatement("$L = $L", src, max);
                         else // if (doMin)
@@ -165,19 +185,20 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
     private @NotNull String generateRangeCheck(boolean doMax, boolean doMin,
                                                @NotNull RangeMode maxMode, @NotNull RangeMode minMode) {
         StringBuilder cond = new StringBuilder("if (");
-        if (doMax) {
-            cond.append("$1L >");
-            if (maxMode == RangeMode.EXCLUSIVE)
-                cond.append('=');
-            cond.append(" $2L");
-            if (doMin)
-                cond.append(" || ");
-        }
         if (doMin) {
             cond.append("$1L <");
             if (minMode == RangeMode.EXCLUSIVE)
                 cond.append('=');
             cond.append(" $3L");
+            if (doMax)
+                cond.append(" || ");
+        }
+        if (doMax) {
+            cond.append("$1L >");
+            if (maxMode == RangeMode.EXCLUSIVE)
+                cond.append('=');
+            cond.append(" $2L");
+
         }
         cond.append(')');
         return cond.toString();

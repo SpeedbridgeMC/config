@@ -3,6 +3,7 @@ package io.github.speedbridgemc.config.processor.serialize.jankson;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.NotNull;
@@ -60,7 +61,10 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
             return false;
 
         String methodName = generateReadMethod(ctx, keyType, valueType);
-        codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
+        codeBuilder
+                .beginControlFlow("if ($L != null)", ctx.elementName)
+                .addStatement("$L = $L($L)", dest, methodName, ctx.elementName)
+                .endControlFlow();
 
         return true;
     }
@@ -114,7 +118,7 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
                     .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, objDest, elementNameBackup)
                     .addStatement("$1T $2L = new $1T()", mapTypeName, mapName)
                     .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
-                    .addStatement("$T $L", valueType, valueDest)
+                    .addStatement("$T $L = $L", valueType, valueDest, SerializerComponentProvider.getDefaultValue(valueTypeName))
                     .beginControlFlow("for ($T<$T, $T> $L : $L.entrySet())",
                             entryTM, stringTM, ctx.elementType, entryDest, objDest)
                     .addStatement("$T $L = $L.getValue()", ctx.elementType, ctx.elementName, entryDest);
@@ -134,8 +138,8 @@ public final class MapJanksonDelegate extends BaseJanksonDelegate {
                     .addStatement("$1T $2L = ($1T) $3L", ctx.arrayType, arrDest, elementNameBackup)
                     .addStatement("$1T $2L = new $1T()", mapTypeName, mapName)
                     .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
-                    .addStatement("$T $L", keyType, keyDest)
-                    .addStatement("$T $L", valueType, valueDest)
+                    .addStatement("$T $L = $L", keyType, keyDest, SerializerComponentProvider.getDefaultValue(keyTypeName))
+                    .addStatement("$T $L = $L", valueType, valueDest, SerializerComponentProvider.getDefaultValue(valueTypeName))
                     .beginControlFlow("for ($T $L : $L)", ctx.elementType, elemDest, arrDest)
                     .beginControlFlow("if ($L instanceof $T)", elemDest, ctx.objectType)
                     .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, objDest, elemDest)

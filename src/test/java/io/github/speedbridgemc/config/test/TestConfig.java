@@ -37,9 +37,9 @@ public final class TestConfig {
     public @EnforceNotNull @IntegerRange(max = 10) int[][] testNestedArray = new int[][] { new int[] { 1, 2, 3 } };
     public @EnforceNotNull String[] testArray2 = new String[] { "abc", "def", "ghi" };
     public @EnforceNotNull @FloatingRange(max = 20) float[] testArray3 = new float[] { 1.2f, 2.44f, 4.8f };
-    public List<String> testList = new ArrayList<>();
-    public List<int[]> testNestedList = new ArrayList<>();
-    public List<HelloWorld> testList2 = new ArrayList<>();
+    public @EnforceNotNull List<String> testList = new ArrayList<>();
+    public @EnforceNotNull @IntegerRange(max = 52) List<int[]> testNestedList = new ArrayList<>();
+    public @EnforceNotNull List<HelloWorld> testList2 = new ArrayList<>();
     public Map<String, StringEntry> testStringKeysMap = new HashMap<>();
     public Map<MapKey, MapValue> testMap = new HashMap<>();
     public Map<String, Map<String, String>> testNestedMap = new HashMap<>();

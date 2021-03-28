@@ -53,9 +53,15 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
             }
             codeBuilder.endControlFlow();
         }
-        if (methodName != null)
-            codeBuilder.addStatement("$L($L)", methodName, src);
-        return true;
+        if (methodName != null) {
+            codeBuilder.beginControlFlow("try")
+                    .addStatement("$L($L)", methodName, src)
+                    .nextControlFlow("catch ($T e)", IllegalArgumentException.class)
+                    .addStatement(errDelegate.generateThrow(CodeBlock.of("$S, e", " is invalid!")))
+                    .endControlFlow();
+            return true;
+        }
+        return false;
     }
 
     private @Nullable String generateCheckMethod(@NotNull ValidatorContext ctx,
@@ -84,7 +90,7 @@ public final class NestedValidatorDelegate extends BaseValidatorDelegate {
             ctx.element = field;
             ctx.defaultSrc = defaultsName + "." + fieldName;
             ctx.appendCheck(field.asType(), ctx.configName + "." + fieldName,
-                    ErrorDelegate.simple(ctx.configName + "." + fieldName), codeBuilder);
+                    ErrorDelegate.simple(fieldName), codeBuilder);
         }
         ctx.defaultSrc = defaultSrcBackup;
         ctx.enclosingElement = enclosingElementBackup;

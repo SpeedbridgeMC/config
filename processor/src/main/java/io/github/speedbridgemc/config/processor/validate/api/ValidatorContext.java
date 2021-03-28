@@ -26,6 +26,7 @@ public final class ValidatorContext {
     public @Nullable String defaultSrc;
     public @Nullable Element enclosingElement, element;
     public boolean canSet = true;
+    public int nestingFactor = 1;
 
     public ValidatorContext(@NotNull TypeName configType, @NotNull String @NotNull [] options,
                             TypeSpec.@NotNull Builder classBuilder,

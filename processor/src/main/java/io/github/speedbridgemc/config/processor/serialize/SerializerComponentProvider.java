@@ -31,7 +31,7 @@ import java.util.*;
 @ApiStatus.Internal
 @AutoService(ComponentProvider.class)
 public final class SerializerComponentProvider extends BaseComponentProvider {
-    private static final ClassName MAP_NAME = ClassName.get(HashMap.class);
+    private static final ClassName STRING_NAME = ClassName.get(String.class), MAP_NAME = ClassName.get(HashMap.class);
     private static TypeMirror keyedEnumTM;
     private HashMap<String, SerializerProvider> serializerProviders;
     private HashMap<String, NamingStrategyProvider> nameProviders;
@@ -491,5 +491,16 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 .endControlFlow()
                 .build());
         return mapName;
+    }
+
+    public static @NotNull String getDefaultValue(@NotNull TypeName type) {
+        if (STRING_NAME.equals(type))
+            return "\"\"";
+        else if (TypeName.BOOLEAN.equals(type))
+            return "false";
+        else if (type.isPrimitive())
+            return "0";
+        else
+            return "null";
     }
 }

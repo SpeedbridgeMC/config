@@ -9,21 +9,11 @@ import io.github.speedbridgemc.config.processor.validate.api.ErrorDelegate;
 import io.github.speedbridgemc.config.processor.validate.api.ValidatorContext;
 import org.jetbrains.annotations.NotNull;
 
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.Element;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
 public final class ArrayValidatorDelegate extends BaseValidatorDelegate {
-    private int nestCount;
-
-    @Override
-    public void init(@NotNull ProcessingEnvironment processingEnv) {
-        super.init(processingEnv);
-        nestCount = 1;
-    }
-
     @Override
     public boolean appendCheck(@NotNull ValidatorContext ctx, @NotNull TypeMirror type, @NotNull String src, @NotNull ErrorDelegate errDelegate, CodeBlock.@NotNull Builder codeBuilder) {
         if (type.getKind() != TypeKind.ARRAY)
@@ -48,7 +38,7 @@ public final class ArrayValidatorDelegate extends BaseValidatorDelegate {
 
         TypeMirror componentType = ((ArrayType) type).getComponentType();
 
-        String indexSrc = "index" + StringUtils.titleCase(ctx.getEffectiveElement().getSimpleName().toString()) + "_" + nestCount++;
+        String indexSrc = "index" + StringUtils.titleCase(ctx.getEffectiveElement().getSimpleName().toString()) + "_" + ctx.nestingFactor++;
 
         CodeBlock.Builder checksBuilder = CodeBlock.builder();
 
@@ -62,7 +52,7 @@ public final class ArrayValidatorDelegate extends BaseValidatorDelegate {
                 .add(")")
                 .build()), checksBuilder);
 
-        nestCount--;
+        ctx.nestingFactor--;
 
         if (!checksBuilder.isEmpty()) {
             codeBuilder

@@ -20,7 +20,6 @@ import java.util.List;
 
 public final class ListValidatorDelegate extends BaseValidatorDelegate {
     private TypeMirror listTM;
-    private int nestCount;
 
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {
@@ -28,7 +27,6 @@ public final class ListValidatorDelegate extends BaseValidatorDelegate {
         listTM = TypeUtils.getTypeMirror(processingEnv, List.class.getCanonicalName());
         if (listTM != null)
             listTM = types.erasure(listTM);
-        nestCount = 1;
     }
 
     @Override
@@ -70,10 +68,10 @@ public final class ListValidatorDelegate extends BaseValidatorDelegate {
         }
 
         String simpleName = StringUtils.titleCase(ctx.getEffectiveElement().getSimpleName().toString());
-        String indexSrc = "index" + simpleName + "_" + nestCount;
-        String sizeSrc = "size" + simpleName + "_" + nestCount;
-        String compSrc = "comp" + simpleName + "_" + nestCount;
-        nestCount++;
+        String indexSrc = "index" + simpleName + "_" + ctx.nestingFactor;
+        String sizeSrc = "size" + simpleName + "_" + ctx.nestingFactor;
+        String compSrc = "comp" + simpleName + "_" + ctx.nestingFactor;
+        ctx.nestingFactor++;
 
         CodeBlock.Builder checksBuilder = CodeBlock.builder();
         Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
@@ -88,7 +86,7 @@ public final class ListValidatorDelegate extends BaseValidatorDelegate {
                 .add(")")
                 .build()), checksBuilder);
 
-        nestCount--;
+        ctx.nestingFactor--;
 
         if (!checksBuilder.isEmpty()) {
             codeBuilder

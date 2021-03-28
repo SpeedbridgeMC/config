@@ -3,6 +3,7 @@ package io.github.speedbridgemc.config.processor.serialize.jankson;
 import com.squareup.javapoet.*;
 import io.github.speedbridgemc.config.processor.api.StringUtils;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
+import io.github.speedbridgemc.config.processor.serialize.SerializerComponentProvider;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.BaseJanksonDelegate;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import org.jetbrains.annotations.NotNull;
@@ -59,7 +60,10 @@ public final class ListJanksonDelegate extends BaseJanksonDelegate {
             componentTypeName = componentTypeName.box();
 
         String methodName = generateReadMethod(ctx, componentTypeName, componentType);
-        codeBuilder.addStatement("$L = $L($L)", dest, methodName, ctx.elementName);
+        codeBuilder
+                .beginControlFlow("if ($L != null)", ctx.elementName)
+                .addStatement("$L = $L($L)", dest, methodName, ctx.elementName)
+                .endControlFlow();
 
         return true;
     }
@@ -91,7 +95,7 @@ public final class ListJanksonDelegate extends BaseJanksonDelegate {
                 .addStatement("$2T $1L = ($2T) $3L", ctx.arrayName, ctx.arrayType, ctx.elementName)
                 .addStatement("$1T $2L = new $1T()", listTypeName, listName)
                 .addStatement("$T $L", ctx.primitiveType, ctx.primitiveName)
-                .addStatement("$T $L", componentType, compDest)
+                .addStatement("$T $L = $L", componentType, compDest, SerializerComponentProvider.getDefaultValue(componentTypeName))
                 .beginControlFlow("for ($T $L : $L)", ctx.elementType, elemDest, ctx.arrayName);
 
         String elementNameBackup = ctx.elementName;

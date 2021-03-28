@@ -81,7 +81,7 @@ public final class PrimitiveJanksonDelegate extends BaseJanksonDelegate {
                             IOException.class, "Type mismatch! Expected \"double\", got \"", tempDest, "\"!")
                     .endControlFlow();
 
-        codeBuilder.nextControlFlow("else")
+        codeBuilder.nextControlFlow("else if ($L != null)", ctx.elementName)
                 .addStatement("throw new $T($S + $L.getClass().getSimpleName() + $S)",
                         IOException.class, "Type mismatch! Expected \"JsonPrimitive\", got \"", ctx.elementName, "\"!")
                 .endControlFlow();
