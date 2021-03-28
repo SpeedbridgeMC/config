@@ -5,3 +5,8 @@ _Hey sh\*tass, wanna see me make a configuration API?_
 No more configuration registries! No more reflection!
 
 For more information, see the [wiki](https://github.com/SpeedbridgeMC/config/wiki).
+
+Javadocs are also available:
+- [Annotations](https://javadoc.io/doc/io.github.speedbridgemc/config-annotations)
+- [Runtime](https://javadoc.io/doc/io.github.speedbridgemc/config-runtime)
+- [Processor](https://javadoc.io/doc/io.github.speedbridgemc/config-processor)
