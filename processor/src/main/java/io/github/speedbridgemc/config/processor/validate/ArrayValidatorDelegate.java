@@ -51,9 +51,6 @@ public final class ArrayValidatorDelegate extends BaseValidatorDelegate {
         String indexSrc = "index" + StringUtils.titleCase(ctx.getEffectiveElement().getSimpleName().toString()) + "_" + nestCount++;
 
         CodeBlock.Builder checksBuilder = CodeBlock.builder();
-        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
-        ctx.enclosingElement = ctx.element;
-        ctx.element = null;
 
         ctx.appendCheck(componentType, src + "[" + indexSrc + "]", errDelegate.derive((details, desc) -> CodeBlock.builder()
                 .add("throw new $T(", IllegalArgumentException.class)
@@ -64,9 +61,6 @@ public final class ArrayValidatorDelegate extends BaseValidatorDelegate {
                 .add(details)
                 .add(")")
                 .build()), checksBuilder);
-
-        ctx.element = elementBackup;
-        ctx.enclosingElement = enclosingElementBackup;
 
         nestCount--;
 

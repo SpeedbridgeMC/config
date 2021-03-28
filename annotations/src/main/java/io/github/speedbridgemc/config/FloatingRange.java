@@ -11,7 +11,7 @@ import java.lang.annotation.*;
  * If a type is marked with this method, all of its fields will "inherit" the annotation and its values.
  */
 @Documented
-@Target({ ElementType.TYPE, ElementType.FIELD, ElementType.TYPE_USE })
+@Target({ ElementType.TYPE, ElementType.FIELD })
 @Retention(RetentionPolicy.SOURCE)
 public @interface FloatingRange {
     /**
