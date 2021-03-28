@@ -68,6 +68,7 @@ subprojects {
 
                         name = project.name
                         description = project.description
+                        url = 'https://speedbridgemc.github.io/config'
                         licenses {
                             license {
                                 name = 'MIT License'
