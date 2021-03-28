@@ -1,8 +1,0 @@
-rootProject.name = 'config'
-include 'runtime'
-include 'annotations'
-include 'processor'
-
-project(':runtime').name = 'config-runtime'
-project(':annotations').name = 'config-annotations'
-project(':processor').name = 'config-processor'
