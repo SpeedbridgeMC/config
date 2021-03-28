@@ -62,24 +62,24 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
             if (string)
                 return true;
         }
-        boolean isInteger = TypeName.LONG.equals(typeName);
-        long possibleMinI = Long.MIN_VALUE, possibleMaxI = Long.MAX_VALUE;
-        if (!isInteger && TypeName.INT.equals(typeName)) {
-            isInteger = true;
-            possibleMinI = Integer.MIN_VALUE;
-            possibleMaxI = Integer.MAX_VALUE;
-        } else if (TypeName.SHORT.equals(typeName)) {
-            isInteger = true;
-            possibleMinI = Short.MIN_VALUE;
-            possibleMaxI = Short.MAX_VALUE;
-        } else if (TypeName.BYTE.equals(typeName)) {
-            isInteger = true;
-            possibleMinI = Byte.MIN_VALUE;
-            possibleMaxI = Byte.MAX_VALUE;
-        }
-        if (isInteger) {
-            IntegerRange integerRange = ctx.getAnnotation(IntegerRange.class);
-            if (integerRange != null && integerRange.mode() != EnforceMode.IGNORE) {
+        IntegerRange integerRange = ctx.getAnnotation(IntegerRange.class);
+        if (integerRange != null && integerRange.mode() != EnforceMode.IGNORE) {
+            boolean isInteger = TypeName.LONG.equals(typeName);
+            long possibleMinI = Long.MIN_VALUE, possibleMaxI = Long.MAX_VALUE;
+            if (!isInteger && TypeName.INT.equals(typeName)) {
+                isInteger = true;
+                possibleMinI = Integer.MIN_VALUE;
+                possibleMaxI = Integer.MAX_VALUE;
+            } else if (TypeName.SHORT.equals(typeName)) {
+                isInteger = true;
+                possibleMinI = Short.MIN_VALUE;
+                possibleMaxI = Short.MAX_VALUE;
+            } else if (TypeName.BYTE.equals(typeName)) {
+                isInteger = true;
+                possibleMinI = Byte.MIN_VALUE;
+                possibleMaxI = Byte.MAX_VALUE;
+            }
+            if (isInteger) {
                 long max = integerRange.max();
                 if (max < possibleMinI || max > possibleMaxI)
                     messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
@@ -124,16 +124,16 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
             }
             return true;
         }
-        boolean isFloating = TypeName.DOUBLE.equals(typeName);
-        double possibleMaxF = Double.MAX_VALUE;
-        if (!isFloating && TypeName.FLOAT.equals(typeName)) {
-            isFloating = true;
-            possibleMaxF = Float.MAX_VALUE;
-        }
-        double possibleMinF = -possibleMaxF;
-        if (isFloating) {
-            FloatingRange floatingRange = ctx.getAnnotation(FloatingRange.class);
-            if (floatingRange != null && floatingRange.mode() != EnforceMode.IGNORE) {
+        FloatingRange floatingRange = ctx.getAnnotation(FloatingRange.class);
+        if (floatingRange != null && floatingRange.mode() != EnforceMode.IGNORE) {
+            boolean isFloating = TypeName.DOUBLE.equals(typeName);
+            double possibleMaxF = Double.MAX_VALUE;
+            if (!isFloating && TypeName.FLOAT.equals(typeName)) {
+                isFloating = true;
+                possibleMaxF = Float.MAX_VALUE;
+            }
+            double possibleMinF = -possibleMaxF;
+            if (isFloating) {
                 double max = floatingRange.max();
                 if (max < possibleMinF || max > possibleMaxF)
                     messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING,
