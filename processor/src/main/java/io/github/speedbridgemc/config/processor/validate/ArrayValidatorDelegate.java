@@ -55,9 +55,9 @@ public final class ArrayValidatorDelegate extends BaseValidatorDelegate {
         ctx.enclosingElement = ctx.element;
         ctx.element = null;
 
-        ctx.appendCheck(componentType, src + "[" + indexSrc + "]", errDelegate.derive(details -> CodeBlock.builder()
+        ctx.appendCheck(componentType, src + "[" + indexSrc + "]", errDelegate.derive((details, desc) -> CodeBlock.builder()
                 .add("throw new $T(", IllegalArgumentException.class)
-                .add("$S", '"' + errDelegate.getDescription() + '[')
+                .add("$S", '"' + desc + '[')
                 .add(" + $L + ", indexSrc)
                 .add("$S", "]\"")
                 .add(" + ")

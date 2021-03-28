@@ -3,7 +3,7 @@ package io.github.speedbridgemc.config.processor.validate.api;
 import com.squareup.javapoet.CodeBlock;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.function.UnaryOperator;
+import java.util.function.BiFunction;
 
 public interface ErrorDelegate {
     @NotNull String getDescription();
@@ -12,9 +12,9 @@ public interface ErrorDelegate {
     default @NotNull CodeBlock generateThrow(@NotNull String details) {
         return generateThrow(CodeBlock.of("$S", details));
     }
-    default @NotNull ErrorDelegate derive(@NotNull UnaryOperator<@NotNull CodeBlock> throwGenerator) {
+    default @NotNull ErrorDelegate derive(@NotNull BiFunction<@NotNull CodeBlock, @NotNull String, @NotNull CodeBlock> throwGenerator) {
         return new ErrorDelegate() {
-            private final UnaryOperator<CodeBlock> throwFunc = throwGenerator;
+            private final BiFunction<@NotNull CodeBlock, @NotNull String, @NotNull CodeBlock> throwFunc = throwGenerator;
 
             @Override
             public @NotNull String getDescription() {
@@ -23,7 +23,7 @@ public interface ErrorDelegate {
 
             @Override
             public @NotNull CodeBlock generateThrow(@NotNull CodeBlock details) {
-                return throwFunc.apply(details);
+                return throwFunc.apply(details, getDescription());
             }
         };
     }

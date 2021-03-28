@@ -80,9 +80,9 @@ public final class ListValidatorDelegate extends BaseValidatorDelegate {
         ctx.enclosingElement = ctx.element;
         ctx.element = null;
 
-        ctx.appendCheck(componentType, compSrc, errDelegate.derive(details -> CodeBlock.builder()
+        ctx.appendCheck(componentType, compSrc, errDelegate.derive((details, desc) -> CodeBlock.builder()
                 .add("throw new $T(", IllegalArgumentException.class)
-                .add("$S", '"' + errDelegate.getDescription() + '[')
+                .add("$S", '"' + desc + '[')
                 .add(" + $L + ", indexSrc)
                 .add("$S", "]\"")
                 .add(" + ")
