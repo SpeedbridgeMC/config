@@ -396,7 +396,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     ArrayList<Object> deserializerArgs = new ArrayList<>();
                     if (enumDeserializerMethod == null) {
                         deserializer = "$2L.get($1L)";
-                        deserializerArgs.add(addEnumMap(classBuilder, keyType, "%s.getId()", true, type));
+                        deserializerArgs.add(addEnumMap(classBuilder, keyType, "%s.getKey()", true, type));
                     } else {
                         deserializer = "$2T.$3L($1L)";
                         deserializerArgs.add(ClassName.get(type));

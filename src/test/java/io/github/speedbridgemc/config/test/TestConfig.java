@@ -15,7 +15,7 @@ import java.util.Map;
                 value = "speedbridge-config:serializer",
                 params = "provider=speedbridge-config:jankson"
                 ),
-                @Component("speedbridge-config:remote-storage"),
+                @Component("speedbridge-config:remote_storage"),
                 @Component("speedbridge-config:validator")
         },
         nonNullAnnotation = "org.jetbrains.annotations.NotNull", nullableAnnotation = "org.jetbrains.annotations.Nullable")
