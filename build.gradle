@@ -33,7 +33,7 @@ subprojects {
 
     ext {
         publicationName = ""
-        for (String part : project.name.split("-")) {
+        for (String part : name.split("-")) {
             if ("config".equalsIgnoreCase(part))
                 continue
             publicationName += part.capitalize()
@@ -43,7 +43,7 @@ subprojects {
     }
 
     afterEvaluate { project ->
-        project.ext.isReleaseVersion = !project.version.endsWith("SNAPSHOT")
+        project.ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
 
         publishing {
             repositories {
@@ -94,7 +94,7 @@ subprojects {
                 sign publishing.publications[project.ext.publicationName]
             }
             tasks.withType(Sign) {
-                onlyIf { isReleaseVersion }
+                onlyIf { project.ext.isReleaseVersion }
             }
         }
     }
