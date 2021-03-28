@@ -74,7 +74,6 @@ public final class ListValidatorDelegate extends BaseValidatorDelegate {
         ctx.nestingFactor++;
 
         CodeBlock.Builder checksBuilder = CodeBlock.builder();
-        Element elementBackup = ctx.element, enclosingElementBackup = ctx.enclosingElement;
 
         ctx.appendCheck(componentType, compSrc, errDelegate.derive((details, desc) -> CodeBlock.builder()
                 .add("throw new $T(", IllegalArgumentException.class)

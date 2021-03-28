@@ -8,13 +8,13 @@ import java.util.function.BiFunction;
 public interface ErrorDelegate {
     @NotNull String getDescription();
     @NotNull CodeBlock generateThrow(@NotNull CodeBlock details);
-
     default @NotNull CodeBlock generateThrow(@NotNull String details) {
         return generateThrow(CodeBlock.of("$S", details));
     }
-    default @NotNull ErrorDelegate derive(@NotNull BiFunction<@NotNull CodeBlock, @NotNull String, @NotNull CodeBlock> throwGenerator) {
+
+    default @NotNull ErrorDelegate derive(@NotNull BiFunction<@NotNull CodeBlock, @NotNull String, @NotNull CodeBlock> generator) {
         return new ErrorDelegate() {
-            private final BiFunction<@NotNull CodeBlock, @NotNull String, @NotNull CodeBlock> throwFunc = throwGenerator;
+            private final BiFunction<@NotNull CodeBlock, @NotNull String, @NotNull CodeBlock> gen = generator;
 
             @Override
             public @NotNull String getDescription() {
@@ -23,7 +23,7 @@ public interface ErrorDelegate {
 
             @Override
             public @NotNull CodeBlock generateThrow(@NotNull CodeBlock details) {
-                return throwFunc.apply(details, getDescription());
+                return gen.apply(details, getDescription());
             }
         };
     }
