@@ -68,9 +68,9 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         ctx.missingErrorMessages.clear();
         ctx.gotFlags.clear();
         ctx.enclosingElement = elementBackup;
-        
+
         String defaultMissingErrorMessage = SerializerComponentProvider.getDefaultMissingErrorMessage(processingEnv, typeElement);
-        SerializerComponentProvider.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, ctx.missingErrorMessages);
+        SerializerComponentProvider.getMissingErrorMessages(processingEnv, ctx.sCtx, fields, ctx.missingErrorMessages, defaultMissingErrorMessage);
         GsonSerializerProvider.generateGotFlags(ctx, fields);
         String objName = "obj" + typeElement.getSimpleName();
         methodBuilder.addCode("$1T $2L = new $1T();\n", typeName, objName);
@@ -86,7 +86,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            String serializedName = SerializerComponentProvider.getSerializedName(field);
+            String serializedName = SerializerComponentProvider.getSerializedName(ctx.sCtx, field);
             codeBuilder.add("case $S:\n", serializedName);
             for (String alias : SerializerComponentProvider.getSerializedAliases(field))
                 codeBuilder.add("case $S:\n", alias);
@@ -159,7 +159,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
                         .build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            String serializedName = SerializerComponentProvider.getSerializedName(field);
+            String serializedName = SerializerComponentProvider.getSerializedName(ctx.sCtx, field);
             CodeBlock.Builder codeBuilder = CodeBlock.builder()
                     .addStatement("$L.name($S)", ctx.writerName, serializedName);
             ctx.appendWrite(field.asType(), serializedName, "obj." + fieldName, codeBuilder);

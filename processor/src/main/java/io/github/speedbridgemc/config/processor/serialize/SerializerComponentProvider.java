@@ -35,8 +35,6 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
     private static TypeMirror keyedEnumTM;
     private HashMap<String, SerializerProvider> serializerProviders;
     private HashMap<String, NamingStrategyProvider> nameProviders;
-    private static NamingStrategyProvider nameProvider;
-    private static String nameProviderVariant;
 
     public SerializerComponentProvider() {
         super("speedbridge-config:serializer");
@@ -83,6 +81,8 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     "Serializer: Unknown provider \"" + providerId + "\"", type);
             return;
         }
+        NamingStrategyProvider nameProvider;
+        String nameProviderVariant;
         String nameId = ParamUtils.allOrNothing(ctx.params, "naming_strategy");
         if (nameId == null) {
             nameId = "speedbridge-config:snake_case";
@@ -141,7 +141,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 .addParameter(configParamBuilder.build())
                 .addParameter(pathParamBuilder.build())
                 .addException(IOException.class);
-        SerializerContext sCtx = new SerializerContext(ctx, configType, basePackage, options,
+        SerializerContext sCtx = new SerializerContext(ctx, configType, basePackage, nameProvider, nameProviderVariant, options,
                 readMethodBuilder, writeMethodBuilder,
                 defaultMissingErrorMessage, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         provider.process(name, type, fields, sCtx, classBuilder);
@@ -242,13 +242,13 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
 
     private static final HashMap<VariableElement, String> SERIALIZED_NAME_CACHE = new HashMap<>();
 
-    public static @NotNull String getSerializedName(@NotNull VariableElement field) {
+    public static @NotNull String getSerializedName(@NotNull SerializerContext ctx, @NotNull VariableElement field) {
         return SERIALIZED_NAME_CACHE.computeIfAbsent(field, variableElement -> {
             SerializedName serializedName = variableElement.getAnnotation(SerializedName.class);
             if (serializedName != null)
                 return serializedName.value();
             else
-                return nameProvider.translate(nameProviderVariant, variableElement);
+                return ctx.nameProvider.translate(ctx.nameProviderVariant, variableElement);
         });
     }
 
@@ -290,9 +290,12 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
     }
 
     public static void getMissingErrorMessages(@NotNull ProcessingEnvironment processingEnv,
+                                               @NotNull SerializerContext ctx,
                                                @NotNull List<@NotNull VariableElement> fields,
-                                               @Nullable String defaultMissingErrorMessage,
-                                               @NotNull Map<@NotNull String, @Nullable String> result) {
+                                               @NotNull Map<@NotNull String, @Nullable String> result,
+                                               @Nullable String defaultMissingErrorMessage) {
+        if (defaultMissingErrorMessage == null)
+            defaultMissingErrorMessage = ctx.defaultMissingErrorMessage;
         for (VariableElement field : fields) {
             String fieldMissingErrorMessage = "Missing field \"%s\"!";
             if (field.getAnnotation(UseDefaultIfMissing.class) != null)
@@ -312,8 +315,15 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     }
                 }
             }
-            result.put(SerializerComponentProvider.getSerializedName(field), fieldMissingErrorMessage);
+            result.put(SerializerComponentProvider.getSerializedName(ctx, field), fieldMissingErrorMessage);
         }
+    }
+
+    public static void getMissingErrorMessages(@NotNull ProcessingEnvironment processingEnv,
+                                               @NotNull SerializerContext ctx,
+                                               @NotNull List<@NotNull VariableElement> fields,
+                                               @NotNull Map<@NotNull String, @Nullable String> result) {
+        getMissingErrorMessages(processingEnv, ctx, fields, result, null);
     }
 
     public final static class EnumKeyType {

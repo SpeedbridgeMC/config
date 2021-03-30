@@ -45,7 +45,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 ctx.nonNullAnnotation, ctx.nullableAnnotation);
         gCtx.init(processingEnv);
         gCtx.enclosingElement = type;
-        SerializerComponentProvider.getMissingErrorMessages(processingEnv, fields, ctx.defaultMissingErrorMessage, gCtx.missingErrorMessages);
+        SerializerComponentProvider.getMissingErrorMessages(processingEnv, ctx, fields, gCtx.missingErrorMessages);
         generateGotFlags(gCtx, fields);
         String objName = "config";
         ctx.readMethodBuilder.addCode("$1T $2L = new $1T();\n", configType, objName);
@@ -67,7 +67,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         ctx.readMethodBuilder.addCode(codeBuilder.build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            String serializedName = SerializerComponentProvider.getSerializedName(field);
+            String serializedName = SerializerComponentProvider.getSerializedName(ctx, field);
             codeBuilder = CodeBlock.builder()
                     .add("case $S:\n", serializedName);
             for (String alias : SerializerComponentProvider.getSerializedAliases(field))
@@ -101,7 +101,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         ctx.writeMethodBuilder.addCode(codeBuilder.build());
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            String serializedName = SerializerComponentProvider.getSerializedName(field);
+            String serializedName = SerializerComponentProvider.getSerializedName(ctx, field);
             codeBuilder = CodeBlock.builder()
                     .addStatement("$L.name($S)", gCtx.writerName, serializedName);
             gCtx.element = field;
@@ -114,25 +114,25 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 .build());
     }
 
-    public static void generateGotFlags(@NotNull GsonContext gCtx, @NotNull List<@NotNull VariableElement> fields) {
+    public static void generateGotFlags(@NotNull GsonContext ctx, @NotNull List<@NotNull VariableElement> fields) {
         for (VariableElement field : fields) {
-            String fieldName = SerializerComponentProvider.getSerializedName(field);
-            if (gCtx.missingErrorMessages.get(fieldName) != null)
-                gCtx.gotFlags.put(fieldName, "got" + StringUtils.titleCase(fieldName));
+            String fieldName = SerializerComponentProvider.getSerializedName(ctx.sCtx, field);
+            if (ctx.missingErrorMessages.get(fieldName) != null)
+                ctx.gotFlags.put(fieldName, "got" + StringUtils.titleCase(fieldName));
         }
     }
 
-    public static @NotNull CodeBlock.Builder generateGotFlagDecls(@NotNull GsonContext gCtx) {
+    public static @NotNull CodeBlock.Builder generateGotFlagDecls(@NotNull GsonContext ctx) {
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
-        for (String gotFlagVar : gCtx.gotFlags.values())
+        for (String gotFlagVar : ctx.gotFlags.values())
             codeBuilder.addStatement("boolean $L = false", gotFlagVar);
         return codeBuilder;
     }
 
-    public static @NotNull CodeBlock.Builder generateGotFlagChecks(@NotNull GsonContext gCtx) {
+    public static @NotNull CodeBlock.Builder generateGotFlagChecks(@NotNull GsonContext ctx) {
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
-        for (Map.Entry<String, String> entry : gCtx.gotFlags.entrySet()) {
-            String missingErrorMessage = gCtx.missingErrorMessages.get(entry.getKey());
+        for (Map.Entry<String, String> entry : ctx.gotFlags.entrySet()) {
+            String missingErrorMessage = ctx.missingErrorMessages.get(entry.getKey());
             if (missingErrorMessage == null)
                 continue;
             codeBuilder.beginControlFlow("if (!$L)", entry.getValue())

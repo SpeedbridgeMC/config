@@ -66,7 +66,7 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
                 .nextControlFlow("else if ($L instanceof $T)", ctx.elementName, ctx.objectType)
                 .addStatement("$1T $2L = ($1T) $3L", ctx.objectType, ctx.objectName, ctx.elementName)
                 .build());
-        methodBuilder.addCode(JanksonSerializerProvider.generateFieldChecks(processingEnv, defaultMissingErrorMessage, fields, ctx.objectName)
+        methodBuilder.addCode(JanksonSerializerProvider.generateFieldChecks(processingEnv, ctx.sCtx, fields, ctx.objectName, defaultMissingErrorMessage)
                 .build());
         methodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$1T $2L = new $1T()", typeName, configName)
@@ -80,7 +80,7 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
 
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            String serializedName = SerializerComponentProvider.getSerializedName(field);
+            String serializedName = SerializerComponentProvider.getSerializedName(ctx.sCtx, field);
             ctx.element = field;
             codeBuilder.add(JanksonSerializerProvider.generateGet(ctx, field).build());
             ctx.appendRead(field.asType(), serializedName, configName + "." + fieldName, codeBuilder);
@@ -146,8 +146,9 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
 
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
+            String serializedName = SerializerComponentProvider.getSerializedName(ctx.sCtx, field);
             ctx.element = null;
-            ctx.appendWrite(field.asType(), fieldName, configName + "." + fieldName, codeBuilder);
+            ctx.appendWrite(field.asType(), serializedName, configName + "." + fieldName, codeBuilder);
             codeBuilder.addStatement(JanksonSerializerProvider.generatePut(ctx, field).build());
         }
 

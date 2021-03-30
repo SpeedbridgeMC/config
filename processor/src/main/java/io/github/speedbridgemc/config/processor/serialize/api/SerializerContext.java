@@ -13,12 +13,15 @@ public final class SerializerContext {
     public final @NotNull ComponentContext compCtx;
     public final @NotNull TypeName configType;
     public final @Nullable String basePackage;
+    public final @NotNull NamingStrategyProvider nameProvider;
+    public final @NotNull String nameProviderVariant;
     public final @NotNull Map<@NotNull String, @NotNull Boolean> options;
     public final @NotNull MethodSpec.Builder readMethodBuilder, writeMethodBuilder;
     public final @Nullable String defaultMissingErrorMessage;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
 
     public SerializerContext(@NotNull ComponentContext compCtx, @NotNull TypeName configType, @Nullable String basePackage,
+                             @NotNull NamingStrategyProvider nameProvider, @NotNull String nameProviderVariant,
                              @NotNull Map<@NotNull String, @NotNull Boolean> options,
                              MethodSpec.@NotNull Builder readMethodBuilder, MethodSpec.@NotNull Builder writeMethodBuilder,
                              @Nullable String defaultMissingErrorMessage,
@@ -26,6 +29,8 @@ public final class SerializerContext {
         this.compCtx = compCtx;
         this.configType = configType;
         this.basePackage = basePackage;
+        this.nameProvider = nameProvider;
+        this.nameProviderVariant = nameProviderVariant;
         this.options = options;
         this.readMethodBuilder = readMethodBuilder;
         this.writeMethodBuilder = writeMethodBuilder;

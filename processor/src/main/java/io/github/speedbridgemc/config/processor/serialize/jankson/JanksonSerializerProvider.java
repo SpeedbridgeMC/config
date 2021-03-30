@@ -69,7 +69,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                 .beginControlFlow("try ($T in = $T.newInputStream(path))", InputStream.class, Files.class)
                 .addStatement("$T $L = JANKSON.load(in)", objectType, jCtx.objectName)
                 .build());
-        ctx.readMethodBuilder.addCode(generateFieldChecks(processingEnv, ctx.defaultMissingErrorMessage, fields, jCtx.objectName)
+        ctx.readMethodBuilder.addCode(generateFieldChecks(processingEnv, ctx, fields, jCtx.objectName, null)
                 .build());
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$T $L", primitiveType, jCtx.primitiveName)
@@ -79,7 +79,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            String serializedName = SerializerComponentProvider.getSerializedName(field);
+            String serializedName = SerializerComponentProvider.getSerializedName(ctx, field);
             jCtx.element = field;
             codeBuilder.add(generateGet(jCtx, field).build());
             jCtx.appendRead(field.asType(), serializedName, configName + "." + fieldName, codeBuilder);
@@ -98,7 +98,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
         codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields) {
             String fieldName = field.getSimpleName().toString();
-            String serializedName = SerializerComponentProvider.getSerializedName(field);
+            String serializedName = SerializerComponentProvider.getSerializedName(ctx, field);
             jCtx.element = field;
             jCtx.appendWrite(field.asType(), serializedName, configName + "." + fieldName, codeBuilder);
             codeBuilder.addStatement(generatePut(jCtx, field).build());
@@ -136,14 +136,15 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
     }
 
     public static @NotNull CodeBlock.Builder generateFieldChecks(@NotNull ProcessingEnvironment processingEnv,
-                                                                 @Nullable String defaultMissingErrorMessage,
-                                                                 @NotNull List<VariableElement> fields,
-                                                                 @NotNull String objectName) {
+                                              @NotNull SerializerContext ctx,
+                                              @NotNull List<VariableElement> fields,
+                                              @NotNull String objectName,
+                                                                 @Nullable String defaultMissingErrorMessage) {
         HashMap<String, String> missingErrorMessages = new HashMap<>();
-        SerializerComponentProvider.getMissingErrorMessages(processingEnv, fields, defaultMissingErrorMessage, missingErrorMessages);
+        SerializerComponentProvider.getMissingErrorMessages(processingEnv, ctx, fields, missingErrorMessages, defaultMissingErrorMessage);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields) {
-            String serializedName = SerializerComponentProvider.getSerializedName(field);
+            String serializedName = SerializerComponentProvider.getSerializedName(ctx, field);
             String missingErrorMessage = missingErrorMessages.get(serializedName);
             if (missingErrorMessage == null)
                 continue;
@@ -162,7 +163,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
 
     public static @NotNull CodeBlock.Builder generateGet(@NotNull JanksonContext ctx, @NotNull VariableElement field) {
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
-        String serializedName = SerializerComponentProvider.getSerializedName(field);
+        String serializedName = SerializerComponentProvider.getSerializedName(ctx.sCtx, field);
         codeBuilder.addStatement("$L = $L.get($S)", ctx.elementName, ctx.objectName, serializedName);
         for (String alias : SerializerComponentProvider.getSerializedAliases(field))
             codeBuilder
@@ -174,7 +175,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
 
     public static @NotNull CodeBlock.Builder generatePut(@NotNull JanksonContext ctx, @NotNull VariableElement field) {
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
-        String serializedName = SerializerComponentProvider.getSerializedName(field);
+        String serializedName = SerializerComponentProvider.getSerializedName(ctx.sCtx, field);
         codeBuilder.add("$L.put($S, $L)", ctx.objectName, serializedName, ctx.elementName);
         return codeBuilder;
     }
