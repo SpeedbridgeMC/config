@@ -4,6 +4,7 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.serialize.api.jankson.JanksonContext;
 import io.github.speedbridgemc.config.processor.validate.*;
 import org.jetbrains.annotations.NotNull;
@@ -17,6 +18,7 @@ import java.util.*;
 
 public final class ValidatorContext {
     private final List<ValidatorDelegate> delegates;
+    public final @NotNull ComponentContext compCtx;
     public final @NotNull TypeName configType;
     public final @NotNull Map<@NotNull String, @NotNull Boolean> options;
     public final @NotNull TypeSpec.Builder classBuilder;
@@ -28,10 +30,11 @@ public final class ValidatorContext {
     public boolean canSet = true;
     public int nestingFactor = 1;
 
-    public ValidatorContext(@NotNull TypeName configType,
+    public ValidatorContext(@NotNull ComponentContext compCtx, @NotNull TypeName configType,
                             @NotNull Map<@NotNull String, @NotNull Boolean> options,
                             TypeSpec.@NotNull Builder classBuilder,
                             @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
+        this.compCtx = compCtx;
         this.configType = configType;
         this.options = options;
         this.classBuilder = classBuilder;

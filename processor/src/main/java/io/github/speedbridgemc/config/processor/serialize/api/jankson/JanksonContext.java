@@ -4,6 +4,7 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.jankson.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -16,6 +17,7 @@ import java.util.*;
 public final class JanksonContext {
     private final List<JanksonDelegate> delegates;
     private final NestedJanksonDelegate nestedDelegate; // separated from the standard delegates since its a "last resort" measure
+    public final @NotNull SerializerContext sCtx;
     public final @NotNull TypeSpec.Builder classBuilder;
     public final @NotNull Set<@NotNull String> generatedMethods;
     public final @NotNull TypeName elementType, objectType, primitiveType, arrayType, nullType;
@@ -24,11 +26,12 @@ public final class JanksonContext {
     public @Nullable Element enclosingElement, element;
 
     @SuppressWarnings("RedundantSuppression")
-    public JanksonContext(TypeSpec.@NotNull Builder classBuilder,
+    public JanksonContext(@NotNull SerializerContext sCtx, TypeSpec.@NotNull Builder classBuilder,
                           @NotNull TypeName elementType, @NotNull TypeName objectType,
                           @NotNull TypeName primitiveType, @NotNull TypeName arrayType,
                           @NotNull TypeName nullType,
                           @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
+        this.sCtx = sCtx;
         this.classBuilder = classBuilder;
         this.elementType = elementType;
         this.objectType = objectType;

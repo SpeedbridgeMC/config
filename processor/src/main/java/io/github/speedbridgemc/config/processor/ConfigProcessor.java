@@ -55,19 +55,19 @@ public final class ConfigProcessor extends AbstractProcessor {
         } catch (FileNotFoundException e) {
             // version.properties isn't there
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Speedbridge Config's annotation processor couldn't find its \"version.properties\" file.");
+                    "Couldn't find \"version.properties\" file.");
         } catch (IOException e) {
             // couldn't read from version.properties
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Speedbridge Config's annotation processor couldn't read its \"version.properties\" file due to an IO error: " + e.getMessage());
+                    "Couldn't read  \"version.properties\" file due to an IO error: " + e.getMessage());
         } catch (IllegalArgumentException e) {
             // version.properties is malformed
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Speedbridge Config's annotation processor couldn't parse its \"version.properties\" file: " + e.getMessage());
+                    "Couldn't parse \"version.properties\" file: " + e.getMessage());
         } catch (IllegalStateException e) {
             // version.properties doesn't contain a "version" property
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Speedbridge Config's annotation processor's \"version.properties\" file doesn't contain a \"version\" property.");
+                    "\"version.properties\" file doesn't contain a \"version\" property.");
         }
         if (version == null) {
             messager.printMessage(Diagnostic.Kind.ERROR,

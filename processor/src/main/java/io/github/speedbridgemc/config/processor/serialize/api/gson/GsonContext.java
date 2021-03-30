@@ -4,6 +4,7 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+import io.github.speedbridgemc.config.processor.serialize.api.SerializerContext;
 import io.github.speedbridgemc.config.processor.serialize.gson.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -16,6 +17,7 @@ import java.util.*;
 public final class GsonContext {
     private final List<GsonDelegate> delegates;
     private final NestedGsonDelegate nestedDelegate; // separated from the standard delegates since its a "last resort" measure
+    public final @NotNull SerializerContext sCtx;
     public final @NotNull TypeSpec.Builder classBuilder;
     public final @NotNull Set<@NotNull String> generatedMethods;
     public final @NotNull Map<@NotNull String, @NotNull String> gotFlags;
@@ -26,8 +28,9 @@ public final class GsonContext {
     public @Nullable Element enclosingElement, element;
 
     @SuppressWarnings("RedundantSuppression")
-    public GsonContext(TypeSpec.@NotNull Builder classBuilder, @NotNull TypeName readerType, @NotNull TypeName writerType,
+    public GsonContext(@NotNull SerializerContext sCtx, TypeSpec.@NotNull Builder classBuilder, @NotNull TypeName readerType, @NotNull TypeName writerType,
                        @NotNull TypeName tokenType, @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
+        this.sCtx = sCtx;
         this.classBuilder = classBuilder;
         this.readerType = readerType;
         this.writerType = writerType;

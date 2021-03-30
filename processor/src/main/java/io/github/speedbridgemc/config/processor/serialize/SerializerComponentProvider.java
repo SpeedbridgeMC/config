@@ -141,7 +141,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 .addParameter(configParamBuilder.build())
                 .addParameter(pathParamBuilder.build())
                 .addException(IOException.class);
-        SerializerContext sCtx = new SerializerContext(configType, basePackage, options,
+        SerializerContext sCtx = new SerializerContext(ctx, configType, basePackage, options,
                 readMethodBuilder, writeMethodBuilder,
                 defaultMissingErrorMessage, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         provider.process(name, type, fields, sCtx, classBuilder);

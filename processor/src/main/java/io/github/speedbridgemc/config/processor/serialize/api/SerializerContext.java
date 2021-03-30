@@ -3,12 +3,14 @@ package io.github.speedbridgemc.config.processor.serialize.api;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
+import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 
 public final class SerializerContext {
+    public final @NotNull ComponentContext compCtx;
     public final @NotNull TypeName configType;
     public final @Nullable String basePackage;
     public final @NotNull Map<@NotNull String, @NotNull Boolean> options;
@@ -16,11 +18,12 @@ public final class SerializerContext {
     public final @Nullable String defaultMissingErrorMessage;
     public final @Nullable ClassName nonNullAnnotation, nullableAnnotation;
 
-    public SerializerContext(@NotNull TypeName configType, @Nullable String basePackage,
+    public SerializerContext(@NotNull ComponentContext compCtx, @NotNull TypeName configType, @Nullable String basePackage,
                              @NotNull Map<@NotNull String, @NotNull Boolean> options,
                              MethodSpec.@NotNull Builder readMethodBuilder, MethodSpec.@NotNull Builder writeMethodBuilder,
                              @Nullable String defaultMissingErrorMessage,
                              @Nullable ClassName nonNullAnnotation, @Nullable ClassName nullableAnnotation) {
+        this.compCtx = compCtx;
         this.configType = configType;
         this.basePackage = basePackage;
         this.options = options;

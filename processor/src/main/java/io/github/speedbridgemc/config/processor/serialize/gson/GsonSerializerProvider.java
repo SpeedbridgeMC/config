@@ -41,7 +41,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
         TypeName writerType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonWriter");
         TypeName tokenType = TypeUtils.getTypeName(processingEnv, basePackage + ".JsonToken");
         TypeName malformedExceptionType = TypeUtils.getTypeName(processingEnv, basePackage + ".MalformedJsonException");
-        GsonContext gCtx = new GsonContext(classBuilder, readerType, writerType, tokenType,
+        GsonContext gCtx = new GsonContext(ctx, classBuilder, readerType, writerType, tokenType,
                 ctx.nonNullAnnotation, ctx.nullableAnnotation);
         gCtx.init(processingEnv);
         gCtx.enclosingElement = type;

@@ -43,7 +43,7 @@ public final class ValidatorComponentProvider extends BaseComponentProvider {
                 .addException(IllegalArgumentException.class);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
 
-        ValidatorContext vCtx = new ValidatorContext(configType, options, classBuilder, ctx.nonNullAnnotation, ctx.nullableAnnotation);
+        ValidatorContext vCtx = new ValidatorContext(ctx, configType, options, classBuilder, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         vCtx.init(processingEnv);
         vCtx.configName = configName;
 

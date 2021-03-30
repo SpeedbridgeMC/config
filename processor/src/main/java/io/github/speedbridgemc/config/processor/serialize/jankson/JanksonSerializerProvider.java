@@ -60,7 +60,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                 .addField(FieldSpec.builder(grammarType, "GRAMMAR", Modifier.PRIVATE, Modifier.STATIC, Modifier.FINAL)
                         .initializer("$T.builder()$L.build()", grammarType, createGrammarCode(grammarMap))
                         .build());
-        JanksonContext jCtx = new JanksonContext(classBuilder, elementType, objectType, primitiveType, arrayType, nullType, ctx.nonNullAnnotation, ctx.nullableAnnotation);
+        JanksonContext jCtx = new JanksonContext(ctx, classBuilder, elementType, objectType, primitiveType, arrayType, nullType, ctx.nonNullAnnotation, ctx.nullableAnnotation);
         jCtx.init(processingEnv);
         jCtx.enclosingElement = type;
         String configName = "config";
