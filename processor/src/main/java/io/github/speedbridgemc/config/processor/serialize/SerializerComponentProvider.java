@@ -292,22 +292,20 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
     public static void getMissingErrorMessages(@NotNull ProcessingEnvironment processingEnv,
                                                @NotNull SerializerContext ctx,
                                                @NotNull List<@NotNull VariableElement> fields,
-                                               @NotNull Map<@NotNull String, @Nullable String> result,
-                                               @Nullable String defaultMissingErrorMessage) {
-        if (defaultMissingErrorMessage == null)
-            defaultMissingErrorMessage = ctx.defaultMissingErrorMessage;
+                                               @Nullable String defaultMissingErrorMessage,
+                                               @NotNull Map<@NotNull String, @Nullable String> result) {
         for (VariableElement field : fields) {
-            String fieldMissingErrorMessage = "Missing field \"%s\"!";
+            String missingErrorMessage = "Missing field \"%s\"!";
             if (field.getAnnotation(UseDefaultIfMissing.class) != null)
-                fieldMissingErrorMessage = null;
+                missingErrorMessage = null;
             else {
                 ThrowIfMissing throwIfMissing = field.getAnnotation(ThrowIfMissing.class);
                 if (throwIfMissing == null)
-                    fieldMissingErrorMessage = defaultMissingErrorMessage;
+                    missingErrorMessage = defaultMissingErrorMessage;
                 else {
                     String[] fieldMissingErrorMessageIn = throwIfMissing.message();
                     if (fieldMissingErrorMessageIn.length == 1)
-                        fieldMissingErrorMessage = fieldMissingErrorMessageIn[0];
+                        missingErrorMessage = fieldMissingErrorMessageIn[0];
                     else if (fieldMissingErrorMessageIn.length > 1) {
                         processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
                                 "Field specifies more than one error message in @ThrowIfMissing", field);
@@ -315,15 +313,8 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     }
                 }
             }
-            result.put(SerializerComponentProvider.getSerializedName(ctx, field), fieldMissingErrorMessage);
+            result.put(SerializerComponentProvider.getSerializedName(ctx, field), missingErrorMessage);
         }
-    }
-
-    public static void getMissingErrorMessages(@NotNull ProcessingEnvironment processingEnv,
-                                               @NotNull SerializerContext ctx,
-                                               @NotNull List<@NotNull VariableElement> fields,
-                                               @NotNull Map<@NotNull String, @Nullable String> result) {
-        getMissingErrorMessages(processingEnv, ctx, fields, result, null);
     }
 
     public final static class EnumKeyType {

@@ -45,7 +45,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
                 ctx.nonNullAnnotation, ctx.nullableAnnotation);
         gCtx.init(processingEnv);
         gCtx.enclosingElement = type;
-        SerializerComponentProvider.getMissingErrorMessages(processingEnv, ctx, fields, gCtx.missingErrorMessages);
+        SerializerComponentProvider.getMissingErrorMessages(processingEnv, ctx, fields, ctx.defaultMissingErrorMessage, gCtx.missingErrorMessages);
         generateGotFlags(gCtx, fields);
         String objName = "config";
         ctx.readMethodBuilder.addCode("$1T $2L = new $1T();\n", configType, objName);
@@ -116,7 +116,7 @@ public final class GsonSerializerProvider extends BaseSerializerProvider {
 
     public static void generateGotFlags(@NotNull GsonContext ctx, @NotNull List<@NotNull VariableElement> fields) {
         for (VariableElement field : fields) {
-            String fieldName = SerializerComponentProvider.getSerializedName(ctx.sCtx, field);
+            String fieldName = field.getSimpleName().toString();
             if (ctx.missingErrorMessages.get(fieldName) != null)
                 ctx.gotFlags.put(fieldName, "got" + StringUtils.titleCase(fieldName));
         }

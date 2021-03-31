@@ -50,10 +50,7 @@ public final class EnumJanksonDelegate extends BaseJanksonDelegate {
                 .addException(IOException.class);
         if (ctx.nullableAnnotation != null)
             methodBuilder.addAnnotation(ctx.nullableAnnotation);
-        CodeBlock.Builder codeBuilder = CodeBlock.builder()
-                .beginControlFlow("if ($L == $T.INSTANCE)", ctx.elementName, ctx.nullType)
-                .addStatement("return null")
-                .endControlFlow();
+        CodeBlock.Builder codeBuilder = CodeBlock.builder();
         SerializerComponentProvider.EnumKeyType keyType = SerializerComponentProvider.getEnumKeyType(processingEnv, typeElement, ctx.classBuilder);
         if (keyType != null) {
             TypeMirror keyTypeMirror = keyType.type;

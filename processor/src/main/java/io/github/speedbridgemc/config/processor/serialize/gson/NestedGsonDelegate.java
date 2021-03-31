@@ -70,7 +70,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         ctx.enclosingElement = elementBackup;
 
         String defaultMissingErrorMessage = SerializerComponentProvider.getDefaultMissingErrorMessage(processingEnv, typeElement);
-        SerializerComponentProvider.getMissingErrorMessages(processingEnv, ctx.sCtx, fields, ctx.missingErrorMessages, defaultMissingErrorMessage);
+        SerializerComponentProvider.getMissingErrorMessages(processingEnv, ctx.sCtx, fields, defaultMissingErrorMessage, ctx.missingErrorMessages);
         GsonSerializerProvider.generateGotFlags(ctx, fields);
         String objName = "obj" + typeElement.getSimpleName();
         methodBuilder.addCode("$1T $2L = new $1T();\n", typeName, objName);

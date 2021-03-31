@@ -70,14 +70,6 @@ public final class PrimitiveValidatorDelegate extends BaseValidatorDelegate {
                 isInteger = true;
                 possibleMinI = Integer.MIN_VALUE;
                 possibleMaxI = Integer.MAX_VALUE;
-            } else if (TypeName.SHORT.equals(typeName)) {
-                isInteger = true;
-                possibleMinI = Short.MIN_VALUE;
-                possibleMaxI = Short.MAX_VALUE;
-            } else if (TypeName.BYTE.equals(typeName)) {
-                isInteger = true;
-                possibleMinI = Byte.MIN_VALUE;
-                possibleMaxI = Byte.MAX_VALUE;
             }
             if (isInteger) {
                 long max = integerRange.max();

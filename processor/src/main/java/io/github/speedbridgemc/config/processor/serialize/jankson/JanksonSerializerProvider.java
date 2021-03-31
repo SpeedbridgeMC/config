@@ -69,7 +69,7 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                 .beginControlFlow("try ($T in = $T.newInputStream(path))", InputStream.class, Files.class)
                 .addStatement("$T $L = JANKSON.load(in)", objectType, jCtx.objectName)
                 .build());
-        ctx.readMethodBuilder.addCode(generateFieldChecks(processingEnv, ctx, fields, jCtx.objectName, null)
+        ctx.readMethodBuilder.addCode(generateFieldChecks(processingEnv, ctx, fields, jCtx.objectName, ctx.defaultMissingErrorMessage)
                 .build());
         ctx.readMethodBuilder.addCode(CodeBlock.builder()
                 .addStatement("$T $L", primitiveType, jCtx.primitiveName)
@@ -139,9 +139,9 @@ public final class JanksonSerializerProvider extends BaseSerializerProvider {
                                               @NotNull SerializerContext ctx,
                                               @NotNull List<VariableElement> fields,
                                               @NotNull String objectName,
-                                                                 @Nullable String defaultMissingErrorMessage) {
+                                              @Nullable String defaultMissingErrorMessage) {
         HashMap<String, String> missingErrorMessages = new HashMap<>();
-        SerializerComponentProvider.getMissingErrorMessages(processingEnv, ctx, fields, missingErrorMessages, defaultMissingErrorMessage);
+        SerializerComponentProvider.getMissingErrorMessages(processingEnv, ctx, fields, defaultMissingErrorMessage, missingErrorMessages);
         CodeBlock.Builder codeBuilder = CodeBlock.builder();
         for (VariableElement field : fields) {
             String serializedName = SerializerComponentProvider.getSerializedName(ctx, field);
