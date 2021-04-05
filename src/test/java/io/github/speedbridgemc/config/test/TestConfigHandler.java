@@ -15,6 +15,7 @@ public interface TestConfigHandler {
     void reset();
     void load();
     void save();
+    void stopWatching();
     void setRemote(@Nullable TestConfig remoteConfig);
 
     default void log(@NotNull LogLevel level, @NotNull String msg, @Nullable Exception e) {
@@ -27,7 +28,7 @@ public interface TestConfigHandler {
     }
 
     default @NotNull Path resolvePath(@NotNull String name) {
-        return Paths.get(".", name + ".json");
+        return Paths.get(".", name + ".json").toAbsolutePath().normalize();
     }
 
     default @NotNull TestConfig postLoad(@NotNull TestConfig config) {

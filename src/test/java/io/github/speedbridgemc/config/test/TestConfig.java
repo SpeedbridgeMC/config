@@ -13,7 +13,7 @@ import java.util.Map;
         components = {
         @Component(
                 value = "speedbridge-config:serializer",
-                params = "provider=speedbridge-config:jankson"
+                params = { "provider=speedbridge-config:jankson", "options=+watchFileForChanges" }
         ),
                 @Component("speedbridge-config:remote_storage"),
                 @Component("speedbridge-config:validator")

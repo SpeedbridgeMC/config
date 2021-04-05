@@ -22,11 +22,9 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @ApiStatus.Internal
 @AutoService(ComponentProvider.class)
@@ -110,18 +108,27 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
             return;
         TypeName pathName = ClassName.get(Path.class);
         TypeName stringName = ClassName.get(String.class);
+
+        HashMap<String, Boolean> options = new HashMap<>();
+        parseOptions(ctx.params.get("options").toArray(new String[0]), options);
+        boolean watchFileForChanges = options.getOrDefault("watchFileForChanges", false);
         boolean gotResolvePath = ctx.hasMethod(MethodSignature.ofDefault(pathName, "resolvePath", stringName));
         if (!gotResolvePath) {
             messager.printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required default method: Path resolvePath(String)", ctx.handlerInterfaceTypeElement);
+        }
+        if (watchFileForChanges) {
+            boolean gotStopWatching = ctx.hasMethod(MethodSignature.of(TypeName.VOID, "stopWatching"));
+            if (!gotStopWatching) {
+                messager.printMessage(Diagnostic.Kind.ERROR,
+                        "Handler interface is missing required method: void stopWatching()", ctx.handlerInterfaceTypeElement);
+            }
         }
         String defaultMissingErrorMessage = getDefaultMissingErrorMessage(processingEnv, type);
         classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
                 .initializer("resolvePath($S)", name)
                 .build());
         String basePackage = ParamUtils.allOrNothing(ctx.params, "base_package");
-        HashMap<String, Boolean> options = new HashMap<>();
-        parseOptions(ctx.params.get("options").toArray(new String[0]), options);
         TypeName configType = ctx.configType;
         ParameterSpec.Builder pathParamBuilder = ParameterSpec.builder(Path.class, "path");
         if (ctx.nonNullAnnotation != null)
@@ -199,6 +206,98 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     RuntimeException.class, "Failed to read from config file \"", "\"!");
         }
         loadCodeBuilder.endControlFlow();
+        if (watchFileForChanges) {
+            classBuilder
+                    .addField(FieldSpec.builder(AtomicBoolean.class, "reloadOnNextGet", Modifier.PRIVATE)
+                            .initializer("new $T(false)", AtomicBoolean.class)
+                            .build())
+                    .addField(FieldSpec.builder(AtomicBoolean.class, "ignoreNextWatchEvent", Modifier.PRIVATE)
+                            .initializer("new $T(false)", AtomicBoolean.class)
+                            .build())
+                    .addField(FieldSpec.builder(Thread.class, "watcherThread", Modifier.PRIVATE).build())
+                    .addField(FieldSpec.builder(AtomicBoolean.class, "watcherThreadRunning", Modifier.PRIVATE).build())
+                    .addType(TypeSpec.classBuilder("WatcherThread")
+                            .addModifiers(Modifier.PRIVATE)
+                            .superclass(Thread.class)
+                            .addMethod(MethodSpec.constructorBuilder()
+                                    .addModifiers(Modifier.PRIVATE)
+                                    .addStatement("super($S)", TypeUtils.getSimpleName(ctx.configType) + " file watcher")
+                                    .addStatement("setDaemon(true)")
+                                    .build())
+                            .addMethod(MethodSpec.methodBuilder("run")
+                                    .addAnnotation(Override.class)
+                                    .addAnnotation(AnnotationSpec.builder(SuppressWarnings.class)
+                                            .addMember("value", "$S", "unchecked")
+                                            .build())
+                                    .addModifiers(Modifier.PUBLIC)
+                                    .addCode(CodeBlock.builder()
+                                            .beginControlFlow("try ($T watcher = $T.getDefault().newWatchService())",
+                                                    WatchService.class, FileSystems.class)
+                                            .addStatement("$T watchedPath = path.toAbsolutePath().getParent()", Path.class)
+                                            .addStatement("watchedPath.register(watcher, $1T.OVERFLOW, $1T.ENTRY_CREATE, $1T.ENTRY_MODIFY)",
+                                                    StandardWatchEventKinds.class)
+                                            .beginControlFlow("while (watcherThreadRunning.get())")
+                                            .addStatement("final $T key", WatchKey.class)
+                                            .beginControlFlow("try")
+                                            .addStatement("key = watcher.take()")
+                                            .nextControlFlow("catch ($T e)", InterruptedException.class)
+                                            .addStatement("continue")
+                                            .nextControlFlow("catch ($T e)", ClosedWatchServiceException.class)
+                                            .addStatement("log($T.WARN, $S, e)", LogLevel.class, "WatchService was closed while file watcher was still running! Shutting down")
+                                            .addStatement("watcherThreadRunning.lazySet(false)")
+                                            .addStatement("break")
+                                            .endControlFlow()
+                                            .beginControlFlow("if (key == null)")
+                                            .addStatement("continue")
+                                            .endControlFlow()
+                                            .beginControlFlow("for ($T event : key.pollEvents())",
+                                                    WildcardTypeName.get(WatchEvent.class))
+                                            .addStatement("$T kind = event.kind()",
+                                                    WildcardTypeName.get(WatchEvent.Kind.class))
+                                            .beginControlFlow("if (kind == $T.OVERFLOW)", StandardWatchEventKinds.class)
+                                            .addStatement("continue")
+                                            .endControlFlow()
+                                            .addStatement("$1T pathEvent = ($1T) event",
+                                                    ParameterizedTypeName.get(WatchEvent.class, Path.class))
+                                            .beginControlFlow("if (path.equals(pathEvent.context()) && !ignoreNextWatchEvent.compareAndSet(true, false))")
+                                            .addStatement("reloadOnNextGet.set(true)")
+                                            .endControlFlow()
+                                            .endControlFlow()
+                                            .endControlFlow()
+                                            .nextControlFlow("catch ($T e)", IOException.class)
+                                            .addStatement("log($T.ERROR, $S, e)", LogLevel.class, "Failed while running file watcher!")
+                                            .addStatement("watcherThreadRunning.lazySet(false)")
+                                            .endControlFlow()
+                                            .build())
+                                    .build())
+                                .build())
+                    .addMethod(MethodSpec.methodBuilder("stopWatching")
+                            .addAnnotation(Override.class)
+                            .addModifiers(Modifier.PUBLIC)
+                            .addCode(CodeBlock.builder()
+                                    .beginControlFlow("if (watcherThread != null)")
+                                    .addStatement("watcherThreadRunning.set(false)")
+                                    .beginControlFlow("try")
+                                    .addStatement("watcherThread.join()")
+                                    .nextControlFlow("catch ($T ignored)", InterruptedException.class)
+                                    .endControlFlow()
+                                    .addStatement("watcherThread = null")
+                                    .addStatement("watcherThreadRunning = null")
+                                    .endControlFlow()
+                                    .build())
+                            .build());
+            ctx.loadMethodBuilder.addCode(CodeBlock.builder()
+                    .beginControlFlow("if (watcherThread == null)")
+                    .addStatement("watcherThread = new WatcherThread()")
+                    .addStatement("watcherThread.start()")
+                    .endControlFlow()
+                    .build());
+            ctx.getMethodBuilder.addCode(CodeBlock.builder()
+                    .beginControlFlow("if (reloadOnNextGet.compareAndSet(true, false))")
+                    .addStatement("load()")
+                    .endControlFlow()
+                    .build());
+        }
         ctx.loadMethodBuilder.addCode(loadCodeBuilder.build());
 
         // FIXME find better name for this
@@ -237,6 +336,8 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                             LogLevel.class, "Failed to write to config file at \"", "\"!")
                     .endControlFlow();
         }
+        if (watchFileForChanges)
+            saveCodeBuilder.addStatement("ignoreNextWatchEvent.set(true)");
         ctx.saveMethodBuilder.addCode(saveCodeBuilder.build());
     }
 
