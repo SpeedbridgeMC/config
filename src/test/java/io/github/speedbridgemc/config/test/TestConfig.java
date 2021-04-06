@@ -13,7 +13,7 @@ import java.util.Map;
         components = {
         @Component(
                 value = "speedbridge-config:serializer",
-                params = { "provider=speedbridge-config:jankson", "options=+watchFileForChanges" }
+                params = "provider=speedbridge-config:jankson"
         ),
                 @Component("speedbridge-config:remote_storage"),
                 @Component("speedbridge-config:validator")
@@ -21,7 +21,7 @@ import java.util.Map;
         nonNullAnnotation = "org.jetbrains.annotations.NotNull", nullableAnnotation = "org.jetbrains.annotations.Nullable")
 public final class TestConfig {
     public boolean testBool = false;
-    @ThrowIfMissing(message = "test string is :crab:, also \"%s\" is missing")
+    @ThrowIfMissing(message = "test string is :crab:")
     public String testString = "hello world";
     @FloatingRange(max = 50.2)
     public float testFloat = 21.5f;

@@ -171,6 +171,8 @@ public final class ConfigProcessor extends AbstractProcessor {
             TypeName exceptionName = ClassName.get(Exception.class);
             boolean gotGet = MethodSignature.contains(handlerInterfaceMethods,
                     MethodSignature.of(configName, "get"));
+            boolean gotSet = MethodSignature.contains(handlerInterfaceMethods,
+                    MethodSignature.of(TypeName.VOID, "set", configName));
             boolean gotReset = MethodSignature.contains(handlerInterfaceMethods,
                     MethodSignature.of(TypeName.VOID, "reset"));
             boolean gotLoad = MethodSignature.contains(handlerInterfaceMethods,
@@ -227,21 +229,31 @@ public final class ConfigProcessor extends AbstractProcessor {
                     .addModifiers(Modifier.FINAL)
                     .addSuperinterface(handlerInterfaceTypeName)
                     .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).build());
-            TypeName configTypeName = TypeName.get(typeElement.asType());
-            FieldSpec.Builder configFieldBuilder = FieldSpec.builder(configTypeName, "config", Modifier.PRIVATE);
+            FieldSpec.Builder configFieldBuilder = FieldSpec.builder(configName, "config", Modifier.PRIVATE);
             if (nullableAnnotation != null)
                 configFieldBuilder.addAnnotation(nullableAnnotation);
             classBuilder.addField(configFieldBuilder.build());
             MethodSpec.Builder getMethodBuilder = MethodSpec.methodBuilder("get")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .returns(configTypeName);
+                    .returns(configName);
             if (nonNullAnnotation != null)
                 getMethodBuilder.addAnnotation(nonNullAnnotation);
+            MethodSpec.Builder setMethodBuilder = null;
+            if (gotSet) {
+                ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(configName, "config");
+                if (nonNullAnnotation != null)
+                    configParamBuilder.addAnnotation(nonNullAnnotation);
+                setMethodBuilder = MethodSpec.methodBuilder("set")
+                        .addAnnotation(Override.class)
+                        .addModifiers(Modifier.PUBLIC)
+                        .addParameter(configParamBuilder.build())
+                        .addStatement("this.config = config");
+            }
             MethodSpec.Builder resetMethodBuilder = MethodSpec.methodBuilder("reset")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .addCode("config = new $T();\n", configTypeName);
+                    .addStatement("config = new $T()", configName);
             MethodSpec.Builder loadMethodBuilder = MethodSpec.methodBuilder("load")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC);
@@ -280,21 +292,26 @@ public final class ConfigProcessor extends AbstractProcessor {
                 }
                 ComponentContext ctx = new ComponentContext(handlerName, handlerInterfaceTypeName, handlerInterfaceTypeElement,
                         handlerInterfaceMethods, nonNullAnnotation, nullableAnnotation,
-                        configTypeName, params, getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder);
+                        configName, params, getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }
 
             if (gotPostLoad)
-                loadMethodBuilder.addCode("config = postLoad(config);");
+                loadMethodBuilder.addStatement("config = postLoad(config)");
             if (gotPostSave)
-                saveMethodBuilder.addCode("postSave(config);");
+                saveMethodBuilder.addStatement("postSave(config)");
 
-            classBuilder.addMethod(getMethodBuilder.addCode(CodeBlock.builder()
-                    .beginControlFlow("if (config == null)")
-                    .addStatement("load()")
-                    .endControlFlow()
-                    .addStatement("return config")
-                    .build()).build())
+            classBuilder.addMethod(getMethodBuilder.addCode(
+                    CodeBlock.builder()
+                            .beginControlFlow("if (config == null)")
+                            .addStatement("load()")
+                            .endControlFlow()
+                            .addStatement("return config")
+                            .build())
+                    .build());
+            if (setMethodBuilder != null)
+                classBuilder.addMethod(setMethodBuilder.build());
+            classBuilder
                     .addMethod(resetMethodBuilder.build())
                     .addMethod(loadMethodBuilder.build())
                     .addMethod(saveMethodBuilder.build());
