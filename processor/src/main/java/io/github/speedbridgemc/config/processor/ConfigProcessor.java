@@ -59,7 +59,7 @@ public final class ConfigProcessor extends AbstractProcessor {
         } catch (IOException e) {
             // couldn't read from version.properties
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Couldn't read  \"version.properties\" file due to an IO error: " + e.getMessage());
+                    "Couldn't read \"version.properties\" file due to an IO error: " + e.getMessage());
         } catch (IllegalArgumentException e) {
             // version.properties is malformed
             messager.printMessage(Diagnostic.Kind.ERROR,
