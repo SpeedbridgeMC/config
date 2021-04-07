@@ -1,13 +1,21 @@
 package io.github.speedbridgemc.config.test;
 
+import javax.swing.*;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.awt.event.WindowEvent;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class Test {
+    public static SerialExecutorService executor;
+    private static AtomicBoolean running;
+
     public static void main(String[] args) {
-        Random rnd = new Random();
+        executor = new SerialExecutorService();
 
         TestConfig cfg = TestConfigHandler.INSTANCE.get();
         System.out.println("testString = \"" + cfg.testString + "\"");
@@ -17,27 +25,34 @@ public class Test {
         boolean tmp = cfg.helloWorld.enabledThat;
         cfg.helloWorld.enabledThat = cfg.helloWorld.enabledThis;
         cfg.helloWorld.enabledThis = tmp;
-        TestConfig.HelloWorld newHW = new TestConfig.HelloWorld();
-        newHW.aFloat = rnd.nextFloat() * 10;
-        cfg.testList2.add(newHW);
-        cfg.testNestedList.add(new int[] { rnd.nextInt(30), rnd.nextInt(20), rnd.nextInt(10) });
-        TestConfig.StringEntry newSE = new TestConfig.StringEntry();
-        newSE.ayy = rnd.nextInt(40);
-        newSE.lmao = new boolean[] { rnd.nextBoolean(), rnd.nextBoolean() };
-        cfg.testStringKeysMap.put("yoyo", newSE);
-        TestConfig.MapKey newMK = new TestConfig.MapKey();
-        newMK.acto = rnd.nextFloat() * 20;
-        newMK.testo = rnd.nextInt(10);
-        TestConfig.MapValue newMV = new TestConfig.MapValue();
-        newMV.helloWorld.intA = rnd.nextInt(100);
-        newMV.helloWorld.intB = rnd.nextInt(100);
-        newMV.helloWorld.intC = 6 + rnd.nextInt(30);
-        cfg.testMap.put(newMK, newMV);
         HashMap<String, String> nested = new HashMap<>();
         nested.put("yo", "yo!!!");
         nested.put("does this actually...", "work??");
         cfg.testNestedMap.put("aaaaa", nested);
 
         TestConfigHandler.INSTANCE.save();
+
+        running = new AtomicBoolean(true);
+
+        JFrame frame = new JFrame();
+        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+        frame.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                running.set(false);
+                frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+            }
+        });
+
+        frame.setSize(200, 60);
+        JLabel label = new JLabel("Press any button to exit.");
+        frame.add(label);
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+        frame.requestFocus();
+
+        while (running.get())
+            executor.process();
+        executor.shutdownNow();
     }
 }

@@ -12,28 +12,36 @@ public interface TestConfigHandler {
     TestConfigHandler INSTANCE = new TestConfigHandlerImpl();
 
     @NotNull TestConfig get();
+    void set(@NotNull TestConfig config);
     void reset();
     void load();
     void save();
+    void stopWatching();
+    void startWatching();
     void setRemote(@Nullable TestConfig remoteConfig);
 
     default void log(@NotNull LogLevel level, @NotNull String msg, @Nullable Exception e) {
         PrintStream out = System.out;
         if (LogLevel.ERROR.isSameLevelOrHigher(level))
             out = System.err;
-        out.println(msg);
+        out.println("[" + level + "/" + Thread.currentThread().getName() + "] " + msg);
         if (e != null)
             e.printStackTrace(out);
     }
 
     default @NotNull Path resolvePath(@NotNull String name) {
-        return Paths.get(".", name + ".json").normalize();
+        return Paths.get("test", name + ".json5").normalize().toAbsolutePath();
+    }
+
+    default void runOnMainThread(@NotNull Runnable command) {
+        Test.executor.execute(command);
     }
 
     default @NotNull TestConfig postLoad(@NotNull TestConfig config) {
+        log(LogLevel.INFO, "Config loaded!", null);
         return config;
     }
     default void postSave(@NotNull TestConfig config) {
-
+        log(LogLevel.INFO, "Config saved!", null);
     }
 }

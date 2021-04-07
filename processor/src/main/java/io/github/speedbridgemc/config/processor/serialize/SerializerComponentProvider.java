@@ -117,7 +117,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
             messager.printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required default method: Path resolvePath(String)", ctx.handlerInterfaceTypeElement);
         }
-        boolean gotStartWatching = false, externalThreadManagement = false;
+        boolean gotStartWatching = false, externalThreadManagement = false, gotRunOnMainThread = false;
         if (watchFileForChanges) {
             gotStartWatching = ctx.hasMethod(MethodSignature.of(TypeName.VOID, "startWatching"));
             boolean gotStartWatcherThread = ctx.hasMethod(MethodSignature.ofDefault("startWatcherThread", ClassName.get(Runnable.class)));
@@ -138,6 +138,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: void stopWatching()", ctx.handlerInterfaceTypeElement);
             }
+            gotRunOnMainThread = ctx.hasMethod(MethodSignature.ofDefault("runOnMainThread", ClassName.get(Runnable.class)));
         }
         String defaultMissingErrorMessage = getDefaultMissingErrorMessage(processingEnv, type);
         classBuilder.addField(FieldSpec.builder(Path.class, "path", Modifier.PRIVATE, Modifier.FINAL)
@@ -175,7 +176,8 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 .addStatement("config = read(path)")
                 .nextControlFlow("catch ($T e)", NoSuchFileException.class)
                 .addStatement("log($T.INFO, $S + path + $S, null)",
-                        LogLevel.class, "File \"", "\" does not exist, loading default values")
+                        LogLevel.class, "File \"", "\" does not exist, resetting to default values")
+                .addStatement("reset()")
                 .nextControlFlow("catch ($T e)", IOException.class)
                 .addStatement("log($T.ERROR, $S + path + $S, e)",
                         LogLevel.class, "Failed to read from config file at \"", "\"!");
@@ -198,7 +200,6 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 loadCodeBuilder
                         .beginControlFlow("if (backupSuccess)")
                         .addStatement("reset()")
-                        .addStatement("save()")
                         .addStatement("throw new $T($S + path + $S + backupPath + $S, e)",
                                 RuntimeException.class, "Failed to read from config file \"",
                                 "\"! File has been replaced with default values, with the original backed up at \"", "\"")
@@ -213,21 +214,46 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                                 LogLevel.class, "Backed up config file to \"", "\"")
                         .endControlFlow()
                         .addStatement("log($T.WARN, $S, null)",
-                                LogLevel.class, "Loading and saving default config values")
-                        .addStatement("reset()")
-                        .addStatement("save()");
+                                LogLevel.class, "Resetting to default config values")
+                        .addStatement("reset()");
         } else if (crashOnFail) {
             loadCodeBuilder.addStatement("throw new $T($S + path + $S, e)",
                     RuntimeException.class, "Failed to read from config file \"", "\"!");
         }
         loadCodeBuilder.endControlFlow();
         if (watchFileForChanges) {
+            CodeBlock reloadBlock;
+            if (gotRunOnMainThread) {
+                CodeBlock.Builder reloadBlockBuilder = CodeBlock.builder()
+                        .beginControlFlow("if (reloadQueued.compareAndSet(false, true))")
+                        .addStatement("log($T.TRACE, $S, null)",
+                                LogLevel.class, "Queueing load operation on main thread");
+                if (externalThreadManagement)
+                    reloadBlockBuilder.addStatement("runOnMainThread(this::load)");
+                else
+                    reloadBlockBuilder.addStatement("runOnMainThread($T.this::load)", ctx.handlerName);
+                reloadBlock = reloadBlockBuilder
+                        .nextControlFlow("else")
+                        .addStatement("log($T.TRACE, $S, null)",
+                                LogLevel.class, "Ignoring since load operation is already queued")
+                        .endControlFlow()
+                        .build();
+            } else
+                reloadBlock = CodeBlock.builder()
+                        .addStatement("log($T.TRACE, $S, null)",
+                                LogLevel.class, "Flagging for reload on next get")
+                        .addStatement("reloadOnNextGet.set(true)")
+                        .build();
+
             CodeBlock watcherThreadBlock = CodeBlock.builder()
                     .beginControlFlow("try ($T watcher = $T.getDefault().newWatchService())",
                             WatchService.class, FileSystems.class)
+                    .addStatement("$T localPath = path.getFileName()", Path.class)
                     .addStatement("$T watchedPath = path.toAbsolutePath().getParent()", Path.class)
-                    .addStatement("watchedPath.register(watcher, $1T.OVERFLOW, $1T.ENTRY_CREATE, $1T.ENTRY_MODIFY)",
+                    .addStatement("watchedPath.register(watcher, $1T.ENTRY_MODIFY)",
                             StandardWatchEventKinds.class)
+                    .addStatement("log($T.INFO, $S + watchedPath + $S + localPath + $S, null)",
+                            LogLevel.class, "Now watching path \"", "\" for changes to file \"", "\"")
                     .beginControlFlow("while (watcherThreadRunning.get())")
                     .addStatement("final $T key", WatchKey.class)
                     .beginControlFlow("try")
@@ -241,21 +267,33 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     .addStatement("watcherThreadRunning.lazySet(false)")
                     .addStatement("break")
                     .endControlFlow()
-                    .beginControlFlow("if (key == null)")
-                    .addStatement("continue")
-                    .endControlFlow()
                     .beginControlFlow("for ($T event : key.pollEvents())",
                             WildcardTypeName.get(WatchEvent.class))
-                    .addStatement("$T kind = event.kind()",
-                            WildcardTypeName.get(WatchEvent.Kind.class))
-                    .beginControlFlow("if (kind == $T.OVERFLOW)", StandardWatchEventKinds.class)
+                    .beginControlFlow("if (event.kind() == $T.OVERFLOW)", StandardWatchEventKinds.class)
                     .addStatement("continue")
                     .endControlFlow()
-                    .addStatement("$1T pathEvent = ($1T) event",
-                            ParameterizedTypeName.get(WatchEvent.class, Path.class))
-                    .beginControlFlow("if (path.equals(pathEvent.context()) && !ignoreNextWatchEvent.compareAndSet(true, false))")
-                    .addStatement("reloadOnNextGet.set(true)")
+                    .addStatement("$T eventPath = (($T) event).context()",
+                            Path.class, ParameterizedTypeName.get(WatchEvent.class, Path.class))
+                    .addStatement("log($T.TRACE, $S + event.kind().name() + $S + eventPath + $S, null)",
+                            LogLevel.class, "Got event of type \"", "\" at path \"", "\"")
+                    .beginControlFlow("if (localPath.equals(eventPath))")
+                    .beginControlFlow("if (ignoreNextWatchEvent.compareAndSet(true, false))")
+                    .addStatement("log($T.TRACE, $S, null)",
+                            LogLevel.class, "Ignoring since we just saved")
+                    .nextControlFlow("else")
+                    .add(reloadBlock)
                     .endControlFlow()
+                    .nextControlFlow("else")
+                    .addStatement("log($T.TRACE, $S, null)",
+                            LogLevel.class, "Ignoring since it's not our configuration file")
+                    .endControlFlow()
+                    .endControlFlow()
+                    .addStatement("boolean valid = key.reset()")
+                    .beginControlFlow("if (!valid)")
+                    .addStatement("log($T.WARN, $S, null)",
+                            LogLevel.class, "Key became invalid, assuming watched directory is no longer accessible and shutting down")
+                    .addStatement("watcherThreadRunning.lazySet(false)")
+                    .addStatement("break")
                     .endControlFlow()
                     .endControlFlow()
                     .nextControlFlow("catch ($T e)", IOException.class)
@@ -267,12 +305,18 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     .addField(FieldSpec.builder(AtomicBoolean.class, "watcherThreadRunning", Modifier.PRIVATE, Modifier.FINAL)
                             .initializer("new $T(false)", AtomicBoolean.class)
                             .build())
-                    .addField(FieldSpec.builder(AtomicBoolean.class, "reloadOnNextGet", Modifier.PRIVATE, Modifier.FINAL)
-                            .initializer("new $T(false)", AtomicBoolean.class)
-                            .build())
                     .addField(FieldSpec.builder(AtomicBoolean.class, "ignoreNextWatchEvent", Modifier.PRIVATE, Modifier.FINAL)
                             .initializer("new $T(false)", AtomicBoolean.class)
                             .build());
+            if (gotRunOnMainThread)
+                classBuilder.addField(FieldSpec.builder(AtomicBoolean.class, "reloadQueued", Modifier.PRIVATE, Modifier.FINAL)
+                        .initializer("new $T(false)", AtomicBoolean.class)
+                        .build());
+            else
+                classBuilder.addField(FieldSpec.builder(AtomicBoolean.class, "reloadOnNextGet", Modifier.PRIVATE, Modifier.FINAL)
+                        .initializer("new $T(false)", AtomicBoolean.class)
+                        .build());
+
             MethodSpec.Builder startWatchingMethodBuilder = MethodSpec.methodBuilder("startWatching")
                     .addModifiers(Modifier.PUBLIC);
             if (gotStartWatching)
@@ -346,20 +390,29 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                                 .build());
             }
             classBuilder.addMethod(startWatchingMethodBuilder.build());
-            ctx.loadMethodBuilder.addCode(CodeBlock.builder()
-                    .addStatement("startWatching()")
-                    .build());
-            ctx.getMethodBuilder.addCode(CodeBlock.builder()
-                    .beginControlFlow("if (reloadOnNextGet.compareAndSet(true, false))")
-                    .addStatement("load()")
-                    .endControlFlow()
-                    .build());
+            if (gotRunOnMainThread)
+                loadCodeBuilder.addStatement("reloadQueued.set(false)");
+            loadCodeBuilder.addStatement("startWatching()");
+            if (!gotRunOnMainThread) {
+                ctx.getMethodBuilder.addCode(CodeBlock.builder()
+                        .beginControlFlow("if (reloadOnNextGet.compareAndSet(true, false))")
+                        .addStatement("load()")
+                        .endControlFlow()
+                        .build());
+            }
         }
         ctx.loadMethodBuilder.addCode(loadCodeBuilder.build());
 
         // FIXME find better name for this
         boolean saveToTempAndMoveOver = options.getOrDefault("saveToTempAndMoveOver", true);
-        CodeBlock.Builder saveCodeBuilder = CodeBlock.builder();
+        CodeBlock.Builder saveCodeBuilder = CodeBlock.builder()
+                .beginControlFlow("try")
+                .addStatement("$T.createDirectories(path.getParent())", Files.class)
+                .nextControlFlow("catch ($T e)", IOException.class)
+                .addStatement("log($T.ERROR, $S + path.getParent() + $S, null)",
+                        LogLevel.class, "Failed to create directory \"", "\"!")
+                .addStatement("return")
+                .endControlFlow();
         if (saveToTempAndMoveOver) {
             saveCodeBuilder
                     .addStatement("$T tempPath = $T.resolveTimestampedSibling(path, $S)",
@@ -374,27 +427,37 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                     .addStatement("return")
                     .endControlFlow()
                     .addStatement("log($T.INFO, $S + tempPath + $S + path + $S, null)",
-                            LogLevel.class, "Moving temp file \"", "\" over config file \"", "\"")
+                            LogLevel.class, "Moving temp file \"", "\" over config file \"", "\"");
+            if (watchFileForChanges)
+                saveCodeBuilder.addStatement("ignoreNextWatchEvent.set(true)");
+            saveCodeBuilder
                     .beginControlFlow("try")
                     .addStatement("$T.move(tempPath, path, $T.REPLACE_EXISTING)",
                             Files.class, StandardCopyOption.class)
-                    .nextControlFlow("catch ($T e)", IOException.class)
+                    .nextControlFlow("catch ($T e)", IOException.class);
+            if (watchFileForChanges)
+                saveCodeBuilder.addStatement("ignoreNextWatchEvent.set(false)");
+            saveCodeBuilder
                     .addStatement("log($T.ERROR, $S + tempPath + $S + path + $S, e)",
                             LogLevel.class, "Failed to move temp file \"", "\" over config file at \"", "\"!")
                     .endControlFlow();
         } else {
             saveCodeBuilder
                     .addStatement("log($T.INFO, $S + path + $S, null)",
-                            LogLevel.class, "Writing config to file \"", "\"")
+                            LogLevel.class, "Writing config to file \"", "\"");
+            if (watchFileForChanges)
+                saveCodeBuilder.addStatement("ignoreNextWatchEvent.set(true)");
+            saveCodeBuilder
                     .beginControlFlow("try")
                     .addStatement("write(config, path)")
-                    .nextControlFlow("catch ($T e)", IOException.class)
+                    .nextControlFlow("catch ($T e)", IOException.class);
+            if (watchFileForChanges)
+                saveCodeBuilder.addStatement("ignoreNextWatchEvent.set(false)");
+            saveCodeBuilder
                     .addStatement("log($T.ERROR, $S + path + $S, e)",
                             LogLevel.class, "Failed to write to config file at \"", "\"!")
                     .endControlFlow();
         }
-        if (watchFileForChanges)
-            saveCodeBuilder.addStatement("ignoreNextWatchEvent.set(true)");
         ctx.saveMethodBuilder.addCode(saveCodeBuilder.build());
     }
 

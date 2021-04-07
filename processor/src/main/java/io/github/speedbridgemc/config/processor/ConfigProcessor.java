@@ -142,17 +142,16 @@ public final class ConfigProcessor extends AbstractProcessor {
                 handlerInterfacePackage = handlerInterfaceName.substring(0, splitIndex);
                 handlerInterfaceName = handlerInterfaceName.substring(splitIndex + 1);
             }
-            String handlerName;
+            ClassName handlerName;
             String[] handlerNameIn = config.handlerName();
-            if (handlerNameIn.length == 0) {
-                handlerName = handlerInterfaceName + "Impl";
-                if (!handlerInterfacePackage.isEmpty())
-                    handlerName = handlerInterfacePackage + "." + handlerName;
-            } else if (handlerNameIn.length == 1) {
-                if (handlerNameIn[0].contains("."))
-                    handlerName = handlerNameIn[0];
-                else
-                    handlerName = configPackage + handlerNameIn[0];
+            if (handlerNameIn.length == 0)
+                handlerName = ClassName.get(handlerInterfacePackage, handlerInterfaceName + "Impl");
+            else if (handlerNameIn.length == 1) {
+                if (handlerNameIn[0].contains(".")) {
+                    splitIndex = handlerNameIn[0].lastIndexOf('.');
+                    handlerName = ClassName.get(handlerNameIn[0].substring(0, splitIndex), handlerNameIn[1].substring(splitIndex + 1));
+                } else
+                    handlerName = ClassName.get(configPackage, handlerNameIn[0]);
             }
             else {
                 messager.printMessage(Diagnostic.Kind.ERROR,
@@ -205,12 +204,6 @@ public final class ConfigProcessor extends AbstractProcessor {
 
             ClassName nonNullAnnotation = getAnnotationName(typeElement, config.nonNullAnnotation(), "non-null");
             ClassName nullableAnnotation = getAnnotationName(typeElement, config.nullableAnnotation(), "nullable");
-            String handlerPackage = "";
-            splitIndex = handlerName.lastIndexOf('.');
-            if (splitIndex >= 0) {
-                handlerPackage = handlerName.substring(0, splitIndex);
-                handlerName = handlerName.substring(splitIndex + 1);
-            }
             TypeSpec.Builder classBuilder;
             try {
                 classBuilder = TypeSpec.classBuilder(handlerName);
@@ -218,7 +211,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                 messager.printMessage(Diagnostic.Kind.ERROR, "Handler name \"" + handlerName + "\" is invalid", typeElement);
                 continue;
             }
-            if (!handlerInterfacePackage.equals(handlerPackage))
+            if (!handlerInterfacePackage.equals(handlerName.packageName()))
                 classBuilder.addModifiers(Modifier.PUBLIC);
             classBuilder
                     .addAnnotation(AnnotationSpec.builder(Generated.class)
@@ -316,7 +309,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                     .addMethod(loadMethodBuilder.build())
                     .addMethod(saveMethodBuilder.build());
             try {
-                JavaFile.builder(handlerPackage, classBuilder.build())
+                JavaFile.builder(handlerName.packageName(), classBuilder.build())
                         .build()
                         .writeTo(processingEnv.getFiler());
             } catch (IOException e) {

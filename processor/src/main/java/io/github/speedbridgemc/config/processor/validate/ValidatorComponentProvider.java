@@ -103,9 +103,8 @@ public final class ValidatorComponentProvider extends BaseComponentProvider {
                                 LogLevel.class, "Backed up config file to \"", "\"")
                         .endControlFlow()
                         .addStatement("log($T.WARN, $S, null)",
-                                LogLevel.class, "Loading and saving default config values")
-                        .addStatement("reset()")
-                        .addStatement("save()");
+                                LogLevel.class, "Resetting to default config values")
+                        .addStatement("reset()");
         } else if (crashOnFail) {
             loadCodeBuilder.addStatement("throw new $T($S + path + $S, e)",
                     RuntimeException.class, "Config file \"", "\" is invalid!");

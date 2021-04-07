@@ -11,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.lang.model.element.TypeElement;
 
 public final class ComponentContext {
-    public final @NotNull String handlerName;
+    public final @NotNull ClassName handlerName;
     public final @NotNull TypeName handlerInterfaceTypeName;
     public final @NotNull TypeElement handlerInterfaceTypeElement;
     public final @NotNull ImmutableList<MethodSignature> handlerInterfaceMethods;
@@ -20,7 +20,7 @@ public final class ComponentContext {
     public final @NotNull Multimap<String, String> params;
     public final @NotNull MethodSpec.Builder getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder;
 
-    public ComponentContext(@NotNull String handlerName,
+    public ComponentContext(@NotNull ClassName handlerName,
                             @NotNull TypeName handlerInterfaceTypeName,
                             @NotNull TypeElement handlerInterfaceTypeElement,
                             @NotNull ImmutableList<MethodSignature> handlerInterfaceMethods,
