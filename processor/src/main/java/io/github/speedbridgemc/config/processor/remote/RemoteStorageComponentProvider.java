@@ -12,7 +12,6 @@ import org.jetbrains.annotations.NotNull;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic;
 
 @AutoService(ComponentProvider.class)
@@ -24,9 +23,7 @@ public final class RemoteStorageComponentProvider extends BaseComponentProvider 
     @Override
     public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableList<VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        TypeMirror configTM = type.asType();
-        TypeName configName = TypeName.get(configTM);
-        if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "setRemote", configName))) {
+        if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "setRemote", ctx.configType))) {
             messager.printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required method: void setRemote(" + type.getSimpleName() + ")",
                     ctx.handlerInterfaceTypeElement);
@@ -38,18 +35,19 @@ public final class RemoteStorageComponentProvider extends BaseComponentProvider 
         ParameterSpec.Builder setRemoteParamBuilder = ParameterSpec.builder(ctx.configType, "remoteConfig");
         if (ctx.nullableAnnotation != null)
             setRemoteParamBuilder.addAnnotation(ctx.nullableAnnotation);
+        MethodSpec.Builder setRemoteMethodBuilder = MethodSpec.methodBuilder("setRemote")
+                .addAnnotation(Override.class)
+                .addModifiers(Modifier.PUBLIC)
+                .addParameter(setRemoteParamBuilder.build())
+                .addStatement("this.remoteConfig = remoteConfig");
+        if (ctx.hasMethod(MethodSignature.of(TypeName.VOID, "notifyChanged", ctx.configType)))
+            setRemoteMethodBuilder.addStatement("notifyChanged(remoteConfig)");
         classBuilder.addField(remoteFieldBuilder.build())
-                .addMethod(MethodSpec.methodBuilder("setRemote")
-                        .addAnnotation(Override.class)
-                        .addModifiers(Modifier.PUBLIC)
-                        .addParameter(setRemoteParamBuilder.build())
-                        .addCode("this.remoteConfig = remoteConfig;")
-                        .build());
+                .addMethod(setRemoteMethodBuilder.build());
 
-        ctx.getMethodBuilder.addCode(CodeBlock.builder()
+        ctx.getMethodBuilder
                 .beginControlFlow("if (remoteConfig != null)")
                 .addStatement("return remoteConfig")
-                .endControlFlow()
-                .build());
+                .endControlFlow();
     }
 }

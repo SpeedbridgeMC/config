@@ -15,8 +15,9 @@ import java.util.Map;
                 value = "speedbridge-config:serializer",
                 params = { "provider=speedbridge-config:jankson", "options=+watchFileForChanges" }
         ),
-                @Component("speedbridge-config:remote_storage"),
-                @Component("speedbridge-config:validator")
+                @Component("speedbridge-config:validator"),
+                @Component("speedbridge-config:listener"),
+                @Component("speedbridge-config:remote_storage")
         },
         nonNullAnnotation = "org.jetbrains.annotations.NotNull", nullableAnnotation = "org.jetbrains.annotations.Nullable")
 public final class TestConfig {

@@ -3,6 +3,7 @@ package io.github.speedbridgemc.config.processor.api;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
 import org.jetbrains.annotations.NotNull;
@@ -19,6 +20,8 @@ public final class ComponentContext {
     public final @NotNull TypeName configType;
     public final @NotNull Multimap<String, String> params;
     public final @NotNull MethodSpec.Builder getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder;
+    public final @NotNull CodeBlock.Builder postLoadBuilder, postSaveBuilder;
+    public final @Nullable MethodSpec.Builder setMethodBuilder;
 
     public ComponentContext(@NotNull ClassName handlerName,
                             @NotNull TypeName handlerInterfaceTypeName,
@@ -28,7 +31,9 @@ public final class ComponentContext {
                             @NotNull TypeName configType,
                             @NotNull Multimap<String, String> params,
                             MethodSpec.@NotNull Builder getMethodBuilder, MethodSpec.@NotNull Builder resetMethodBuilder,
-                            MethodSpec.@NotNull Builder loadMethodBuilder, MethodSpec.@NotNull Builder saveMethodBuilder) {
+                            MethodSpec.@NotNull Builder loadMethodBuilder, MethodSpec.@NotNull Builder saveMethodBuilder,
+                            CodeBlock.@NotNull Builder postLoadBuilder, CodeBlock.@NotNull Builder postSaveBuilder,
+                            MethodSpec.@Nullable Builder setMethodBuilder) {
         this.handlerName = handlerName;
         this.handlerInterfaceTypeName = handlerInterfaceTypeName;
         this.handlerInterfaceTypeElement = handlerInterfaceTypeElement;
@@ -41,6 +46,9 @@ public final class ComponentContext {
         this.resetMethodBuilder = resetMethodBuilder;
         this.loadMethodBuilder = loadMethodBuilder;
         this.saveMethodBuilder = saveMethodBuilder;
+        this.postLoadBuilder = postLoadBuilder;
+        this.postSaveBuilder = postSaveBuilder;
+        this.setMethodBuilder = setMethodBuilder;
     }
 
     public boolean hasMethod(@NotNull MethodSignature signature) {

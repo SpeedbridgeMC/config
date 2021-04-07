@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.function.Consumer;
 
 public interface TestConfigHandler {
     TestConfigHandler INSTANCE = new TestConfigHandlerImpl();
@@ -16,6 +17,9 @@ public interface TestConfigHandler {
     void reset();
     void load();
     void save();
+    void addListener(@NotNull Consumer<TestConfig> listener);
+    void removeListener(@NotNull Consumer<TestConfig> listener);
+    void notifyChanged(@NotNull TestConfig config);
     void stopWatching();
     void startWatching();
     void setRemote(@Nullable TestConfig remoteConfig);

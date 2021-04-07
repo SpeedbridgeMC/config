@@ -164,14 +164,14 @@ public final class ConfigProcessor extends AbstractProcessor {
             TypeMirror exceptionTM = TypeUtils.getTypeMirror(processingEnv, Exception.class.getCanonicalName());
             if (stringTM == null || exceptionTM == null)
                 continue;
-            TypeName configName = TypeName.get(configTM);
+            TypeName configType = TypeName.get(configTM);
             TypeName logLvlName = ClassName.get(LogLevel.class);
             TypeName stringName = ClassName.get(String.class);
             TypeName exceptionName = ClassName.get(Exception.class);
             boolean gotGet = MethodSignature.contains(handlerInterfaceMethods,
-                    MethodSignature.of(configName, "get"));
+                    MethodSignature.of(configType, "get"));
             boolean gotSet = MethodSignature.contains(handlerInterfaceMethods,
-                    MethodSignature.of(TypeName.VOID, "set", configName));
+                    MethodSignature.of(TypeName.VOID, "set", configType));
             boolean gotReset = MethodSignature.contains(handlerInterfaceMethods,
                     MethodSignature.of(TypeName.VOID, "reset"));
             boolean gotLoad = MethodSignature.contains(handlerInterfaceMethods,
@@ -181,9 +181,9 @@ public final class ConfigProcessor extends AbstractProcessor {
             boolean gotLog = MethodSignature.contains(handlerInterfaceMethods,
                     MethodSignature.ofDefault("log", logLvlName, stringName, exceptionName));
             boolean gotPostLoad = MethodSignature.contains(handlerInterfaceMethods,
-                    MethodSignature.ofDefault(configName, "postLoad", configName));
+                    MethodSignature.ofDefault(configType, "postLoad", configType));
             boolean gotPostSave = MethodSignature.contains(handlerInterfaceMethods,
-                    MethodSignature.ofDefault("postSave", configName));
+                    MethodSignature.ofDefault("postSave", configType));
             if (!gotGet)
                 messager.printMessage(Diagnostic.Kind.ERROR,
                         "Handler interface is missing required method: " + typeElement.getSimpleName() + " get()", handlerInterfaceTypeElement);
@@ -222,19 +222,19 @@ public final class ConfigProcessor extends AbstractProcessor {
                     .addModifiers(Modifier.FINAL)
                     .addSuperinterface(handlerInterfaceTypeName)
                     .addMethod(MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC).build());
-            FieldSpec.Builder configFieldBuilder = FieldSpec.builder(configName, "config", Modifier.PRIVATE);
+            FieldSpec.Builder configFieldBuilder = FieldSpec.builder(configType, "config", Modifier.PRIVATE);
             if (nullableAnnotation != null)
                 configFieldBuilder.addAnnotation(nullableAnnotation);
             classBuilder.addField(configFieldBuilder.build());
             MethodSpec.Builder getMethodBuilder = MethodSpec.methodBuilder("get")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .returns(configName);
+                    .returns(configType);
             if (nonNullAnnotation != null)
                 getMethodBuilder.addAnnotation(nonNullAnnotation);
             MethodSpec.Builder setMethodBuilder = null;
             if (gotSet) {
-                ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(configName, "config");
+                ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(configType, "config");
                 if (nonNullAnnotation != null)
                     configParamBuilder.addAnnotation(nonNullAnnotation);
                 setMethodBuilder = MethodSpec.methodBuilder("set")
@@ -246,7 +246,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             MethodSpec.Builder resetMethodBuilder = MethodSpec.methodBuilder("reset")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC)
-                    .addStatement("config = new $T()", configName);
+                    .addStatement("config = new $T()", configType);
             MethodSpec.Builder loadMethodBuilder = MethodSpec.methodBuilder("load")
                     .addAnnotation(Override.class)
                     .addModifiers(Modifier.PUBLIC);
@@ -257,6 +257,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                     .addModifiers(Modifier.PUBLIC);
             if (nonNullAnnotation != null)
                 saveMethodBuilder.addAnnotation(nonNullAnnotation);
+            CodeBlock.Builder postLoadBuilder = CodeBlock.builder(), postSaveBuilder = CodeBlock.builder();
 
             ImmutableList<@NotNull VariableElement> fields = ImmutableList.copyOf(TypeUtils.getFieldsToSerialize(typeElement));
 
@@ -285,14 +286,16 @@ public final class ConfigProcessor extends AbstractProcessor {
                 }
                 ComponentContext ctx = new ComponentContext(handlerName, handlerInterfaceTypeName, handlerInterfaceTypeElement,
                         handlerInterfaceMethods, nonNullAnnotation, nullableAnnotation,
-                        configName, params, getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder);
+                        configType, params, getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder, postLoadBuilder, postSaveBuilder, setMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }
 
             if (gotPostLoad)
                 loadMethodBuilder.addStatement("config = postLoad(config)");
+            loadMethodBuilder.addCode(postLoadBuilder.build());
             if (gotPostSave)
                 saveMethodBuilder.addStatement("postSave(config)");
+            saveMethodBuilder.addCode(postSaveBuilder.build());
 
             classBuilder.addMethod(getMethodBuilder.addCode(
                     CodeBlock.builder()
