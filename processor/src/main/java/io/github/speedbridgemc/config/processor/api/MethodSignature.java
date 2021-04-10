@@ -100,7 +100,7 @@ public final class MethodSignature {
         if (cachedNRTString == null) {
             StringBuilder sb = new StringBuilder(name).append('(');
             for (TypeName param : parameters)
-                sb.append(param.toString()).append(", ");
+                sb.append(param).append(", ");
             if (parameters.length > 0)
                 sb.setLength(sb.length() - 2);
             cachedNRTString = sb.append(')').toString();
@@ -124,7 +124,7 @@ public final class MethodSignature {
             if (returnType == null)
                 sb.append("<ignored>");
             else
-                sb.append(returnType.toString());
+                sb.append(returnType);
             sb.append(' ').append(toStringWithoutReturnType(false));
             cachedFullString = sb.toString();
         }

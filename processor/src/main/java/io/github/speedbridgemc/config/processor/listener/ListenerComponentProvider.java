@@ -28,12 +28,12 @@ public final class ListenerComponentProvider extends BaseComponentProvider {
         TypeName listenerName = ParameterizedTypeName.get(ClassName.get(Consumer.class), ctx.configType);
         if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "addListener", listenerName))) {
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Handler interface is missing required method: void addListener(ConfigListener<" + type.getSimpleName() + ">)",
+                    "Handler interface is missing required method: void addListener(Consumer<" + type.getSimpleName() + ">)",
                     ctx.handlerInterfaceTypeElement);
         }
         if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "removeListener", listenerName))) {
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Handler interface is missing required method: void removeListener(ConfigListener<" + type.getSimpleName() + ">)",
+                    "Handler interface is missing required method: void removeListener(Consumer<" + type.getSimpleName() + ">)",
                     ctx.handlerInterfaceTypeElement);
         }
         if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "notifyChanged", ctx.configType))) {
@@ -91,8 +91,6 @@ public final class ListenerComponentProvider extends BaseComponentProvider {
         ctx.postLoadBuilder.add(loadBlock);
         if (ctx.setMethodBuilder != null)
             ctx.setMethodBuilder.addCode(loadBlock);
-        ctx.postSaveBuilder
-                .addStatement("notifyChanged(config)")
-                .build();
+        ctx.postSaveBuilder.add(loadBlock);
     }
 }

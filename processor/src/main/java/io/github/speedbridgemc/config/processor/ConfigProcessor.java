@@ -12,7 +12,6 @@ import io.github.speedbridgemc.config.processor.api.ComponentContext;
 import io.github.speedbridgemc.config.processor.api.ComponentProvider;
 import io.github.speedbridgemc.config.processor.api.MethodSignature;
 import io.github.speedbridgemc.config.processor.api.TypeUtils;
-import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,7 +27,10 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-@ApiStatus.Internal
+/**
+ * The main entry point of the annotation processor.<p>
+ * Loads and initializes all {@link ComponentProvider}s, then processes all classes annotated with {@link Config}.
+ */
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @AutoService(Processor.class)
 public final class ConfigProcessor extends AbstractProcessor {
