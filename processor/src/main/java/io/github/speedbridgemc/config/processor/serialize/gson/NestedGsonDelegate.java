@@ -50,7 +50,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         if (ctx.generatedMethods.contains(methodName))
              return methodName;
         ctx.generatedMethods.add(methodName);
-        List<VariableElement> fields = TypeUtils.getFieldsToSerialize(typeElement);
+        List<VariableElement> fields = TypeUtils.getFieldsToProcess(typeElement);
         ParameterSpec.Builder readerParamBuilder = ParameterSpec.builder(ctx.readerType, ctx.readerName);
         if (ctx.nonNullAnnotation != null)
             readerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
@@ -138,7 +138,7 @@ public final class NestedGsonDelegate extends BaseGsonDelegate {
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
         ctx.generatedMethods.add(methodName);
-        List<VariableElement> fields = TypeUtils.getFieldsToSerialize(typeElement);
+        List<VariableElement> fields = TypeUtils.getFieldsToProcess(typeElement);
         ParameterSpec.Builder writerParamBuilder = ParameterSpec.builder(ctx.writerType, "writer");
         if (ctx.nonNullAnnotation != null)
             writerParamBuilder.addAnnotation(ctx.nonNullAnnotation);

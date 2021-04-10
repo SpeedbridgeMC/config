@@ -25,7 +25,7 @@ public final class ListenerComponentProvider extends BaseComponentProvider {
     @Override
     public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableList<@NotNull VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        TypeName listenerName = ParameterizedTypeName.get(ClassName.get(Consumer.class), ctx.configType);
+        TypeName listenerName = ParameterizedTypeName.get(ClassName.get(Consumer.class), ctx.configName);
         if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "addListener", listenerName))) {
             messager.printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required method: void addListener(Consumer<" + type.getSimpleName() + ">)",
@@ -36,7 +36,7 @@ public final class ListenerComponentProvider extends BaseComponentProvider {
                     "Handler interface is missing required method: void removeListener(Consumer<" + type.getSimpleName() + ">)",
                     ctx.handlerInterfaceTypeElement);
         }
-        if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "notifyChanged", ctx.configType))) {
+        if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "notifyChanged", ctx.configName))) {
             messager.printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required method: void notifyChanged(" + type.getSimpleName() + ")",
                     ctx.handlerInterfaceTypeElement);
@@ -45,7 +45,7 @@ public final class ListenerComponentProvider extends BaseComponentProvider {
         ParameterSpec.Builder listenerParamBuilder = ParameterSpec.builder(listenerName, "listener");
         if (ctx.nonNullAnnotation != null)
             listenerParamBuilder.addAnnotation(ctx.nonNullAnnotation);
-        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(ctx.configType, "config");
+        ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(ctx.configName, "config");
         if (ctx.nonNullAnnotation != null)
             configParamBuilder.addAnnotation(ctx.nonNullAnnotation);
         classBuilder

@@ -2,15 +2,28 @@ package io.github.speedbridgemc.config.processor.api;
 
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Utilities for working with {@code String}s.
+ */
 public final class StringUtils {
     private StringUtils() { }
 
+    /**
+     * Converts a string to title-case by making the first character uppercase.
+     * @param s original string
+     * @return title-cased string
+     */
     public static @NotNull String titleCase(@NotNull String s) {
         if (s.isEmpty())
             return "";
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
+    /**
+     * Converts a {@code camelCase} string to {@code snake_case}.
+     * @param s camel-case string
+     * @return snake-case string
+     */
     public static @NotNull String camelCaseToSnakeCase(@NotNull String s) {
         StringBuilder resultBuilder = new StringBuilder();
         for (int i = 0, length = s.length(); i < length; i++) {
@@ -22,6 +35,11 @@ public final class StringUtils {
         return resultBuilder.toString();
     }
 
+    /**
+     * Converts a {@code snake_case} string to a {@code camelCase} string.
+     * @param s snake-case string
+     * @return camel-case string
+     */
     public static @NotNull String snakeCaseToCamelCase(@NotNull String s) {
         StringBuilder resultBuilder = new StringBuilder();
         boolean toUpper = false;

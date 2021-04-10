@@ -23,16 +23,16 @@ public final class RemoteStorageComponentProvider extends BaseComponentProvider 
     @Override
     public void process(@NotNull String name, @NotNull TypeElement type, @NotNull ImmutableList<VariableElement> fields,
                         @NotNull ComponentContext ctx, TypeSpec.@NotNull Builder classBuilder) {
-        if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "setRemote", ctx.configType))) {
+        if (!ctx.hasMethod(MethodSignature.of(TypeName.VOID, "setRemote", ctx.configName))) {
             messager.printMessage(Diagnostic.Kind.ERROR,
                     "Handler interface is missing required method: void setRemote(" + type.getSimpleName() + ")",
                     ctx.handlerInterfaceTypeElement);
         }
 
-        FieldSpec.Builder remoteFieldBuilder = FieldSpec.builder(ctx.configType, "remoteConfig", Modifier.PRIVATE);
+        FieldSpec.Builder remoteFieldBuilder = FieldSpec.builder(ctx.configName, "remoteConfig", Modifier.PRIVATE);
         if (ctx.nullableAnnotation != null)
             remoteFieldBuilder.addAnnotation(ctx.nullableAnnotation);
-        ParameterSpec.Builder setRemoteParamBuilder = ParameterSpec.builder(ctx.configType, "remoteConfig");
+        ParameterSpec.Builder setRemoteParamBuilder = ParameterSpec.builder(ctx.configName, "remoteConfig");
         if (ctx.nullableAnnotation != null)
             setRemoteParamBuilder.addAnnotation(ctx.nullableAnnotation);
         MethodSpec.Builder setRemoteMethodBuilder = MethodSpec.methodBuilder("setRemote")
@@ -40,7 +40,7 @@ public final class RemoteStorageComponentProvider extends BaseComponentProvider 
                 .addModifiers(Modifier.PUBLIC)
                 .addParameter(setRemoteParamBuilder.build())
                 .addStatement("this.remoteConfig = remoteConfig");
-        if (ctx.hasMethod(MethodSignature.of(TypeName.VOID, "notifyChanged", ctx.configType)))
+        if (ctx.hasMethod(MethodSignature.of(TypeName.VOID, "notifyChanged", ctx.configName)))
             setRemoteMethodBuilder.addStatement("notifyChanged(remoteConfig)");
         classBuilder.addField(remoteFieldBuilder.build())
                 .addMethod(setRemoteMethodBuilder.build());

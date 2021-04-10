@@ -145,7 +145,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                 .initializer("resolvePath($S)", name)
                 .build());
         String basePackage = ParamUtils.allOrNothing(ctx.params, "base_package");
-        TypeName configType = ctx.configType;
+        TypeName configType = ctx.configName;
         ParameterSpec.Builder pathParamBuilder = ParameterSpec.builder(Path.class, "path");
         if (ctx.nonNullAnnotation != null)
             pathParamBuilder.addAnnotation(ctx.nonNullAnnotation);
@@ -352,7 +352,7 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                                 .superclass(Thread.class)
                                 .addMethod(MethodSpec.constructorBuilder()
                                         .addModifiers(Modifier.PRIVATE)
-                                        .addStatement("super($S)", TypeUtils.getSimpleName(ctx.configType) + " file watcher")
+                                        .addStatement("super($S)", TypeUtils.getSimpleName(ctx.configName) + " file watcher")
                                         .addStatement("setDaemon(true)")
                                         .build())
                                 .addMethod(MethodSpec.methodBuilder("run")

@@ -47,7 +47,7 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
         ctx.generatedMethods.add(methodName);
-        List<VariableElement> fields = TypeUtils.getFieldsToSerialize(typeElement);
+        List<VariableElement> fields = TypeUtils.getFieldsToProcess(typeElement);
         ParameterSpec.Builder elementParamBuilder = ParameterSpec.builder(ctx.elementType, ctx.elementName);
         if (ctx.nonNullAnnotation != null)
             elementParamBuilder.addAnnotation(ctx.nonNullAnnotation);
@@ -120,7 +120,7 @@ public final class NestedJanksonDelegate extends BaseJanksonDelegate {
         if (ctx.generatedMethods.contains(methodName))
             return methodName;
         ctx.generatedMethods.add(methodName);
-        List<VariableElement> fields = TypeUtils.getFieldsToSerialize(typeElement);
+        List<VariableElement> fields = TypeUtils.getFieldsToProcess(typeElement);
         String configName = "obj";
         ParameterSpec.Builder configParamBuilder = ParameterSpec.builder(typeName, configName);
         if (ctx.nullableAnnotation != null)

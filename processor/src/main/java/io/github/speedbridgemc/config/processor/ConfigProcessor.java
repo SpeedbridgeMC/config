@@ -20,6 +20,7 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.*;
@@ -132,7 +133,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                         "Missing handler interface class \"" + handlerInterfaceName + "\"", typeElement);
                 continue;
             }
-            List<ExecutableElement> methods = TypeUtils.getMethodsIn(handlerInterfaceTypeElement);
+            List<ExecutableElement> methods = ElementFilter.methodsIn(handlerInterfaceTypeElement.getEnclosedElements());
             ImmutableList.Builder<MethodSignature> signatureBuilder = ImmutableList.builder();
             for (ExecutableElement method : methods)
                 signatureBuilder.add(MethodSignature.fromElement(method));
@@ -261,7 +262,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                 saveMethodBuilder.addAnnotation(nonNullAnnotation);
             CodeBlock.Builder postLoadBuilder = CodeBlock.builder(), postSaveBuilder = CodeBlock.builder();
 
-            ImmutableList<@NotNull VariableElement> fields = ImmutableList.copyOf(TypeUtils.getFieldsToSerialize(typeElement));
+            ImmutableList<@NotNull VariableElement> fields = ImmutableList.copyOf(TypeUtils.getFieldsToProcess(typeElement));
 
             Component[] components = config.components();
             for (Component component : components) {
@@ -286,9 +287,9 @@ public final class ConfigProcessor extends AbstractProcessor {
                     }
                     params.putAll(paramIn, values);
                 }
-                ComponentContext ctx = new ComponentContext(handlerName, handlerInterfaceTypeName, handlerInterfaceTypeElement,
+                ComponentContext ctx = new ComponentContext(configType, handlerName, handlerInterfaceTypeName, handlerInterfaceTypeElement,
                         handlerInterfaceMethods, nonNullAnnotation, nullableAnnotation,
-                        configType, params, getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder, postLoadBuilder, postSaveBuilder, setMethodBuilder);
+                        params, getMethodBuilder, resetMethodBuilder, loadMethodBuilder, saveMethodBuilder, postLoadBuilder, postSaveBuilder, setMethodBuilder);
                 provider.process(name, typeElement, fields, ctx, classBuilder);
             }
 

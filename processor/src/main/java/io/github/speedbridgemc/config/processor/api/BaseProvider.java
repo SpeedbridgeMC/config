@@ -7,6 +7,11 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
+/**
+ * A base {@link Provider} implementation.<p>
+ * Provides a sanity check against {@link #init(ProcessingEnvironment)} being called multiple times,
+ * and common utilities from the {@link ProcessingEnvironment}.
+ */
 public abstract class BaseProvider implements Provider {
     protected boolean initialized;
     protected ProcessingEnvironment processingEnv;
