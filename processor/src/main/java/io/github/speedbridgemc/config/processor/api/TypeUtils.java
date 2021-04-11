@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
@@ -71,6 +72,27 @@ public final class TypeUtils {
             return null;
         }
         return type.asType();
+    }
+
+    /**
+     * Gets all methods in an element, including methods from its superclass and superinterfaces.
+     * @param processingEnv processing environment
+     * @param element element to check
+     * @return all methods in element
+     */
+    public static @NotNull List<@NotNull ExecutableElement> allMethodsIn(@NotNull ProcessingEnvironment processingEnv, @NotNull TypeElement element) {
+        ArrayList<ExecutableElement> methods = new ArrayList<>(ElementFilter.methodsIn(element.getEnclosedElements()));
+        TypeMirror superclass = element.getSuperclass();
+        if (superclass.getKind() != TypeKind.VOID) {
+            TypeElement superclassElement = (TypeElement) processingEnv.getTypeUtils().asElement(superclass);
+            if (superclassElement != null)
+                methods.addAll(allMethodsIn(processingEnv, superclassElement));
+        }
+        for (TypeMirror interfaceM : element.getInterfaces()) {
+            TypeElement interfaceElement = (TypeElement) processingEnv.getTypeUtils().asElement(interfaceM);
+            methods.addAll(allMethodsIn(processingEnv, interfaceElement));
+        }
+        return methods;
     }
 
     /**

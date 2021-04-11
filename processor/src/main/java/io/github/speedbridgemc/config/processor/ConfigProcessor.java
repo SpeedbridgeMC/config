@@ -132,7 +132,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                         "Missing handler interface class \"" + handlerInterfaceName + "\"", typeElement);
                 continue;
             }
-            List<ExecutableElement> methods = ElementFilter.methodsIn(handlerInterfaceTypeElement.getEnclosedElements());
+            List<ExecutableElement> methods = TypeUtils.allMethodsIn(processingEnv, handlerInterfaceTypeElement);
             ImmutableList.Builder<MethodSignature> signatureBuilder = ImmutableList.builder();
             for (ExecutableElement method : methods)
                 signatureBuilder.add(MethodSignature.fromElement(method));
