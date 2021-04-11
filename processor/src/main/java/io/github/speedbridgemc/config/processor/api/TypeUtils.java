@@ -19,6 +19,30 @@ import java.util.regex.Pattern;
 public final class TypeUtils {
     private TypeUtils() { }
 
+    private static ClassName generatedAnnotation;
+
+    /**
+     * Gets the {@code @Generated} annotation's {@link ClassName}.<p>
+     * Needed because the clowns at Java HQ decided to move this annotation to another package in Java 9.
+     * @param processingEnv processing environment
+     * @return class name of {@code @Generated} annotation
+     */
+    public static @NotNull ClassName getGeneratedAnnotation(@NotNull ProcessingEnvironment processingEnv) {
+        if (generatedAnnotation == null) {
+            TypeElement elem = processingEnv.getElementUtils().getTypeElement("javax.annotation.processing.Generated");
+            if (elem == null)
+                elem = processingEnv.getElementUtils().getTypeElement("javax.annotation.Generated");
+            if (elem == null) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                        "Missing @Generated annotation!");
+                generatedAnnotation = ClassName.get(Deprecated.class);
+                return generatedAnnotation;
+            }
+            generatedAnnotation = ClassName.get(elem);
+        }
+        return generatedAnnotation;
+    }
+
     /**
      * Gets the {@link TypeName} of a {@link TypeElement}, by the {@code TypeElement}'s name.
      * @param processingEnv processing environment
@@ -110,24 +134,27 @@ public final class TypeUtils {
      * @return simple name
      */
     public static @NotNull String getSimpleName(@NotNull TypeName typeName) {
-        return SIMPLE_NAME_CACHE.computeIfAbsent(typeName, typeName1 -> {
-            if (typeName1 instanceof ClassName)
-                return ((ClassName) typeName1).simpleName();
-            else if (typeName1 instanceof ArrayTypeName)
-                return getSimpleName(((ArrayTypeName) typeName1).componentType) + "[]";
-            else if (typeName1 instanceof ParameterizedTypeName) {
-                ParameterizedTypeName ptn = (ParameterizedTypeName) typeName1;
+        String cached = SIMPLE_NAME_CACHE.get(typeName);
+        if (cached == null) {
+            if (typeName instanceof ClassName)
+                cached = ((ClassName) typeName).simpleName();
+            else if (typeName instanceof ArrayTypeName)
+                cached = getSimpleName(((ArrayTypeName) typeName).componentType) + "[]";
+            else if (typeName instanceof ParameterizedTypeName) {
+                ParameterizedTypeName ptn = (ParameterizedTypeName) typeName;
                 StringBuilder sb = new StringBuilder(getSimpleName(ptn.rawType)).append('<');
                 for (TypeName typeArg : ptn.typeArguments)
                     sb.append(getSimpleName(typeArg)).append(',');
                 if (ptn.typeArguments.size() > 0)
                     sb.setLength(sb.length() - 1); // remove last ","
-                return sb.append('>').toString();
-            } else if (typeName1 instanceof TypeVariableName)
-                return ((TypeVariableName) typeName1).name;
+                cached = sb.append('>').toString();
+            } else if (typeName instanceof TypeVariableName)
+                cached = ((TypeVariableName) typeName).name;
             else
-                return typeName1.withoutAnnotations().toString();
-        });
+                cached = typeName.withoutAnnotations().toString();
+            SIMPLE_NAME_CACHE.put(typeName, cached);
+        }
+        return cached;
     }
 
     private static final HashMap<TypeMirror, TypeName> TYPE_NAME_CACHE = new HashMap<>();
