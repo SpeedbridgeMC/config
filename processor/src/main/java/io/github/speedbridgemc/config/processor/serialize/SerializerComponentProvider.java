@@ -246,8 +246,8 @@ public final class SerializerComponentProvider extends BaseComponentProvider {
                         .build();
 
             CodeBlock watcherThreadBlock = CodeBlock.builder()
-                    .beginControlFlow("try ($T watcher = $T.getDefault().newWatchService())",
-                            WatchService.class, FileSystems.class)
+                    .beginControlFlow("try ($T watcher = path.getFileSystem().newWatchService())",
+                            WatchService.class)
                     .addStatement("$T localPath = path.getFileName()", Path.class)
                     .addStatement("$T watchedPath = path.toAbsolutePath().getParent()", Path.class)
                     .addStatement("watchedPath.register(watcher, $1T.ENTRY_MODIFY)",
