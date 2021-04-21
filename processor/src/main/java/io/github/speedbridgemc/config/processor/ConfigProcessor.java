@@ -19,7 +19,6 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.*;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.*;
@@ -117,6 +116,9 @@ public final class ConfigProcessor extends AbstractProcessor {
                         "@Config annotation applied to class with no public 0-parameter constructor", typeElement);
             }
 
+            TypeMirror configTM = typeElement.asType();
+            TypeName configType = TypeName.get(configTM);
+
             Config config = typeElement.getAnnotation(Config.class);
             String configPackage = elements.getPackageOf(typeElement).getQualifiedName().toString();
             String name = config.name();
@@ -132,12 +134,15 @@ public final class ConfigProcessor extends AbstractProcessor {
                         "Missing handler interface class \"" + handlerInterfaceName + "\"", typeElement);
                 continue;
             }
-            List<ExecutableElement> methods = TypeUtils.allMethodsIn(processingEnv, handlerInterfaceTypeElement);
-            ImmutableList.Builder<MethodSignature> signatureBuilder = ImmutableList.builder();
-            for (ExecutableElement method : methods)
-                signatureBuilder.add(MethodSignature.fromElement(method));
-            ImmutableList<MethodSignature> handlerInterfaceMethods = signatureBuilder.build();
             TypeName handlerInterfaceTypeName = TypeName.get(handlerInterfaceTypeElement.asType());
+            if (handlerInterfaceTypeName instanceof ParameterizedTypeName) {
+                handlerInterfaceTypeName =
+                        ParameterizedTypeName.get(((ParameterizedTypeName) handlerInterfaceTypeName).rawType, configType);
+            }
+
+            ImmutableList<MethodSignature> handlerInterfaceMethods =
+                    ImmutableList.copyOf(TypeUtils.allMethodsIn(processingEnv, handlerInterfaceTypeElement,
+                            Collections.singletonList(configTM)));
             String handlerInterfacePackage = "";
             int splitIndex = handlerInterfaceName.lastIndexOf('.');
             if (splitIndex >= 0) {
@@ -151,7 +156,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             else if (handlerNameIn.length == 1) {
                 if (handlerNameIn[0].contains(".")) {
                     splitIndex = handlerNameIn[0].lastIndexOf('.');
-                    handlerName = ClassName.get(handlerNameIn[0].substring(0, splitIndex), handlerNameIn[1].substring(splitIndex + 1));
+                    handlerName = ClassName.get(handlerNameIn[0].substring(0, splitIndex), handlerNameIn[0].substring(splitIndex + 1));
                 } else
                     handlerName = ClassName.get(configPackage, handlerNameIn[0]);
             }
@@ -161,12 +166,10 @@ public final class ConfigProcessor extends AbstractProcessor {
                 continue;
             }
 
-            TypeMirror configTM = typeElement.asType();
             TypeMirror stringTM = TypeUtils.getTypeMirror(processingEnv, String.class.getCanonicalName());
             TypeMirror exceptionTM = TypeUtils.getTypeMirror(processingEnv, Exception.class.getCanonicalName());
             if (stringTM == null || exceptionTM == null)
                 continue;
-            TypeName configType = TypeName.get(configTM);
             TypeName logLvlName = ClassName.get(LogLevel.class);
             TypeName stringName = ClassName.get(String.class);
             TypeName exceptionName = ClassName.get(Exception.class);

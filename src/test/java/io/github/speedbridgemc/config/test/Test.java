@@ -17,7 +17,7 @@ public class Test {
     public static void main(String[] args) {
         executor = new SerialExecutorService();
 
-        TestConfig cfg = TestConfigHandler.INSTANCE.get();
+        TestConfig cfg = ConfigHandler.TEST_CONFIG.get();
         System.out.println("testString = \"" + cfg.testString + "\"");
         cfg.testBool = !cfg.testBool;
         cfg.testString = "Hello world! " + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
@@ -30,7 +30,7 @@ public class Test {
         nested.put("does this actually...", "work??");
         cfg.testNestedMap.put("aaaaa", nested);
 
-        TestConfigHandler.INSTANCE.save();
+        ConfigHandler.TEST_CONFIG.save();
 
         running = new AtomicBoolean(true);
 

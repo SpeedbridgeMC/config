@@ -7,9 +7,10 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
-import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.lang.model.util.SimpleElementVisitor8;
 import javax.tools.Diagnostic;
 import java.util.*;
 import java.util.regex.Pattern;
@@ -74,25 +75,77 @@ public final class TypeUtils {
         return type.asType();
     }
 
+    private static @NotNull TypeName getParameterizedName(@NotNull TypeMirror mirror, @NotNull Map<String, TypeName> typeParams) {
+        return getParameterizedName(TypeName.get(mirror), typeParams);
+    }
+
+    private static @NotNull TypeName getParameterizedName(@NotNull TypeName typeName, @NotNull Map<String, TypeName> typeParams) {
+        if (typeName instanceof TypeVariableName)
+            return typeParams.get(((TypeVariableName) typeName).name);
+        else if (typeName instanceof ParameterizedTypeName) {
+            ParameterizedTypeName ptn = (ParameterizedTypeName) typeName;
+            List<TypeName> typeArgs = ptn.typeArguments;
+            TypeName[] resolvedTypeArgs = new TypeName[typeArgs.size()];
+            for (int i = 0; i < resolvedTypeArgs.length; i++)
+                resolvedTypeArgs[i] = getParameterizedName(typeArgs.get(i), typeParams);
+            return ParameterizedTypeName.get(ptn.rawType, resolvedTypeArgs);
+        } else
+            return typeName.withoutAnnotations();
+    }
+
     /**
      * Gets all methods in an element, including methods from its superclass and superinterfaces.
      * @param processingEnv processing environment
      * @param element element to check
      * @return all methods in element
      */
-    public static @NotNull List<@NotNull ExecutableElement> allMethodsIn(@NotNull ProcessingEnvironment processingEnv, @NotNull TypeElement element) {
-        ArrayList<ExecutableElement> methods = new ArrayList<>(ElementFilter.methodsIn(element.getEnclosedElements()));
-        TypeMirror superclass = element.getSuperclass();
-        if (superclass.getKind() != TypeKind.VOID) {
-            TypeElement superclassElement = (TypeElement) processingEnv.getTypeUtils().asElement(superclass);
-            if (superclassElement != null)
-                methods.addAll(allMethodsIn(processingEnv, superclassElement));
-        }
-        for (TypeMirror interfaceM : element.getInterfaces()) {
-            TypeElement interfaceElement = (TypeElement) processingEnv.getTypeUtils().asElement(interfaceM);
-            methods.addAll(allMethodsIn(processingEnv, interfaceElement));
-        }
-        return methods;
+    public static @NotNull Set<@NotNull MethodSignature> allMethodsIn(@NotNull ProcessingEnvironment processingEnv, @NotNull TypeElement element,
+                                                                      @NotNull List<@NotNull TypeMirror> typeArgs) {
+        return element.accept(new SimpleElementVisitor8<Set<MethodSignature>, List<TypeMirror>>() {
+            @Override
+            public Set<MethodSignature> visitType(TypeElement e, List<TypeMirror> typeArgs) {
+                Set<MethodSignature> signatures = new HashSet<>();
+                for (TypeMirror interfaceMirror : e.getInterfaces()) {
+                    if (processingEnv.getTypeUtils().isSameType(e.asType(), interfaceMirror))
+                        continue;
+                    List<TypeMirror> nestedTypeArgs = new ArrayList<>(((DeclaredType) interfaceMirror).getTypeArguments());
+                    TypeElement interfaceElem = (TypeElement) processingEnv.getTypeUtils().asElement(interfaceMirror);
+                    signatures.addAll(visitType(interfaceElem, nestedTypeArgs));
+                }
+                List<? extends TypeParameterElement> typeParamElems = e.getTypeParameters();
+                Map<String, TypeName> typeParams = new HashMap<>();
+                for (int i = 0, size = typeParamElems.size(); i < size; i++) {
+                    TypeParameterElement typeParam = typeParamElems.get(i);
+                    String typeParamName = typeParam.getSimpleName().toString();
+                    if (!typeParams.containsKey(typeParamName)) {
+                        if (i >= typeArgs.size()) {
+                            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                                    "Unfilled type parameter", typeParam);
+                            return Collections.emptySet();
+                        }
+                        TypeName value = TypeName.get(typeArgs.get(i)).withoutAnnotations();
+                        typeParams.put(typeParamName, value);
+                    }
+                }
+                for (ExecutableElement method : ElementFilter.methodsIn(e.getEnclosedElements())) {
+                    TypeName returnTypeName = getParameterizedName(method.getReturnType(), typeParams);
+                    List<? extends VariableElement> params = method.getParameters();
+                    TypeName[] paramNames = new TypeName[params.size()];
+                    for (int i = 0; i < paramNames.length; i++)
+                        paramNames[i] = getParameterizedName(params.get(i).asType(), typeParams);
+                    MethodSignature signature = method.isDefault()
+                            ? MethodSignature.ofDefault(returnTypeName, method.getSimpleName().toString(), paramNames)
+                            : MethodSignature.of(returnTypeName, method.getSimpleName().toString(), paramNames);
+                    signatures.add(signature);
+                }
+                return signatures;
+            }
+
+            @Override
+            protected Set<MethodSignature> defaultAction(Element e, List<TypeMirror> unused) {
+                throw new IllegalStateException("uh, not sure what to do with this: " + e);
+            }
+        }, typeArgs);
     }
 
     /**

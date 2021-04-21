@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Config(name = "test", handlerInterface = "TestConfigHandler",
+@Config(name = "test", handlerInterface = "ConfigHandler",
         components = {
         @Component(
                 value = "speedbridge-config:serializer",
@@ -19,6 +19,7 @@ import java.util.Map;
                 @Component("speedbridge-config:listener"),
                 @Component("speedbridge-config:remote_storage")
         },
+        handlerName = "TestConfigHandlerImpl",
         nonNullAnnotation = "org.jetbrains.annotations.NotNull", nullableAnnotation = "org.jetbrains.annotations.Nullable")
 public final class TestConfig {
     public boolean testBool = false;

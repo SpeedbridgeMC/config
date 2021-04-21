@@ -4,9 +4,8 @@ import com.squareup.javapoet.TypeName;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.VariableElement;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -24,19 +23,6 @@ public final class MethodSignature {
         this.parameters = parameters;
         this.isDefault = isDefault;
         this.returnType = returnType;
-    }
-
-    /**
-     * Creates a {@code MethodSignature} that represents a {@link ExecutableElement}.
-     * @param method element to represent
-     * @return a signature based on the specified element
-     */
-    public static @NotNull MethodSignature fromElement(@NotNull ExecutableElement method) {
-        ArrayList<TypeName> parameters = new ArrayList<>();
-        for (VariableElement parameter : method.getParameters())
-            parameters.add(TypeName.get(parameter.asType()).withoutAnnotations());
-        return new MethodSignature(method.getSimpleName().toString(), parameters.toArray(new TypeName[0]),
-                method.isDefault(), TypeName.get(method.getReturnType()).withoutAnnotations());
     }
 
     /**
@@ -166,5 +152,23 @@ public final class MethodSignature {
             cachedFullString = sb.toString();
         }
         return cachedFullString;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        MethodSignature that = (MethodSignature) o;
+        return isDefault == that.isDefault
+                && name.equals(that.name)
+                && Arrays.equals(parameters, that.parameters)
+                && Objects.equals(returnType, that.returnType);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(name, isDefault, returnType);
+        result = 31 * result + Arrays.hashCode(parameters);
+        return result;
     }
 }

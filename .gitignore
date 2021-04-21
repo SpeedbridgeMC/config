@@ -2,6 +2,4 @@
 .idea/
 build/
 out/
-generated/
-generated_tests/
-test/
+test_config/
