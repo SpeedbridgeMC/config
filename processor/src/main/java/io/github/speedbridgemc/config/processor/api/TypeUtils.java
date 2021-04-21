@@ -123,8 +123,7 @@ public final class TypeUtils {
                                     "Unfilled type parameter", typeParam);
                             return Collections.emptySet();
                         }
-                        TypeName value = TypeName.get(typeArgs.get(i)).withoutAnnotations();
-                        typeParams.put(typeParamName, value);
+                        typeParams.put(typeParamName, getParameterizedName(typeArgs.get(i), typeParams));
                     }
                 }
                 for (ExecutableElement method : ElementFilter.methodsIn(e.getEnclosedElements())) {
