@@ -218,9 +218,9 @@ public final class TypeUtils {
                 ParameterizedTypeName ptn = (ParameterizedTypeName) typeName;
                 StringBuilder sb = new StringBuilder(getSimpleName(ptn.rawType)).append('<');
                 for (TypeName typeArg : ptn.typeArguments)
-                    sb.append(getSimpleName(typeArg)).append(',');
+                    sb.append(getSimpleName(typeArg)).append(", ");
                 if (ptn.typeArguments.size() > 0)
-                    sb.setLength(sb.length() - 1); // remove last ","
+                    sb.setLength(sb.length() - 2); // remove last ", "
                 cached = sb.append('>').toString();
             } else if (typeName instanceof TypeVariableName)
                 cached = ((TypeVariableName) typeName).name;
@@ -242,7 +242,7 @@ public final class TypeUtils {
         return getSimpleName(TYPE_NAME_CACHE.computeIfAbsent(type, TypeName::get));
     }
 
-    private static final Pattern GENERICS_PATTERN = Pattern.compile("[<,>]");
+    private static final Pattern GENERICS_PATTERN = Pattern.compile("(<|>|, )");
     private static final Pattern ARRAY_PATTERN = Pattern.compile("\\[]");
 
     private static final HashMap<String, String> SANITIZED_CACHE = new HashMap<>();
