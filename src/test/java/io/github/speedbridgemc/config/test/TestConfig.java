@@ -1,9 +1,11 @@
 package io.github.speedbridgemc.config.test;
 
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.seralize.Aliases;
 
 @Config
 public class TestConfig {
+    @Aliases({ "int_one", "INTONEBABY" })
     public int int1;
     @Config.Value(name = "int_2_baby")
     public int int2;

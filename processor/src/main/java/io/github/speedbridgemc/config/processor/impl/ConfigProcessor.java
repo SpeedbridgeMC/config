@@ -3,18 +3,23 @@ package io.github.speedbridgemc.config.processor.impl;
 import com.google.auto.service.AutoService;
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.ConfigValue;
+import io.github.speedbridgemc.config.processor.api.scan.ConfigValueExtensionScanner;
 import io.github.speedbridgemc.config.processor.api.scan.ConfigValueNamingStrategy;
 import io.github.speedbridgemc.config.processor.api.scan.ConfigValueScanner;
 import io.github.speedbridgemc.config.processor.impl.scan.IdentityConfigValueNamingStrategy;
+import io.github.speedbridgemc.config.processor.impl.scan.StandardExtensionScanner;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.io.*;
 import java.util.*;
+
+import static java.util.Collections.singleton;
 
 /**
  * The main entry point of the annotation processor.
@@ -25,6 +30,7 @@ public final class ConfigProcessor extends AbstractProcessor {
     private String version;
     private Messager messager;
     private Elements elements;
+    private Types types;
 
     private HashMap<String, ConfigValueScanner> valueScanners;
 
@@ -34,8 +40,9 @@ public final class ConfigProcessor extends AbstractProcessor {
 
         messager = processingEnv.getMessager();
         elements = processingEnv.getElementUtils();
+        types = processingEnv.getTypeUtils();
 
-        try (InputStream is = getClass().getResourceAsStream("/version.properties")) {
+        try (InputStream is = ConfigProcessor.class.getResourceAsStream("/version.properties")) {
             if (is == null)
                 throw new FileNotFoundException();
             Properties props = new Properties();
@@ -103,7 +110,9 @@ public final class ConfigProcessor extends AbstractProcessor {
             // TODO actually allow the user to configure this
             ConfigValueNamingStrategy namingStrategy = new IdentityConfigValueNamingStrategy();
             namingStrategy.init(processingEnv);
-            ConfigValueScanner.Context scanCtx = new ConfigValueScanner.Context(namingStrategy, "", Collections.emptySet());
+            ConfigValueExtensionScanner extensionScanner = new StandardExtensionScanner();
+            extensionScanner.init(processingEnv);
+            ConfigValueScanner.Context scanCtx = new ConfigValueScanner.Context(namingStrategy, "", singleton(extensionScanner));
             ArrayList<ConfigValue> values = new ArrayList<>();
             for (Map.Entry<String, ConfigValueScanner> entry : valueScanners.entrySet()) {
                 try {
@@ -127,7 +136,7 @@ public final class ConfigProcessor extends AbstractProcessor {
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
-        return Collections.singleton(Config.class.getCanonicalName());
+        return singleton(Config.class.getCanonicalName());
     }
 
 }
