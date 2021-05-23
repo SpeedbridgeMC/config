@@ -57,7 +57,8 @@ public final class DefaultConfigValueScanner extends ConfigValueScanner {
                 continue;
 
             Set<Modifier> modifiers = field.getModifiers();
-            if (modifiers.contains(Modifier.FINAL) || modifiers.contains(Modifier.TRANSIENT) || !modifiers.contains(Modifier.PUBLIC))
+            if (modifiers.contains(Modifier.STATIC) || modifiers.contains(Modifier.FINAL)
+                    || modifiers.contains(Modifier.TRANSIENT) || !modifiers.contains(Modifier.PUBLIC))
                 continue;
             if (field.getAnnotation(Config.Exclude.class) != null)
                 continue;
@@ -106,7 +107,7 @@ public final class DefaultConfigValueScanner extends ConfigValueScanner {
         HashSet<PropertyDefinition> propertyDefinitions = new HashSet<>();
         for (ExecutableElement method : ElementFilter.methodsIn(type.getEnclosedElements())) {
             Set<Modifier> modifiers = method.getModifiers();
-            if (!modifiers.contains(Modifier.PUBLIC))
+            if (modifiers.contains(Modifier.STATIC) || !modifiers.contains(Modifier.PUBLIC))
                 continue;
             if (method.getAnnotation(Config.Exclude.class) != null)
                 continue;
