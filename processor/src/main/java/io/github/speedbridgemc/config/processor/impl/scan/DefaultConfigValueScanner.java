@@ -42,7 +42,7 @@ public final class DefaultConfigValueScanner extends ConfigValueScanner {
             TypeMirror valueType = field.asType();
             String valueName = valueAnno.name();
             if (valueName.isEmpty())
-                // TODO naming policy
+                // TODO naming strategy
                 valueName = field.getSimpleName().toString();
             ImmutableClassToInstanceMap.Builder<ConfigValueExtension> extBuilder = ImmutableClassToInstanceMap.builder();
             // TODO call extension scanners

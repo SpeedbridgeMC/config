@@ -8,7 +8,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import java.util.Collection;
 
-public abstract class ConfigValueExtensionScanner extends Scanner {
+public abstract class ConfigValueExtensionScanner extends ScanPhaseWorker {
     protected ConfigValueExtensionScanner(@NotNull String id) {
         super(id);
     }

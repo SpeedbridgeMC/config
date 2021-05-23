@@ -7,14 +7,14 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
-public abstract class Scanner {
+public abstract class ScanPhaseWorker {
     protected final @NotNull String id;
     protected ProcessingEnvironment processingEnv;
     protected Messager messager;
     protected Elements elements;
     protected Types types;
 
-    protected Scanner(@NotNull String id) {
+    protected ScanPhaseWorker(@NotNull String id) {
         this.id = id;
     }
 

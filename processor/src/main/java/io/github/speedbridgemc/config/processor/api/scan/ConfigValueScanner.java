@@ -6,7 +6,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.element.TypeElement;
 
-public abstract class ConfigValueScanner extends Scanner {
+public abstract class ConfigValueScanner extends ScanPhaseWorker {
     protected ConfigValueScanner(@NotNull String id) {
         super(id);
     }
