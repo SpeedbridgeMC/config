@@ -8,9 +8,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
 import java.io.*;
-import java.util.Collections;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 /**
  * The main entry point of the annotation processor.
@@ -60,7 +58,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             return;
         }
 
-        // TODO
+        final ClassLoader cl = ConfigProcessor.class.getClassLoader();
     }
 
     @Override
