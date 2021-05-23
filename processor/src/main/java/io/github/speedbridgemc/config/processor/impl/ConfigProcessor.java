@@ -2,9 +2,13 @@ package io.github.speedbridgemc.config.processor.impl;
 
 import com.google.auto.service.AutoService;
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.processor.api.ConfigValue;
+import io.github.speedbridgemc.config.processor.api.scan.ConfigValueScanner;
+import io.github.speedbridgemc.config.processor.impl.scan.IdentityConfigValueNamingStrategy;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.tools.Diagnostic;
@@ -20,6 +24,8 @@ public final class ConfigProcessor extends AbstractProcessor {
     private String version;
     private Messager messager;
     private Elements elements;
+
+    private HashMap<String, ConfigValueScanner> valueScanners;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
@@ -60,6 +66,13 @@ public final class ConfigProcessor extends AbstractProcessor {
         }
 
         final ClassLoader cl = ConfigProcessor.class.getClassLoader();
+
+        valueScanners = new HashMap<>();
+        for (ConfigValueScanner scanner : ServiceLoader.load(ConfigValueScanner.class, cl))
+            valueScanners.put(scanner.id(), scanner);
+
+        for (ConfigValueScanner scanner : valueScanners.values())
+            scanner.init(processingEnv);
     }
 
     @Override
@@ -71,18 +84,47 @@ public final class ConfigProcessor extends AbstractProcessor {
             PrintWriter pw = new PrintWriter(sw);
             e.printStackTrace(pw);
             messager.printMessage(Diagnostic.Kind.ERROR,
-                    "Speedbridge Config annotation processor failed exceptionally!\n" + sw.toString());
-            e.printStackTrace();
+                    "Speedbridge Config annotation processor failed exceptionally!\n" + sw);
         }
         return true;
     }
 
     private void run(RoundEnvironment roundEnv) {
-        // TODO
+        for (Element annotatedElem : roundEnv.getElementsAnnotatedWith(Config.class)) {
+            if (!(annotatedElem instanceof TypeElement)) {
+                messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING, "Non-type element annotated with @Config", annotatedElem);
+                continue;
+            }
+            TypeElement type = (TypeElement) annotatedElem;
+            Config config = type.getAnnotation(Config.class);
+
+            // scan for values
+            // TODO actually allow the user to configure this
+            ConfigValueScanner.Context scanCtx = new ConfigValueScanner.Context(new IdentityConfigValueNamingStrategy(), "", Collections.emptySet());
+            ArrayList<ConfigValue> values = new ArrayList<>();
+            for (Map.Entry<String, ConfigValueScanner> entry : valueScanners.entrySet()) {
+                try {
+                    entry.getValue().findValues(scanCtx, type, config, values::add);
+                } catch (Exception e) {
+                    StringWriter sw = new StringWriter();
+                    PrintWriter pw = new PrintWriter(sw);
+                    e.printStackTrace(pw);
+                    messager.printMessage(Diagnostic.Kind.ERROR,
+                            "Value scanner \"" + entry.getKey() + "\" failed exceptionally!\n" + sw);
+                }
+            }
+
+            // TODO do something with the values
+            // debugging for now...
+            System.out.format("Found %d values in \"%s\"!%n", values.size(), type.getQualifiedName().toString());
+            for (ConfigValue value : values)
+                System.out.format(" - %s%n", value.toString());
+        }
     }
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
         return Collections.singleton(Config.class.getCanonicalName());
     }
+
 }

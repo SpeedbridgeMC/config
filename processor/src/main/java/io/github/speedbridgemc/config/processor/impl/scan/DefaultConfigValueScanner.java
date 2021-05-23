@@ -42,7 +42,9 @@ public final class DefaultConfigValueScanner extends ConfigValueScanner {
             if (!includeFieldsByDefault && valueAnno == null)
                 continue;
             TypeMirror valueType = field.asType();
-            String valueName = valueAnno.name();
+            String valueName = "";
+            if (valueAnno != null)
+                valueName = valueAnno.name();
             if (valueName.isEmpty())
                 valueName = ctx.name(type, singleton(field));
             ImmutableClassToInstanceMap.Builder<ConfigValueExtension> extBuilder = ImmutableClassToInstanceMap.builder();

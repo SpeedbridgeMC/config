@@ -53,6 +53,16 @@ public abstract class ConfigValueImpl implements ConfigValue {
         public @NotNull CodeBlock generateSet(@NotNull String obj, @NotNull String src) {
             return CodeBlock.of("$L.$L = $L", obj, fieldName, src);
         }
+
+        @Override
+        public String toString() {
+            return "Field{" +
+                    "name='" + name + '\'' +
+                    ", type=" + type +
+                    ", extensions=" + extensions +
+                    ", fieldName='" + fieldName + '\'' +
+                    '}';
+        }
     }
 
     public static final class Property extends ConfigValueImpl {
@@ -73,6 +83,17 @@ public abstract class ConfigValueImpl implements ConfigValue {
         @Override
         public @NotNull CodeBlock generateSet(@NotNull String obj, @NotNull String src) {
             return CodeBlock.of("$L.$L($L)", obj, setterName, src);
+        }
+
+        @Override
+        public String toString() {
+            return "Property{" +
+                    "name='" + name + '\'' +
+                    ", type=" + type +
+                    ", extensions=" + extensions +
+                    ", getterName='" + getterName + '\'' +
+                    ", setterName='" + setterName + '\'' +
+                    '}';
         }
     }
 }
