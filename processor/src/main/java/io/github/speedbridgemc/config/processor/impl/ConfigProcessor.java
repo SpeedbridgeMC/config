@@ -1,6 +1,7 @@
 package io.github.speedbridgemc.config.processor.impl;
 
 import com.google.auto.service.AutoService;
+import io.github.speedbridgemc.config.Config;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -82,7 +83,6 @@ public final class ConfigProcessor extends AbstractProcessor {
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
-        // TODO
-        return Collections.emptySet();
+        return Collections.singleton(Config.class.getCanonicalName());
     }
 }
