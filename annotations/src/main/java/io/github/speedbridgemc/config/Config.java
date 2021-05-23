@@ -24,5 +24,7 @@ public @interface Config {
     @Target({ ElementType.FIELD, ElementType.METHOD })
     @interface Value {
         @NotNull String name() default "";
+        @NotNull String getter() default "";
+        @NotNull String setter() default "";
     }
 }

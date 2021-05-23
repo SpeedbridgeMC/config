@@ -3,6 +3,7 @@ package io.github.speedbridgemc.config.processor.impl;
 import com.google.auto.service.AutoService;
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.ConfigValue;
+import io.github.speedbridgemc.config.processor.api.scan.ConfigValueNamingStrategy;
 import io.github.speedbridgemc.config.processor.api.scan.ConfigValueScanner;
 import io.github.speedbridgemc.config.processor.impl.scan.IdentityConfigValueNamingStrategy;
 
@@ -100,7 +101,9 @@ public final class ConfigProcessor extends AbstractProcessor {
 
             // scan for values
             // TODO actually allow the user to configure this
-            ConfigValueScanner.Context scanCtx = new ConfigValueScanner.Context(new IdentityConfigValueNamingStrategy(), "", Collections.emptySet());
+            ConfigValueNamingStrategy namingStrategy = new IdentityConfigValueNamingStrategy();
+            namingStrategy.init(processingEnv);
+            ConfigValueScanner.Context scanCtx = new ConfigValueScanner.Context(namingStrategy, "", Collections.emptySet());
             ArrayList<ConfigValue> values = new ArrayList<>();
             for (Map.Entry<String, ConfigValueScanner> entry : valueScanners.entrySet()) {
                 try {
