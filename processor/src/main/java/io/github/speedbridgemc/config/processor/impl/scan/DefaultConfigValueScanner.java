@@ -13,6 +13,8 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 
+import static java.util.Collections.singleton;
+
 @AutoService(ConfigValueScanner.class)
 public final class DefaultConfigValueScanner extends ConfigValueScanner {
     public DefaultConfigValueScanner() {
@@ -20,7 +22,7 @@ public final class DefaultConfigValueScanner extends ConfigValueScanner {
     }
 
     @Override
-    public void scan(@NotNull TypeElement type, @NotNull Config config, @NotNull Callback callback) {
+    public void findValues(@NotNull Context ctx, @NotNull TypeElement type, @NotNull Config config, @NotNull Callback callback) {
         boolean includeFieldsByDefault = false;
         boolean includePropertiesByDefault = false;
         for (Config.ScanTarget target : config.scanFor()) {
@@ -42,11 +44,10 @@ public final class DefaultConfigValueScanner extends ConfigValueScanner {
             TypeMirror valueType = field.asType();
             String valueName = valueAnno.name();
             if (valueName.isEmpty())
-                // TODO naming strategy
-                valueName = field.getSimpleName().toString();
+                valueName = ctx.name(type, singleton(field));
             ImmutableClassToInstanceMap.Builder<ConfigValueExtension> extBuilder = ImmutableClassToInstanceMap.builder();
-            // TODO call extension scanners
-            callback.addField(ConfigValue.field(valueName, valueType, extBuilder.build(), field.getSimpleName().toString()));
+            ctx.findExtensions(type, config, singleton(field), extBuilder::put);
+            callback.addValue(ConfigValue.field(valueName, valueType, extBuilder.build(), field.getSimpleName().toString()));
         }
         // TODO properties (getters/setters)
     }

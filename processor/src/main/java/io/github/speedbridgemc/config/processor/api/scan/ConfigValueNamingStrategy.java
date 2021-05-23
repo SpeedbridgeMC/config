@@ -11,5 +11,5 @@ public abstract class ConfigValueNamingStrategy extends ScanPhaseWorker {
         super(id);
     }
 
-    public abstract @NotNull String name(@NotNull TypeElement type, @NotNull Collection<? extends Element> elements);
+    public abstract @NotNull String name(@NotNull TypeElement type, @NotNull Collection<? extends Element> elements, @NotNull String variantId);
 }

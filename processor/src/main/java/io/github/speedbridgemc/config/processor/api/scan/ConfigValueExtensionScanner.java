@@ -14,8 +14,8 @@ public abstract class ConfigValueExtensionScanner extends ScanPhaseWorker {
     }
 
     public interface Callback {
-        void addExtension(@NotNull ConfigValueExtension ext);
+        <T extends ConfigValueExtension> void putExtension(@NotNull Class<T> type, @NotNull T ext);
     }
 
-    public abstract void scan(@NotNull TypeElement type, @NotNull Config config, @NotNull Collection<? extends Element> elements, @NotNull Callback callback);
+    public abstract void findExtensions(@NotNull TypeElement type, @NotNull Config config, @NotNull Collection<? extends Element> elements, @NotNull Callback callback);
 }
