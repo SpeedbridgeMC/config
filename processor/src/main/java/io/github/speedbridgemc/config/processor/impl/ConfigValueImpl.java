@@ -2,19 +2,19 @@ package io.github.speedbridgemc.config.processor.impl;
 
 import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.squareup.javapoet.CodeBlock;
-import io.github.speedbridgemc.config.processor.api.ConfigField;
-import io.github.speedbridgemc.config.processor.api.ConfigFieldExtension;
+import io.github.speedbridgemc.config.processor.api.ConfigValue;
+import io.github.speedbridgemc.config.processor.api.ConfigValueExtension;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.type.TypeMirror;
 import java.util.Optional;
 
-public abstract class ConfigFieldImpl implements ConfigField {
+public abstract class ConfigValueImpl implements ConfigValue {
     protected final @NotNull String name;
     protected final @NotNull TypeMirror type;
-    protected final @NotNull ImmutableClassToInstanceMap<ConfigFieldExtension> extensions;
+    protected final @NotNull ImmutableClassToInstanceMap<ConfigValueExtension> extensions;
 
-    protected ConfigFieldImpl(@NotNull String name, @NotNull TypeMirror type, @NotNull ImmutableClassToInstanceMap<ConfigFieldExtension> extensions) {
+    protected ConfigValueImpl(@NotNull String name, @NotNull TypeMirror type, @NotNull ImmutableClassToInstanceMap<ConfigValueExtension> extensions) {
         this.name = name;
         this.type = type;
         this.extensions = extensions;
@@ -31,14 +31,14 @@ public abstract class ConfigFieldImpl implements ConfigField {
     }
 
     @Override
-    public @NotNull <T extends ConfigFieldExtension> Optional<T> extension(@NotNull Class<T> type) {
+    public @NotNull <T extends ConfigValueExtension> Optional<T> extension(@NotNull Class<T> type) {
         return Optional.ofNullable(extensions.getInstance(type));
     }
 
-    public static final class Field extends ConfigFieldImpl {
+    public static final class Field extends ConfigValueImpl {
         private final @NotNull String fieldName;
 
-        public Field(@NotNull String name, @NotNull TypeMirror type, @NotNull ImmutableClassToInstanceMap<ConfigFieldExtension> extensions,
+        public Field(@NotNull String name, @NotNull TypeMirror type, @NotNull ImmutableClassToInstanceMap<ConfigValueExtension> extensions,
                      @NotNull String fieldName) {
             super(name, type, extensions);
             this.fieldName = fieldName;
@@ -55,10 +55,10 @@ public abstract class ConfigFieldImpl implements ConfigField {
         }
     }
 
-    public static final class Property extends ConfigFieldImpl {
+    public static final class Property extends ConfigValueImpl {
         private final @NotNull String getterName, setterName;
 
-        public Property(@NotNull String name, @NotNull TypeMirror type, @NotNull ImmutableClassToInstanceMap<ConfigFieldExtension> extensions,
+        public Property(@NotNull String name, @NotNull TypeMirror type, @NotNull ImmutableClassToInstanceMap<ConfigValueExtension> extensions,
                            @NotNull String getterName, @NotNull String setterName) {
             super(name, type, extensions);
             this.getterName = getterName;
