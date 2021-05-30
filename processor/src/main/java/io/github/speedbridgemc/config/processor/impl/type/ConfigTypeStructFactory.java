@@ -99,19 +99,20 @@ final class ConfigTypeStructFactory {
         ImmutableList.Builder<ConfigProperty> propertiesBuilder = ImmutableList.builder();
 
         // fields
-        if (includeFieldsByDefault) {
-            for (Map.Entry<String, FieldData> field : fields.entrySet()) {
-                TypeMirror fieldM = field.getValue().mirror;
-                AnnotatedConstruct fieldAS = field.getValue().annoSrc;
-                Config.Property propAnno = fieldAS.getAnnotation(Config.Property.class);
-                // TODO scan for extensions
-                String fieldName = field.getKey();
-                String propName = fieldName;
-                if (propAnno != null && !propAnno.name().isEmpty())
-                    propName = propAnno.name();
-                ConfigType fieldType = typeProvider.fromMirror(fieldM);
-                propertiesBuilder.add(new ConfigPropertyImpl.Field(fieldType, propName, ImmutableClassToInstanceMap.of(), fieldName));
-            }
+        for (Map.Entry<String, FieldData> field : fields.entrySet()) {
+            TypeMirror fieldM = field.getValue().mirror;
+            AnnotatedConstruct fieldAS = field.getValue().annoSrc;
+            Config.Property propAnno = fieldAS.getAnnotation(Config.Property.class);
+            // TODO scan for extensions
+            String fieldName = field.getKey();
+            String propName = fieldName;
+            if (propAnno == null) {
+                if (!includeFieldsByDefault)
+                    continue;
+            } else if (!propAnno.name().isEmpty())
+                propName = propAnno.name();
+            ConfigType fieldType = typeProvider.fromMirror(fieldM);
+            propertiesBuilder.add(new ConfigPropertyImpl.Field(fieldType, propName, ImmutableClassToInstanceMap.of(), fieldName));
         }
 
         // TODO properties
