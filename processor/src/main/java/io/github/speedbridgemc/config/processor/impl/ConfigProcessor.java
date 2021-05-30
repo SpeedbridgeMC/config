@@ -2,6 +2,8 @@ package io.github.speedbridgemc.config.processor.impl;
 
 import com.google.auto.service.AutoService;
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
+import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
@@ -100,27 +102,11 @@ public final class ConfigProcessor extends AbstractProcessor {
             ConfigTypeProvider provider = new ConfigTypeProviderImpl();
             provider.init(processingEnv);
 
-            System.out.println("Composite tests:");
-
-            System.out.println("String[][] = " + provider.arrayOf(provider.arrayOf(provider.primitiveOf(ConfigTypeKind.STRING))));
-            System.out.println("Map<String, int[]> = " +
-                    provider.mapOf(provider.primitiveOf(ConfigTypeKind.STRING), provider.arrayOf(provider.primitiveOf(ConfigTypeKind.INT))));
-
-            System.out.println("Mirror tests:");
-
-            TypeElement arrayListTE = elements.getTypeElement(ArrayList.class.getCanonicalName());
-            TypeMirror intArrListTM = types.getDeclaredType(arrayListTE, types.getArrayType(types.getPrimitiveType(TypeKind.INT)));
-            System.out.println("ArrayList<int[]> = " + provider.fromMirror(intArrListTM));
-
-            TypeMirror stringTM = elements.getTypeElement(String.class.getCanonicalName()).asType();
-            TypeMirror uuidTM = elements.getTypeElement(UUID.class.getCanonicalName()).asType();
-            TypeElement hashMapTE = elements.getTypeElement(HashMap.class.getCanonicalName());
-            TypeMirror stringUuidArrTM = types.getDeclaredType(hashMapTE, stringTM, types.getArrayType(uuidTM));
-            System.out.println("HashMap<String, UUID[]> = " + provider.fromMirror(stringUuidArrTM));
-
-            TypeMirror boxedIntTM = elements.getTypeElement(Integer.class.getCanonicalName()).asType();
-            TypeMirror stringIntTM = types.getDeclaredType(hashMapTE, stringTM, boxedIntTM);
-            System.out.println("HashMap<String, Integer> = " + provider.fromMirror(stringIntTM));
+            ConfigType cType = provider.fromMirror(type.asType());
+            System.out.println(cType);
+            System.out.println("properties:");
+            for (ConfigProperty prop : cType.properties())
+                System.out.format(" - %s %s%n", prop.type(), prop.name());
         }
     }
 

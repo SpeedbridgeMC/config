@@ -1,6 +1,5 @@
 package io.github.speedbridgemc.config.processor.impl.type;
 
-import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
@@ -27,6 +26,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private TypeElement mapTE;
 
     private ConfigType boolCType, byteCType, shortCType, intCType, longCType, charCType, floatCType, doubleCType, stringCType;
+    private ConfigTypeStructFactory structFactory;
 
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {
@@ -59,6 +59,8 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 types.getPrimitiveType(TypeKind.DOUBLE));
         stringCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.STRING, "string",
                 stringTM);
+
+        structFactory = new ConfigTypeStructFactory(this, processingEnv);
     }
 
     @Override
@@ -177,11 +179,8 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 return doubleCType;
             throw new RuntimeException("Unknown primitive " + typeName + "!");
         }
-        // 4. anything else - type of kind STRUCT
-        // FIXME actually implement this
-        //  - right now this reports every class as a stub with a public 0-arg constructor and no properties
-        //  - this should delegate to user-defined scanners, too
-        return new ConfigTypeImpl.Struct(mirror, new StructInstantiationStrategyImpl.Constructor(ImmutableList.of(), typeName), ImmutableList.of());
+        // 4. anything else - type of kind STRUCT (delegated to ConfigTypeStructFactory)
+        return structFactory.create(mirror);
     }
 
     private final @NotNull CollectionTypeArgFinder collectionTypeArgFinder = new CollectionTypeArgFinder();
