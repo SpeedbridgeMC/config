@@ -7,7 +7,7 @@ import io.github.speedbridgemc.config.seralize.Aliases;
 public class TestConfig {
     @Aliases({ "int_one", "INTONEBABY" })
     public int int1;
-    @Config.Value(name = "int_2_baby")
+    @Config.Property(name = "int_2_baby")
     public int int2;
     @Config.Exclude
     public boolean excluded;
@@ -32,7 +32,7 @@ public class TestConfig {
         this.floatProperty = floatProperty;
     }
 
-    @Config.Value(name = "doubleProp", setter = "doublePropSet")
+    @Config.Property(name = "doubleProp", setter = "doublePropSet")
     public double doublePropGet() {
         return doubleProperty;
     }

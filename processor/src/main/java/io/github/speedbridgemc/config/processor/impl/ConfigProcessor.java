@@ -2,17 +2,16 @@ package io.github.speedbridgemc.config.processor.impl;
 
 import com.google.auto.service.AutoService;
 import io.github.speedbridgemc.config.Config;
-import io.github.speedbridgemc.config.processor.api.ConfigValue;
-import io.github.speedbridgemc.config.processor.api.scan.ConfigValueExtensionScanner;
-import io.github.speedbridgemc.config.processor.api.scan.ConfigValueNamingStrategy;
-import io.github.speedbridgemc.config.processor.api.scan.ConfigValueScanner;
-import io.github.speedbridgemc.config.processor.impl.scan.IdentityConfigValueNamingStrategy;
-import io.github.speedbridgemc.config.processor.impl.scan.StandardExtensionScanner;
+import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
+import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
+import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -31,8 +30,6 @@ public final class ConfigProcessor extends AbstractProcessor {
     private Messager messager;
     private Elements elements;
     private Types types;
-
-    private HashMap<String, ConfigValueScanner> valueScanners;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
@@ -74,17 +71,11 @@ public final class ConfigProcessor extends AbstractProcessor {
         }
 
         final ClassLoader cl = ConfigProcessor.class.getClassLoader();
-
-        valueScanners = new HashMap<>();
-        for (ConfigValueScanner scanner : ServiceLoader.load(ConfigValueScanner.class, cl))
-            valueScanners.put(scanner.id(), scanner);
-
-        for (ConfigValueScanner scanner : valueScanners.values())
-            scanner.init(processingEnv);
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        // TODO collect configuration stuff
         try {
             run(roundEnv);
         } catch (Exception e) {
@@ -106,31 +97,26 @@ public final class ConfigProcessor extends AbstractProcessor {
             TypeElement type = (TypeElement) annotatedElem;
             Config config = type.getAnnotation(Config.class);
 
-            // scan for values
-            // TODO actually allow the user to configure this
-            ConfigValueNamingStrategy namingStrategy = new IdentityConfigValueNamingStrategy();
-            namingStrategy.init(processingEnv);
-            ConfigValueExtensionScanner extensionScanner = new StandardExtensionScanner();
-            extensionScanner.init(processingEnv);
-            ConfigValueScanner.Context scanCtx = new ConfigValueScanner.Context(namingStrategy, "", singleton(extensionScanner));
-            ArrayList<ConfigValue> values = new ArrayList<>();
-            for (Map.Entry<String, ConfigValueScanner> entry : valueScanners.entrySet()) {
-                try {
-                    entry.getValue().findValues(scanCtx, type, config, values::add);
-                } catch (Exception e) {
-                    StringWriter sw = new StringWriter();
-                    PrintWriter pw = new PrintWriter(sw);
-                    e.printStackTrace(pw);
-                    messager.printMessage(Diagnostic.Kind.ERROR,
-                            "Value scanner \"" + entry.getKey() + "\" failed exceptionally!\n" + sw);
-                }
-            }
+            ConfigTypeProvider provider = new ConfigTypeProviderImpl();
+            provider.init(processingEnv);
 
-            // TODO do something with the values
-            // debugging for now...
-            System.out.format("Found %d values in \"%s\"!%n", values.size(), type.getQualifiedName().toString());
-            for (ConfigValue value : values)
-                System.out.format(" - %s%n", value.toString());
+            System.out.println("Composite tests:");
+
+            System.out.println("String[][] = " + provider.arrayOf(provider.arrayOf(provider.primitiveOf(ConfigTypeKind.STRING))));
+            System.out.println("Map<String, int[]> = " +
+                    provider.mapOf(provider.primitiveOf(ConfigTypeKind.STRING), provider.arrayOf(provider.primitiveOf(ConfigTypeKind.INT))));
+
+            System.out.println("Mirror tests:");
+
+            TypeElement arrayListTE = elements.getTypeElement(ArrayList.class.getCanonicalName());
+            TypeMirror intArrListTM = types.getDeclaredType(arrayListTE, types.getArrayType(types.getPrimitiveType(TypeKind.INT)));
+            System.out.println("ArrayList<int[]> = " + provider.fromMirror(intArrListTM));
+
+            TypeMirror stringTM = elements.getTypeElement(String.class.getCanonicalName()).asType();
+            TypeMirror uuidTM = elements.getTypeElement(UUID.class.getCanonicalName()).asType();
+            TypeElement hashMapTE = elements.getTypeElement(HashMap.class.getCanonicalName());
+            TypeMirror stringUuidArrTM = types.getDeclaredType(hashMapTE, stringTM, types.getArrayType(uuidTM));
+            System.out.println("HashMap<String, UUID[]> = " + provider.fromMirror(stringUuidArrTM));
         }
     }
 

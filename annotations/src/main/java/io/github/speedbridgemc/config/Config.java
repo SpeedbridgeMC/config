@@ -22,7 +22,7 @@ public @interface Config {
     @Documented
     @Retention(RetentionPolicy.SOURCE)
     @Target({ ElementType.FIELD, ElementType.METHOD })
-    @interface Value {
+    @interface Property {
         @NotNull String name() default "";
         @NotNull String getter() default "";
         @NotNull String setter() default "";
