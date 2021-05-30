@@ -117,6 +117,10 @@ public final class ConfigProcessor extends AbstractProcessor {
             TypeElement hashMapTE = elements.getTypeElement(HashMap.class.getCanonicalName());
             TypeMirror stringUuidArrTM = types.getDeclaredType(hashMapTE, stringTM, types.getArrayType(uuidTM));
             System.out.println("HashMap<String, UUID[]> = " + provider.fromMirror(stringUuidArrTM));
+
+            TypeMirror boxedIntTM = elements.getTypeElement(Integer.class.getCanonicalName()).asType();
+            TypeMirror stringIntTM = types.getDeclaredType(hashMapTE, stringTM, boxedIntTM);
+            System.out.println("HashMap<String, Integer> = " + provider.fromMirror(stringIntTM));
         }
     }
 

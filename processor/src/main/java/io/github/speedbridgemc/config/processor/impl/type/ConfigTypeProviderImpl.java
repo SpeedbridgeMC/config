@@ -139,7 +139,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private @NotNull ConfigType fromDeclaredType(@NotNull DeclaredType mirror) {
         TypeMirror mirrorErasure = types.erasure(mirror);
 
-        // 3 possible cases (4 if you count String, but that's handled in fromMirror)
+        // 4 possible cases (5 if you count String, but that's handled in fromMirror)
         // 1. subtype of Collection - type of kind ARRAY
         if (types.isAssignable(mirrorErasure, collectionTM)) {
             TypeMirror compType = mirror.accept(collectionTypeArgFinder, null);
@@ -154,10 +154,33 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 throw new RuntimeException("Got null key/value types (K and V in Map<K, V>) for " + mirror);
             return new ConfigTypeImpl.Map(mirror, fromMirror(typeArgs.keyType), fromMirror(typeArgs.valueType));
         }
-        // 3. anything else - type of kind STRUCT
         TypeName typeName = TypeName.get(mirror).withoutAnnotations();
-        // FIXME actually implement this - right now this reports every class as a stub with a public 0-arg constructor
-        //  and no properties
+        // 3. boxed primitives - type of kind (unboxed primitive)
+        // TODO finangle support for nullable primitives, maybe?
+        if (typeName.isBoxedPrimitive()) {
+            typeName = typeName.unbox();
+            if (typeName.equals(TypeName.BOOLEAN))
+                return boolCType;
+            else if (typeName.equals(TypeName.BYTE))
+                return byteCType;
+            else if (typeName.equals(TypeName.SHORT))
+                return shortCType;
+            else if (typeName.equals(TypeName.INT))
+                return intCType;
+            else if (typeName.equals(TypeName.LONG))
+                return longCType;
+            else if (typeName.equals(TypeName.CHAR))
+                return charCType;
+            else if (typeName.equals(TypeName.FLOAT))
+                return floatCType;
+            else if (typeName.equals(TypeName.DOUBLE))
+                return doubleCType;
+            throw new RuntimeException("Unknown primitive " + typeName + "!");
+        }
+        // 4. anything else - type of kind STRUCT
+        // FIXME actually implement this
+        //  - right now this reports every class as a stub with a public 0-arg constructor and no properties
+        //  - this should delegate to user-defined scanners, too
         return new ConfigTypeImpl.Struct(mirror, new StructInstantiationStrategyImpl.Constructor(ImmutableList.of(), typeName), ImmutableList.of());
     }
 
