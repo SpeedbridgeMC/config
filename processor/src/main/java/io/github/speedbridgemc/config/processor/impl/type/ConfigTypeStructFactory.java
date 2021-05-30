@@ -57,6 +57,25 @@ final class ConfigTypeStructFactory {
         }
 
         TypeElement te = (TypeElement) mirror.asElement();
+
+        boolean includeFieldsByDefault = true;
+        boolean includePropertiesByDefault = true;
+        Config config = te.getAnnotation(Config.class);
+        if (config != null) {
+            includeFieldsByDefault = false;
+            includePropertiesByDefault = false;
+            for (Config.ScanTarget target : config.scanFor()) {
+                switch (target) {
+                case FIELDS:
+                    includeFieldsByDefault = true;
+                    break;
+                case PROPERTIES:
+                    includePropertiesByDefault = true;
+                    break;
+                }
+            }
+        }
+
         LinkedHashMap<String, FieldData> fields = new LinkedHashMap<>();
         LinkedHashMultimap<String, MethodData> methods = LinkedHashMultimap.create();
 
@@ -80,17 +99,19 @@ final class ConfigTypeStructFactory {
         ImmutableList.Builder<ConfigProperty> propertiesBuilder = ImmutableList.builder();
 
         // fields
-        for (Map.Entry<String, FieldData> field : fields.entrySet()) {
-            TypeMirror fieldM = field.getValue().mirror;
-            AnnotatedConstruct fieldAS = field.getValue().annoSrc;
-            Config.Property propAnno = fieldAS.getAnnotation(Config.Property.class);
-            // TODO scan for extensions
-            String fieldName = field.getKey();
-            String propName = fieldName;
-            if (propAnno != null && !propAnno.name().isEmpty())
-                propName = propAnno.name();
-            ConfigType fieldType = typeProvider.fromMirror(fieldM);
-            propertiesBuilder.add(new ConfigPropertyImpl.Field(fieldType, propName, ImmutableClassToInstanceMap.of(), fieldName));
+        if (includeFieldsByDefault) {
+            for (Map.Entry<String, FieldData> field : fields.entrySet()) {
+                TypeMirror fieldM = field.getValue().mirror;
+                AnnotatedConstruct fieldAS = field.getValue().annoSrc;
+                Config.Property propAnno = fieldAS.getAnnotation(Config.Property.class);
+                // TODO scan for extensions
+                String fieldName = field.getKey();
+                String propName = fieldName;
+                if (propAnno != null && !propAnno.name().isEmpty())
+                    propName = propAnno.name();
+                ConfigType fieldType = typeProvider.fromMirror(fieldM);
+                propertiesBuilder.add(new ConfigPropertyImpl.Field(fieldType, propName, ImmutableClassToInstanceMap.of(), fieldName));
+            }
         }
 
         // TODO properties
