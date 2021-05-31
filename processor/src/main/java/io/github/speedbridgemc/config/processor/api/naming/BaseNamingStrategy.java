@@ -9,7 +9,7 @@ import javax.lang.model.util.Types;
 
 public abstract class BaseNamingStrategy implements NamingStrategy {
     protected final @NotNull String id;
-    protected boolean initialized = false;
+    private boolean initialized = false;
     protected ProcessingEnvironment processingEnv;
     protected Messager messager;
     protected Types types;
@@ -28,6 +28,7 @@ public abstract class BaseNamingStrategy implements NamingStrategy {
     public void init(@NotNull ProcessingEnvironment processingEnv) {
         if (initialized)
             throw new IllegalStateException("Already initialized!");
+        initialized = true;
         this.processingEnv = processingEnv;
         messager = processingEnv.getMessager();
         types = processingEnv.getTypeUtils();

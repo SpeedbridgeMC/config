@@ -8,7 +8,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
 public abstract class BaseConfigPropertyExtensionFinder implements ConfigPropertyExtensionFinder {
-    protected boolean initialized = false;
+    private boolean initialized = false;
     protected ProcessingEnvironment processingEnv;
     protected Messager messager;
     protected Types types;
@@ -18,6 +18,7 @@ public abstract class BaseConfigPropertyExtensionFinder implements ConfigPropert
     public void init(@NotNull ProcessingEnvironment processingEnv) {
         if (initialized)
             throw new IllegalStateException("Already initialized!");
+        initialized = true;
         this.processingEnv = processingEnv;
         messager = processingEnv.getMessager();
         types = processingEnv.getTypeUtils();
