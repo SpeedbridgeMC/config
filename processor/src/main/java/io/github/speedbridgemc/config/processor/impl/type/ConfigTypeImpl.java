@@ -85,7 +85,7 @@ public abstract class ConfigTypeImpl implements ConfigType {
         private final @NotNull ImmutableList<String> constants;
 
         public Enum(@NotNull TypeMirror typeMirror, @NotNull List<String> constants) {
-            super(ConfigTypeKind.ENUM, "enum{" + typeMirror + "}", typeMirror);
+            super(ConfigTypeKind.ENUM, "enum{" + typeMirror + "=" + String.join(",", constants) + "}", typeMirror);
             this.constants = toImmutableList(constants);
         }
 

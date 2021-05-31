@@ -3,6 +3,8 @@ package io.github.speedbridgemc.config.processor.impl.type;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
+import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
@@ -67,6 +69,16 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 stringTM);
 
         structFactory = new ConfigTypeStructFactory(this, processingEnv);
+    }
+
+    @Override
+    public void addExtensionFinder(@NotNull ConfigPropertyExtensionFinder extensionFinder) {
+        structFactory.addExtensionFinder(extensionFinder);
+    }
+
+    @Override
+    public void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant) {
+        structFactory.setNamingStrategy(strategy, variant);
     }
 
     @Override

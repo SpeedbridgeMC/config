@@ -5,16 +5,19 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.LinkedHashMultimap;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
+import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
+import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
+import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.processor.api.util.PropertyUtils;
 import io.github.speedbridgemc.config.processor.impl.property.ConfigPropertyImpl;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
@@ -32,6 +35,10 @@ final class ConfigTypeStructFactory {
 
     private final TypeMirror booleanTM;
 
+    private final ArrayList<ConfigPropertyExtensionFinder> extensionFinders;
+    private NamingStrategy namingStrategy;
+    private String namingStrategyVariant;
+
     public ConfigTypeStructFactory(ConfigTypeProvider typeProvider, ProcessingEnvironment processingEnv) {
         this.typeProvider = typeProvider;
         this.processingEnv = processingEnv;
@@ -39,6 +46,23 @@ final class ConfigTypeStructFactory {
         types = processingEnv.getTypeUtils();
 
         booleanTM = elements.getTypeElement(Boolean.class.getCanonicalName()).asType();
+
+        extensionFinders = new ArrayList<>();
+    }
+
+    public void addExtensionFinder(@NotNull ConfigPropertyExtensionFinder extensionFinder) {
+        extensionFinders.add(extensionFinder);
+    }
+
+    public void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant) {
+        namingStrategy = strategy;
+        namingStrategyVariant = variant;
+    }
+
+    private void findExtensions(@NotNull ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> mapBuilder,
+                                @NotNull MirrorElementPair @NotNull ... pairs) {
+        for (ConfigPropertyExtensionFinder finder : extensionFinders)
+            finder.findExtensions(mapBuilder::put, pairs);
     }
 
     public @NotNull ConfigType create(@NotNull DeclaredType mirror) {
@@ -73,12 +97,17 @@ final class ConfigTypeStructFactory {
         }
         class AccessorPair {
             public final @NotNull TypeMirror type;
-            public final @NotNull ExecutableElement getter, setter;
+            public final @NotNull ExecutableType getterM, setterM;
+            public final @NotNull ExecutableElement getterE, setterE;
 
-            AccessorPair(@NotNull TypeMirror type, @NotNull ExecutableElement getter, @NotNull ExecutableElement setter) {
+            AccessorPair(@NotNull TypeMirror type,
+                         @NotNull ExecutableType getterM, @NotNull ExecutableType setterM,
+                         @NotNull ExecutableElement getterE, @NotNull ExecutableElement setterE) {
                 this.type = type;
-                this.getter = getter;
-                this.setter = setter;
+                this.getterM = getterM;
+                this.setterM = setterM;
+                this.getterE = getterE;
+                this.setterE = setterE;
             }
         }
 
@@ -133,18 +162,22 @@ final class ConfigTypeStructFactory {
         // fields
         for (Map.Entry<String, FieldData> field : fields.entrySet()) {
             TypeMirror fieldM = field.getValue().mirror;
-            AnnotatedConstruct fieldAS = field.getValue().element;
-            Config.Property propAnno = fieldAS.getAnnotation(Config.Property.class);
-            // TODO scan for extensions
+            VariableElement fieldE = field.getValue().element;
+            MirrorElementPair fieldMEP = new MirrorElementPair(fieldM, fieldE);
+            Config.Property propAnno = fieldE.getAnnotation(Config.Property.class);
             String fieldName = field.getKey();
-            String propName = fieldName;    // TODO naming strategy
+            String propName = "";
             if (propAnno == null) {
                 if (!includeFieldsByDefault)
                     continue;
-            } else if (!propAnno.name().isEmpty())
+            } else
                 propName = propAnno.name();
+            if (propName.isEmpty())
+                propName = namingStrategy.name(namingStrategyVariant, fieldMEP);
             ConfigType fieldType = typeProvider.fromMirror(fieldM);
-            propertiesBuilder.add(new ConfigPropertyImpl.Field(fieldType, propName, ImmutableClassToInstanceMap.of(), fieldName));
+            ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
+            findExtensions(extensions, fieldMEP);
+            propertiesBuilder.add(new ConfigPropertyImpl.Field(fieldType, propName, extensions.build(), fieldName));
         }
 
         // properties (accessor pairs)
@@ -193,7 +226,9 @@ final class ConfigTypeStructFactory {
                             break;
                     }
                     if (foundSetter) {
-                        accessorPairs.put(propName, new AccessorPair(propType, method, setter));
+                        accessorPairs.put(propName, new AccessorPair(propType,
+                                (ExecutableType) types.asMemberOf(mirror, method), (ExecutableType) types.asMemberOf(mirror, setter),
+                                method, setter));
                         implicitAccessorPairs.add(propName);
                         methodsToSkip.add(setterName);
                     }
@@ -219,7 +254,9 @@ final class ConfigTypeStructFactory {
                             break;
                     }
                     if (foundGetter) {
-                        accessorPairs.put(propName, new AccessorPair(propType, getter, method));
+                        accessorPairs.put(propName, new AccessorPair(propType,
+                                (ExecutableType) types.asMemberOf(mirror, getter), (ExecutableType) types.asMemberOf(mirror, method),
+                                getter, method));
                         implicitAccessorPairs.add(propName);
                         methodsToSkip.add(getterName);
                     }
@@ -272,7 +309,9 @@ final class ConfigTypeStructFactory {
             if (propName.isEmpty()) {
                 propName = AnnotationUtils.getFirstValue(Config.Property.class, Config.Property::name, s -> !s.isEmpty(), getter, setter);
                 if (propName == null)
-                    propName = "UNDEFINED_" + Integer.toHexString(getter.hashCode()); //ctx.name(type, ImmutableSet.of(getter, setter)); // TODO naming strategy
+                    propName = namingStrategy.name(namingStrategyVariant,
+                            MirrorElementPair.create(types, mirror, getter),
+                            MirrorElementPair.create(types, mirror, setter));
             }
 
             TypeMirror propType;
@@ -292,17 +331,22 @@ final class ConfigTypeStructFactory {
             if (implicitAccessorPairs.remove(propName))
                 accessorPairs.remove(propName);
 
-            if (accessorPairs.put(propName, new AccessorPair(propType, getter, setter)) != null)
+            if (accessorPairs.put(propName, new AccessorPair(propType,
+                    (ExecutableType) types.asMemberOf(mirror, getter), (ExecutableType) types.asMemberOf(mirror, setter),
+                    getter, setter)) != null)
                 throw new RuntimeException("Explicit property \"" + propName + "\": Duplicate name!");
         }
 
         // finally, covert accessor pairs to properties
         for (Map.Entry<String, AccessorPair> entry : accessorPairs.entrySet()) {
             AccessorPair prop = entry.getValue();
-            // TODO extensions
+            ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
+            findExtensions(extensions,
+                    new MirrorElementPair(prop.getterM, prop.getterE),
+                    new MirrorElementPair(prop.setterM, prop.setterE));
             propertiesBuilder.add(new ConfigPropertyImpl.Accessors(typeProvider.fromMirror(prop.type), entry.getKey(),
-                    ImmutableClassToInstanceMap.of(),
-                    prop.getter.getSimpleName().toString(), prop.setter.getSimpleName().toString()));
+                    extensions.build(),
+                    prop.getterE.getSimpleName().toString(), prop.setterE.getSimpleName().toString()));
         }
 
         // TODO instantiation (constructor/factory)

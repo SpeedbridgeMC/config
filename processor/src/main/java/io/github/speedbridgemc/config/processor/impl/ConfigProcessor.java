@@ -2,23 +2,25 @@ package io.github.speedbridgemc.config.processor.impl;
 
 import com.google.auto.service.AutoService;
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
+import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
-import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
+import io.github.speedbridgemc.config.processor.impl.naming.IdentityNamingStrategy;
+import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.io.*;
-import java.util.*;
+import java.util.Properties;
+import java.util.Set;
 
 import static java.util.Collections.singleton;
 
@@ -99,8 +101,14 @@ public final class ConfigProcessor extends AbstractProcessor {
             TypeElement type = (TypeElement) annotatedElem;
             Config config = type.getAnnotation(Config.class);
 
+            NamingStrategy namingStrategy = new IdentityNamingStrategy();
+            namingStrategy.init(processingEnv);
+            ConfigPropertyExtensionFinder extensionFinder = new StandardConfigPropertyExtensionFinder();
+            extensionFinder.init(processingEnv);
             ConfigTypeProvider provider = new ConfigTypeProviderImpl();
             provider.init(processingEnv);
+            provider.addExtensionFinder(extensionFinder);
+            provider.setNamingStrategy(namingStrategy, "");
 
             ConfigType cType = provider.fromMirror(type.asType());
             System.out.println(cType);

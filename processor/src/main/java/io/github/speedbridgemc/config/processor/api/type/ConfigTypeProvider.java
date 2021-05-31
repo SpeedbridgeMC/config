@@ -1,5 +1,7 @@
 package io.github.speedbridgemc.config.processor.api.type;
 
+import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
+import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -14,6 +16,20 @@ public interface ConfigTypeProvider {
      * @param processingEnv annotation processing environment
      */
     void init(@NotNull ProcessingEnvironment processingEnv);
+
+    /**
+     * Adds a {@link io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension ConfigPropertyExtension}
+     * finder to use when creating struct types.
+     * @param extensionFinder finder to add
+     */
+    void addExtensionFinder(@NotNull ConfigPropertyExtensionFinder extensionFinder);
+
+    /**
+     * Sets the naming strategy to use when creating struct types.
+     * @param strategy naming strategy to use
+     * @param variant strategy variant to use
+     */
+    void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant);
 
     /**
      * Gets a {@code ConfigType} that represents a primitive.
