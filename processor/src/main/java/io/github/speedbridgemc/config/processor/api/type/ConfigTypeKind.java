@@ -42,6 +42,11 @@ public enum ConfigTypeKind {
      */
     STRING,
     /**
+     * The enum type.<p>
+     * Maps to {@literal enum}s, represented using strings.
+     */
+    ENUM,
+    /**
      * The array type.<p>
      * Maps to arrays, {@link java.util.Collection} and its subtypes.
      */
@@ -74,6 +79,7 @@ public enum ConfigTypeKind {
         case DOUBLE:
         case STRING:
             return true;
+        case ENUM:
         case ARRAY:
         case MAP:
         case STRUCT:

@@ -1,14 +1,19 @@
 package io.github.speedbridgemc.config.processor.impl.type;
 
+import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
+import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.*;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleTypeVisitor8;
 import javax.lang.model.util.Types;
@@ -22,7 +27,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private ProcessingEnvironment processingEnv;
     private Elements elements;
     private Types types;
-    private TypeMirror stringTM, collectionTM, mapTM;
+    private TypeMirror stringTM, enumTM, collectionTM, mapTM;
     private TypeElement mapTE;
 
     private ConfigType boolCType, byteCType, shortCType, intCType, longCType, charCType, floatCType, doubleCType, stringCType;
@@ -37,6 +42,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
         elements = processingEnv.getElementUtils();
         types = processingEnv.getTypeUtils();
         stringTM = elements.getTypeElement(String.class.getCanonicalName()).asType();
+        enumTM = types.erasure(elements.getTypeElement(Enum.class.getCanonicalName()).asType());
         collectionTM = types.erasure(elements.getTypeElement(Collection.class.getCanonicalName()).asType());
         mapTE = elements.getTypeElement(Map.class.getCanonicalName());
         mapTM = types.erasure(mapTE.asType());
@@ -141,15 +147,29 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private @NotNull ConfigType fromDeclaredType(@NotNull DeclaredType mirror) {
         TypeMirror mirrorErasure = types.erasure(mirror);
 
-        // 4 possible cases (5 if you count String, but that's handled in fromMirror)
-        // 1. subtype of Collection - type of kind ARRAY
+        // 5 possible cases (6 if you count String, but that's handled in fromMirror)
+        // 1. enum (subtype of Enum) - type of kind ENUM
+        if (types.isAssignable(mirrorErasure, enumTM)) {
+            ImmutableList.Builder<String> constantsBuilder = ImmutableList.builder();
+            for (VariableElement field : ElementFilter.fieldsIn(mirror.asElement().getEnclosedElements())) {
+                if (field.getKind() != ElementKind.ENUM_CONSTANT)
+                    break;
+                String constName = field.getSimpleName().toString(); // TODO naming strategy
+                Config.Name nameAnno = field.getAnnotation(Config.Name.class);
+                if (nameAnno != null && !nameAnno.value().isEmpty())
+                    constName = nameAnno.value();
+                constantsBuilder.add(constName);
+            }
+            return new ConfigTypeImpl.Enum(mirror, constantsBuilder.build());
+        }
+        // 2. subtype of Collection - type of kind ARRAY
         if (types.isAssignable(mirrorErasure, collectionTM)) {
             TypeMirror compType = mirror.accept(collectionTypeArgFinder, null);
             if (compType == null)
                 throw new RuntimeException("Got null component type (T in Collection<T>) for " + mirror);
             return new ConfigTypeImpl.Array(mirror, fromMirror(compType));
         }
-        // 2. subtype of Map - type of kind MAP
+        // 3. subtype of Map - type of kind MAP
         if (types.isAssignable(mirrorErasure, mapTM)) {
             MapTypeArgs typeArgs = mirror.accept(mapTypeArgsFinder, null);
             if (typeArgs == null)
@@ -157,7 +177,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             return new ConfigTypeImpl.Map(mirror, fromMirror(typeArgs.keyType), fromMirror(typeArgs.valueType));
         }
         TypeName typeName = TypeName.get(mirror).withoutAnnotations();
-        // 3. boxed primitives - type of kind (unboxed primitive)
+        // 4. boxed primitives - type of kind (unboxed primitive)
         // TODO finangle support for nullable primitives, maybe?
         if (typeName.isBoxedPrimitive()) {
             typeName = typeName.unbox();
@@ -179,7 +199,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 return doubleCType;
             throw new RuntimeException("Unknown primitive " + typeName + "!");
         }
-        // 4. anything else - type of kind STRUCT (delegated to ConfigTypeStructFactory)
+        // 5. anything else - type of kind STRUCT (delegated to ConfigTypeStructFactory)
         return structFactory.create(mirror);
     }
 

@@ -27,6 +27,14 @@ public interface ConfigType {
      */
     @NotNull TypeMirror asMirror();
 
+    // only for ENUM types
+    /**
+     * Gets the constants this enum type contains.<p>
+     * If this type is not an enum, returns an empty list.
+     * @return enum constant names
+     */
+    @NotNull List<? extends String> enumConstants();
+
     // only for ARRAY types
     /**
      * Gets the component type of this array type.

@@ -41,6 +41,11 @@ public abstract class ConfigTypeImpl implements ConfigType {
     }
 
     @Override
+    public @NotNull List<? extends String> enumConstants() {
+        return Collections.emptyList();
+    }
+
+    @Override
     public @NotNull Optional<ConfigType> componentType() {
         return Optional.empty();
     }
@@ -73,6 +78,20 @@ public abstract class ConfigTypeImpl implements ConfigType {
     public static final class Primitive extends ConfigTypeImpl {
         public Primitive(@NotNull ConfigTypeKind kind, @NotNull String name, @NotNull TypeMirror typeMirror) {
             super(kind, name, typeMirror);
+        }
+    }
+
+    public static final class Enum extends ConfigTypeImpl {
+        private final @NotNull ImmutableList<String> constants;
+
+        public Enum(@NotNull TypeMirror typeMirror, @NotNull List<String> constants) {
+            super(ConfigTypeKind.ENUM, "enum{" + typeMirror + "}", typeMirror);
+            this.constants = toImmutableList(constants);
+        }
+
+        @Override
+        public @NotNull List<? extends String> enumConstants() {
+            return constants;
         }
     }
 
