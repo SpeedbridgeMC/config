@@ -2,12 +2,13 @@ package io.github.speedbridgemc.config.processor.impl.type;
 
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
-import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.EnumName;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
+import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -31,6 +32,9 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private Types types;
     private TypeMirror stringTM, enumTM, collectionTM, mapTM;
     private TypeElement mapTE;
+
+    private NamingStrategy namingStrategy;
+    private String namingStrategyVariant;
 
     private ConfigType boolCType, byteCType, shortCType, intCType, longCType, charCType, floatCType, doubleCType, stringCType;
     private ConfigTypeStructFactory structFactory;
@@ -78,7 +82,12 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
 
     @Override
     public void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant) {
-        structFactory.setNamingStrategy(strategy, variant);
+        this.namingStrategy = strategy;
+        this.namingStrategyVariant = variant;
+    }
+
+    @NotNull String name(@NotNull MirrorElementPair @NotNull ... pairs) {
+        return namingStrategy.name(namingStrategyVariant, pairs);
     }
 
     @Override
@@ -166,10 +175,12 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             for (VariableElement field : ElementFilter.fieldsIn(mirror.asElement().getEnclosedElements())) {
                 if (field.getKind() != ElementKind.ENUM_CONSTANT)
                     break;
-                String constName = field.getSimpleName().toString(); // TODO naming strategy
-                Config.Name nameAnno = field.getAnnotation(Config.Name.class);
+                String constName;
+                EnumName nameAnno = field.getAnnotation(EnumName.class);
                 if (nameAnno != null && !nameAnno.value().isEmpty())
                     constName = nameAnno.value();
+                else
+                    constName = namingStrategy.name(namingStrategyVariant, MirrorElementPair.create(types, mirror, field));
                 constantsBuilder.add(constName);
             }
             return new ConfigTypeImpl.Enum(mirror, constantsBuilder.build());

@@ -27,14 +27,4 @@ public @interface Config {
         @NotNull String getter() default "";
         @NotNull String setter() default "";
     }
-
-    /**
-     * for enum constants only
-     */
-    @Documented
-    @Retention(RetentionPolicy.SOURCE)
-    @Target(ElementType.FIELD)
-    @interface Name {
-        @NotNull String value();
-    }
 }

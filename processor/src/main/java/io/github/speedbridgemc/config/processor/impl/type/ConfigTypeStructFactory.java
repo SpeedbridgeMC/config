@@ -5,12 +5,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.LinkedHashMultimap;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Config;
-import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
-import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.processor.api.util.PropertyUtils;
@@ -28,7 +26,7 @@ import javax.lang.model.util.Types;
 import java.util.*;
 
 final class ConfigTypeStructFactory {
-    private final ConfigTypeProvider typeProvider;
+    private final ConfigTypeProviderImpl typeProvider;
     private final ProcessingEnvironment processingEnv;
     private final Elements elements;
     private final Types types;
@@ -36,10 +34,8 @@ final class ConfigTypeStructFactory {
     private final TypeMirror booleanTM;
 
     private final ArrayList<ConfigPropertyExtensionFinder> extensionFinders;
-    private NamingStrategy namingStrategy;
-    private String namingStrategyVariant;
 
-    public ConfigTypeStructFactory(ConfigTypeProvider typeProvider, ProcessingEnvironment processingEnv) {
+    public ConfigTypeStructFactory(ConfigTypeProviderImpl typeProvider, ProcessingEnvironment processingEnv) {
         this.typeProvider = typeProvider;
         this.processingEnv = processingEnv;
         elements = processingEnv.getElementUtils();
@@ -52,11 +48,6 @@ final class ConfigTypeStructFactory {
 
     public void addExtensionFinder(@NotNull ConfigPropertyExtensionFinder extensionFinder) {
         extensionFinders.add(extensionFinder);
-    }
-
-    public void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant) {
-        namingStrategy = strategy;
-        namingStrategyVariant = variant;
     }
 
     private void findExtensions(@NotNull ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> mapBuilder,
@@ -143,8 +134,9 @@ final class ConfigTypeStructFactory {
             Set<Modifier> mods = enclosed.getModifiers();
             if (!mods.contains(Modifier.PUBLIC) || mods.contains(Modifier.STATIC) || mods.contains(Modifier.TRANSIENT))
                 continue;
-            TypeMirror enclosedM = types.asMemberOf(mirror, enclosed);  // fills in kind variables!
+            TypeMirror enclosedM = types.asMemberOf(mirror, enclosed);  // fills in type variables!
                                                                         // also erases annotations, apparently
+                                                                        // (which is why we also keep the element around)
             if (enclosed instanceof ExecutableElement && enclosedM instanceof ExecutableType) {
                 methods.put(enclosed.getSimpleName().toString(), new MethodData((ExecutableType) enclosedM, (ExecutableElement) enclosed));
                 Config.Property propAnno = enclosed.getAnnotation(Config.Property.class);
@@ -173,7 +165,7 @@ final class ConfigTypeStructFactory {
             } else
                 propName = propAnno.name();
             if (propName.isEmpty())
-                propName = namingStrategy.name(namingStrategyVariant, fieldMEP);
+                propName = typeProvider.name(fieldMEP);
             ConfigType fieldType = typeProvider.fromMirror(fieldM);
             ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
             findExtensions(extensions, fieldMEP);
@@ -309,8 +301,7 @@ final class ConfigTypeStructFactory {
             if (propName.isEmpty()) {
                 propName = AnnotationUtils.getFirstValue(Config.Property.class, Config.Property::name, s -> !s.isEmpty(), getter, setter);
                 if (propName == null)
-                    propName = namingStrategy.name(namingStrategyVariant,
-                            MirrorElementPair.create(types, mirror, getter),
+                    propName = typeProvider.name(MirrorElementPair.create(types, mirror, getter),
                             MirrorElementPair.create(types, mirror, setter));
             }
 
