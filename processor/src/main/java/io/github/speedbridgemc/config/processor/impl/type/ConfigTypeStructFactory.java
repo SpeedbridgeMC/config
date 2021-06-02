@@ -46,7 +46,7 @@ final class ConfigTypeStructFactory {
         types = processingEnv.getTypeUtils();
 
         booleanTM = elements.getTypeElement(Boolean.class.getCanonicalName()).asType();
-        noneTM = elements.getTypeElement(Config.Struct.None.class.getCanonicalName()).asType();
+        noneTM = elements.getTypeElement(Config.None.class.getCanonicalName()).asType();
 
         extensionFinders = new ArrayList<>();
     }

@@ -1,5 +1,6 @@
 package io.github.speedbridgemc.config;
 
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.annotation.*;
@@ -32,13 +33,12 @@ public @interface Config {
     @Retention(RetentionPolicy.SOURCE)
     @Target(ElementType.TYPE)
     @interface Struct {
-        @NotNull Class<?> constructorOwner() default None.class;
-        @NotNull Class<?>[] constructorParams() default { None.class };
-        @NotNull Class<?> factoryOwner() default None.class;
+        @NotNull Class<?> constructorOwner() default Config.None.class;
+        @NotNull Class<?>[] constructorParams() default { Config.None.class };
+        @NotNull Class<?> factoryOwner() default Config.None.class;
         @NotNull String factoryName() default "";
-        @NotNull Class<?>[] factoryParams() default { None.class };
+        @NotNull Class<?>[] factoryParams() default { Config.None.class };
 
-        final class None { }
     }
 
     @Documented
@@ -54,4 +54,8 @@ public @interface Config {
     @interface Getter {
         @NotNull String value();
     }
+
+    // marker class used for unspecified Class<?> and Class<?>[] attributes
+    @ApiStatus.Internal
+    final class None { }
 }
