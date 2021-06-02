@@ -14,6 +14,7 @@ import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.
 public abstract class StructInstantiationStrategyImpl implements StructInstantiationStrategy {
     protected final @NotNull ImmutableList<Parameter> params;
     protected final @NotNull String paramTemplate;
+    protected String toStringCache;
 
     protected StructInstantiationStrategyImpl(@NotNull List<Parameter> params) {
         this.params = toImmutableList(params);
@@ -28,8 +29,42 @@ public abstract class StructInstantiationStrategyImpl implements StructInstantia
     }
 
     @Override
+    public boolean canInstantiate() {
+        return true;
+    }
+
+    @Override
     public @NotNull List<? extends Parameter> params() {
         return params;
+    }
+
+    @Override
+    public String toString() {
+        if (toStringCache == null)
+            toStringCache = toString0();
+        return toStringCache;
+    }
+
+    protected @NotNull String toString0() {
+        return "";
+    }
+
+    public static final class None extends StructInstantiationStrategyImpl {
+        public static final None INSTANCE = new None();
+
+        private None() {
+            super(ImmutableList.of());
+        }
+
+        @Override
+        public @NotNull CodeBlock generateNew(@NotNull String destination, @NotNull Map<String, String> paramSources) {
+            throw new IllegalStateException("Can't instantiate an instance of this struct!");
+        }
+
+        @Override
+        public @NotNull String toString() {
+            return "none";
+        }
     }
 
     public static final class Constructor extends StructInstantiationStrategyImpl {
@@ -47,6 +82,17 @@ public abstract class StructInstantiationStrategyImpl implements StructInstantia
                     .addNamed(paramTemplate, paramSources)
                     .add(")")
                     .build();
+        }
+
+        @Override
+        protected @NotNull String toString0() {
+            StringBuilder sb = new StringBuilder("constructor ").append(typeName).append('(');
+            if (!params.isEmpty()) {
+                for (Parameter param : params)
+                    sb.append(param.type).append(' ').append(param.name).append(", ");
+                sb.setLength(sb.length() - 2);
+            }
+            return sb.append(')').toString();
         }
     }
 
@@ -67,6 +113,17 @@ public abstract class StructInstantiationStrategyImpl implements StructInstantia
                     .addNamed(paramTemplate, paramSources)
                     .add(")")
                     .build();
+        }
+
+        @Override
+        protected @NotNull String toString0() {
+            StringBuilder sb = new StringBuilder("factory ").append(ownerTypeName).append('.').append(methodName).append('(');
+            if (!params.isEmpty()) {
+                for (Parameter param : params)
+                    sb.append(param.type).append(' ').append(param.name).append(", ");
+                sb.setLength(sb.length() - 2);
+            }
+            return sb.append(')').toString();
         }
     }
 }

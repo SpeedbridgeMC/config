@@ -9,6 +9,7 @@ import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
+import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.processor.api.util.PropertyUtils;
@@ -21,9 +22,12 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
 import java.util.*;
+import java.util.function.Function;
 
 final class ConfigTypeStructFactory {
     private final ConfigTypeProviderImpl typeProvider;
@@ -31,7 +35,7 @@ final class ConfigTypeStructFactory {
     private final Elements elements;
     private final Types types;
 
-    private final TypeMirror booleanTM;
+    private final TypeMirror booleanTM, noneTM;
 
     private final ArrayList<ConfigPropertyExtensionFinder> extensionFinders;
 
@@ -42,6 +46,7 @@ final class ConfigTypeStructFactory {
         types = processingEnv.getTypeUtils();
 
         booleanTM = elements.getTypeElement(Boolean.class.getCanonicalName()).asType();
+        noneTM = elements.getTypeElement(Config.Struct.None.class.getCanonicalName()).asType();
 
         extensionFinders = new ArrayList<>();
     }
@@ -60,10 +65,12 @@ final class ConfigTypeStructFactory {
         class FieldData {
             public final @NotNull TypeMirror mirror;
             public final @NotNull VariableElement element;
+            public final boolean isFinal;
 
-            FieldData(@NotNull TypeMirror mirror, @NotNull VariableElement element) {
+            FieldData(@NotNull TypeMirror mirror, @NotNull VariableElement element, boolean isFinal) {
                 this.mirror = mirror;
                 this.element = element;
+                this.isFinal = isFinal;
             }
         }
         class MethodData {
@@ -137,15 +144,13 @@ final class ConfigTypeStructFactory {
             TypeMirror enclosedM = types.asMemberOf(mirror, enclosed);  // fills in type variables!
                                                                         // also erases annotations, apparently
                                                                         // (which is why we also keep the element around)
-            if (enclosed instanceof ExecutableElement && enclosedM instanceof ExecutableType) {
+            if (enclosed instanceof ExecutableElement) {
                 methods.put(enclosed.getSimpleName().toString(), new MethodData((ExecutableType) enclosedM, (ExecutableElement) enclosed));
                 Config.Property propAnno = enclosed.getAnnotation(Config.Property.class);
                 if (propAnno != null)
                     accessorPairDefs.add(new AccessorPairDef(propAnno.name(), propAnno.getter(), propAnno.setter(), (ExecutableElement) enclosed));
             } else if (enclosed instanceof VariableElement) {
-                if (mods.contains(Modifier.FINAL))
-                    continue;
-                fields.put(enclosed.getSimpleName().toString(), new FieldData(enclosedM, (VariableElement) enclosed));
+                fields.put(enclosed.getSimpleName().toString(), new FieldData(enclosedM, (VariableElement) enclosed, mods.contains(Modifier.FINAL)));
             }
         }
 
@@ -153,6 +158,8 @@ final class ConfigTypeStructFactory {
 
         // fields
         for (Map.Entry<String, FieldData> field : fields.entrySet()) {
+            if (field.getValue().isFinal)
+                continue;
             TypeMirror fieldM = field.getValue().mirror;
             VariableElement fieldE = field.getValue().element;
             MirrorElementPair fieldMEP = new MirrorElementPair(fieldM, fieldE);
@@ -169,7 +176,7 @@ final class ConfigTypeStructFactory {
             ConfigType fieldType = typeProvider.fromMirror(fieldM);
             ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
             findExtensions(extensions, fieldMEP);
-            propertiesBuilder.add(new ConfigPropertyImpl.Field(fieldType, propName, extensions.build(), fieldName));
+            propertiesBuilder.add(new ConfigPropertyImpl.Field(fieldType, propName, extensions.build(), true, fieldName));
         }
 
         // properties (accessor pairs)
@@ -340,9 +347,214 @@ final class ConfigTypeStructFactory {
                     prop.getterE.getSimpleName().toString(), prop.setterE.getSimpleName().toString()));
         }
 
-        // TODO instantiation (constructor/factory)
+        // and now, for the instantiation strategy!
+        Config.Struct structAnno = mirror.asElement().getAnnotation(Config.Struct.class);
+        boolean isFactory;
+        DeclaredType owner;
+        String factoryName = "";
+        List<? extends TypeMirror> params;
+        if (structAnno == null) {
+            isFactory = false;
+            owner = mirror;
+            params = Collections.emptyList();
+        } else {
+            TypeMirror ownerM = AnnotationUtils.getClass(elements, structAnno, Config.Struct::factoryOwner);
+            if (ownerM.getKind() != TypeKind.DECLARED)
+                throw new RuntimeException("Factory owner \"" + ownerM + "\" must be a declared type");
+            owner = (DeclaredType) ownerM;
+            isFactory = !types.isSameType(owner, noneTM);
+            Function<Config.Struct, Class<?>[]> paramsMapper;
+            if (isFactory) {
+                factoryName = structAnno.factoryName();
+                paramsMapper = Config.Struct::factoryParams;
+            } else {
+                ownerM = AnnotationUtils.getClass(elements, structAnno, Config.Struct::constructorOwner);
+                if (ownerM.getKind() != TypeKind.DECLARED)
+                    throw new RuntimeException("Constructor owner \"" + ownerM + "\" must be a declared type");
+                owner = (DeclaredType) ownerM;
+                if (types.isSameType(owner, noneTM))
+                    owner = mirror;
+                System.out.println(owner);
+                TypeElement ownerTE = elements.getTypeElement(owner.toString());
+                if (ownerTE.getKind() == ElementKind.INTERFACE)
+                    throw new RuntimeException("Can't specify constructor from interface \"" + owner + "\"!");
+                paramsMapper = Config.Struct::constructorParams;
+            }
+            params = AnnotationUtils.getClasses(elements, structAnno, paramsMapper);
+        }
+
+        int paramCount = params.size();
+        boolean paramsUnspecified = paramCount == 1 && types.isSameType(params.get(0), noneTM);
+        TypeElement ownerElem = elements.getTypeElement(owner.toString());
+        LinkedHashMap<String, MirrorElementPair> paramsMap = new LinkedHashMap<>();
+        boolean found = false;
+        StructInstantiationStrategy instantiationStrategy;
+        if (isFactory) {
+            for (ExecutableElement method : ElementFilter.methodsIn(ownerElem.getEnclosedElements())) {
+                Set<Modifier> modifiers = method.getModifiers();
+                if (!modifiers.contains(Modifier.PUBLIC) || !modifiers.contains(Modifier.STATIC))
+                    continue;
+                if (!factoryName.equals(method.getSimpleName().toString()))
+                    continue;
+                ExecutableType asMember = (ExecutableType) types.asMemberOf(owner, method);
+                if (!types.isSameType(mirror, asMember.getReturnType()))
+                    continue;
+                List<? extends TypeMirror> mParams = asMember.getParameterTypes();
+                if (paramsUnspecified) {
+                    if (found)
+                        throw new RuntimeException("Factory method " + mirror + " " + owner + "." + factoryName + " has multiple overloads!\n"
+                                + "Use the \"factoryParams\" attribute to specify what overload to use");
+                    params = new ArrayList<>(mParams);
+                    paramCount = params.size();
+                    for (int i = 0; i < paramCount; i++) {
+                        VariableElement paramElem = method.getParameters().get(i);
+                        paramsMap.put(paramElem.getSimpleName().toString(), new MirrorElementPair(params.get(i), paramElem));
+                    }
+                    found = true;
+                } else {
+                    if (mParams.size() != paramCount)
+                        continue;
+                    boolean mismatch = false;
+                    for (int i = 0; i < paramCount; i++) {
+                        final TypeMirror erasure = types.erasure(mParams.get(i));
+                        if (types.isSameType(erasure, params.get(i))) {
+                            VariableElement paramElem = method.getParameters().get(i);
+                            paramsMap.put(paramElem.getSimpleName().toString(), new MirrorElementPair(erasure, paramElem));
+                        } else {
+                            mismatch = true;
+                            paramsMap.clear();
+                            break;
+                        }
+                    }
+                    if (mismatch)
+                        continue;
+                    found = true;
+                    break;
+                }
+            }
+        } else {
+            for (ExecutableElement method : ElementFilter.constructorsIn(ownerElem.getEnclosedElements())) {
+                Set<Modifier> modifiers = method.getModifiers();
+                if (!modifiers.contains(Modifier.PUBLIC))
+                    continue;
+                ExecutableType asMember = (ExecutableType) types.asMemberOf(owner, method);
+                List<? extends TypeMirror> mParams = asMember.getParameterTypes();
+                if (paramsUnspecified) {
+                    params = new ArrayList<>(mParams);
+                    paramCount = params.size();
+                    for (int i = 0; i < paramCount; i++) {
+                        VariableElement paramElem = method.getParameters().get(i);
+                        paramsMap.put(paramElem.getSimpleName().toString(), new MirrorElementPair(params.get(i), paramElem));
+                    }
+                    found = true;
+                    break;
+                }
+                if (mParams.size() != paramCount)
+                    continue;
+                boolean mismatch = false;
+                for (int i = 0; i < paramCount; i++) {
+                    final TypeMirror erasure = types.erasure(mParams.get(i));
+                    if (types.isSameType(erasure, params.get(i))) {
+                        VariableElement paramElem = method.getParameters().get(i);
+                        paramsMap.put(paramElem.getSimpleName().toString(), new MirrorElementPair(erasure, paramElem));
+                    } else {
+                        mismatch = true;
+                        paramsMap.clear();
+                        break;
+                    }
+                }
+                if (mismatch)
+                    continue;
+                found = true;
+                break;
+            }
+        }
+
+        if (found) {
+            ImmutableList.Builder<StructInstantiationStrategy.Parameter> paramsBuilder = ImmutableList.builder();
+            for (Map.Entry<String, MirrorElementPair> entry : paramsMap.entrySet()) {
+                final TypeMirror paramMirror = entry.getValue().mirror();
+                final ConfigType paramType = typeProvider.fromMirror(paramMirror);
+                Config.Getter getterAnno = entry.getValue().element().getAnnotation(Config.Getter.class);
+                if (getterAnno == null) {
+                    Config.Field fieldAnno = entry.getValue().element().getAnnotation(Config.Field.class);
+                    String fieldName;
+                    if (fieldAnno == null)
+                        fieldName = entry.getValue().element().getSimpleName().toString();
+                    else
+                        fieldName = fieldAnno.value();
+                    FieldData fieldData = fields.get(fieldName);
+                    if (fieldData == null)
+                        throw new RuntimeException("Missing field \"" + fieldName + "\" to bind to constructor parameter \"" + entry.getKey() + "\"!\n"
+                                + "Either add a field named that or add a @Config.Field annotation to the parameter with the field name (if you haven't yet)");
+                    if (!fieldData.isFinal)
+                        throw new RuntimeException("Field \"" + fieldName + "\" bound to constructor parameter \"" + entry.getKey() + "\" must be final!");
+                    TypeMirror fieldM = fieldData.mirror;
+                    VariableElement fieldE = fieldData.element;
+                    if (!types.isSameType(fieldM, paramMirror))
+                        throw new RuntimeException("Type mismatch between bound field \"" + fieldName + "\" and constructor parameter \"" + entry.getKey() + "\"!");
+                    MirrorElementPair fieldMEP = new MirrorElementPair(fieldM, fieldE);
+                    Config.Property propAnno = fieldE.getAnnotation(Config.Property.class);
+                    String propName = "";
+                    if (propAnno != null)
+                        propName = propAnno.name();
+                    if (propName.isEmpty())
+                        propName = typeProvider.name(fieldMEP);
+                    ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
+                    findExtensions(extensions, fieldMEP);
+                    propertiesBuilder.add(new ConfigPropertyImpl.Field(paramType, propName, extensions.build(), false, fieldName));
+                } else {
+                    String getterName = getterAnno.value();
+                    Set<MethodData> methodSet = methods.get(getterName);
+                    MethodData getterData = null;
+                    for (MethodData methodData : methodSet) {
+                        Optional<PropertyUtils.AccessorInfo> accessorInfo = PropertyUtils.getAccessorInfo(methodData.element);
+                        if (!accessorInfo.isPresent()
+                                || accessorInfo.get().kind != PropertyUtils.AccessorInfo.Kind.GETTER
+                                || !types.isSameType(accessorInfo.get().propertyType, paramMirror))
+                            continue;
+                        getterData = methodData;
+                        break;
+                    }
+                    if (getterData == null)
+                        throw new RuntimeException("Missing getter \"" + getterName + "\" to bind to constructor parameter \"" + entry.getKey() + "\"!");
+                    MirrorElementPair getterMEP = new MirrorElementPair(getterData.mirror, getterData.element);
+                    Config.Property propAnno = getterData.element.getAnnotation(Config.Property.class);
+                    String propName = "";
+                    if (propAnno != null)
+                        propName = propAnno.name();
+                    if (propName.isEmpty())
+                        propName = typeProvider.name(getterMEP);
+                    ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
+                    findExtensions(extensions, getterMEP);
+                    propertiesBuilder.add(new ConfigPropertyImpl.Accessors(paramType, propName, extensions.build(), getterData.element.getSimpleName().toString()));
+                }
+                paramsBuilder.add(new StructInstantiationStrategy.Parameter(paramType, entry.getKey()));
+            }
+            if (isFactory)
+                instantiationStrategy = new StructInstantiationStrategyImpl.Factory(paramsBuilder.build(),
+                        TypeName.get(owner).withoutAnnotations(), factoryName);
+            else
+                instantiationStrategy = new StructInstantiationStrategyImpl.Constructor(paramsBuilder.build(),
+                        TypeName.get(owner).withoutAnnotations());
+        } else {
+            StringBuilder sb = new StringBuilder();
+            if (!params.isEmpty()) {
+                for (TypeMirror param : params)
+                    sb.append(param).append(", ");
+                sb.setLength(sb.length() - 2);
+            }
+            if (isFactory)
+                throw new RuntimeException("Failed to find factory method " + mirror + " " + owner + "." + factoryName + "(" + sb + ")");
+            else if (te.getKind() == ElementKind.INTERFACE) {
+                processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING, "Type cannot be instantiated", te);
+                instantiationStrategy = StructInstantiationStrategyImpl.None.INSTANCE;
+            } else
+                throw new RuntimeException("Failed to find constructor " + owner + "(" + sb + ")");
+        }
+
         return new ConfigTypeImpl.Struct(mirror,
-                new StructInstantiationStrategyImpl.Constructor(ImmutableList.of(), TypeName.get(mirror).withoutAnnotations()),
+                instantiationStrategy,
                 propertiesBuilder.build());
     }
 

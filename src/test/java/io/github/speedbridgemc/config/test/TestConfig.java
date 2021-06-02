@@ -40,6 +40,45 @@ public class TestConfig {
         }
     }
 
+    @Config.Struct(factoryOwner = HelloWorld.class, factoryName = "create")
+    public static class HelloWorld {
+        public final String hello;
+        private final int world;
+
+        public static HelloWorld create(String hello, @Config.Getter("getWorld") int world) {
+            return new HelloWorld(hello, world);
+        }
+
+        private HelloWorld(String hello,  int world) {
+            this.hello = hello;
+            this.world = world;
+        }
+
+        public int getWorld() {
+            return world;
+        }
+    }
+
+    @Config.Struct(constructorOwner = TestInterfaceImpl.class)
+    public interface TestInterface {
+        int getA();
+        void setA(int a);
+    }
+
+    public static class TestInterfaceImpl implements TestInterface {
+        private int a;
+
+        @Override
+        public int getA() {
+            return a;
+        }
+
+        @Override
+        public void setA(int a) {
+            this.a = a;
+        }
+    }
+
     @Aliases({ "int_one", "INTONEBABY" })
     public int int1;
     @Config.Property(name = "int_2_baby")
@@ -48,6 +87,8 @@ public class TestConfig {
     public boolean excluded;
 
     public TestEnum testEnum = TestEnum.FOO;
+    public HelloWorld helloWorld = HelloWorld.create("hello", "world".hashCode());
+    public TestInterface testInterface = new TestInterfaceImpl();
 
     private int intProperty;
     private float floatProperty;

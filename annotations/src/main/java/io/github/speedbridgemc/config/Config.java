@@ -27,4 +27,31 @@ public @interface Config {
         @NotNull String getter() default "";
         @NotNull String setter() default "";
     }
+
+    @Documented
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.TYPE)
+    @interface Struct {
+        @NotNull Class<?> constructorOwner() default None.class;
+        @NotNull Class<?>[] constructorParams() default { None.class };
+        @NotNull Class<?> factoryOwner() default None.class;
+        @NotNull String factoryName() default "";
+        @NotNull Class<?>[] factoryParams() default { None.class };
+
+        final class None { }
+    }
+
+    @Documented
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.PARAMETER)
+    @interface Field {
+        @NotNull String value();
+    }
+
+    @Documented
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.PARAMETER)
+    @interface Getter {
+        @NotNull String value();
+    }
 }

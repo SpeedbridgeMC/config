@@ -19,6 +19,7 @@ public interface StructInstantiationStrategy {
         }
     }
 
+    boolean canInstantiate();
     @NotNull List<? extends Parameter> params();
     @NotNull CodeBlock generateNew(@NotNull String destination, @NotNull Map<String, String> paramSources);
 

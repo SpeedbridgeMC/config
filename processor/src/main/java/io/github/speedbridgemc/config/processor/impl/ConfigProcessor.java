@@ -10,6 +10,7 @@ import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.impl.naming.IdentityNamingStrategy;
 import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
+import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -112,9 +113,28 @@ public final class ConfigProcessor extends AbstractProcessor {
 
             ConfigType cType = provider.fromMirror(type.asType());
             System.out.println(cType);
-            System.out.println("properties:");
-            for (ConfigProperty prop : cType.properties())
-                System.out.format(" - %s %s%n", prop.type(), prop.name());
+            dumpConfigType(cType);
+        }
+    }
+
+    private void dumpConfigType(@NotNull ConfigType cType) {
+        dumpConfigType(cType, "");
+    }
+
+    private void dumpConfigType(@NotNull ConfigType cType, @NotNull String indent) {
+        //noinspection OptionalGetWithoutIsPresent
+        System.out.format("%sinstantiation strategy: %s%n", indent, cType.instantiationStrategy().get());
+        System.out.format("%s%d properties:%n", indent, cType.properties().size());
+        for (ConfigProperty prop : cType.properties()) {
+            ConfigType pType = prop.type();
+            System.out.format("%s - %s %s%n", indent, pType, prop.name());
+            switch (pType.kind()) {
+            case STRUCT:
+                dumpConfigType(pType, indent + "     ");
+                break;
+            default:
+                break;
+            }
         }
     }
 
