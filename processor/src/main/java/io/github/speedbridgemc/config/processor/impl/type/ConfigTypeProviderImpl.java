@@ -1,6 +1,7 @@
 package io.github.speedbridgemc.config.processor.impl.type;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.EnumName;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
@@ -38,6 +39,12 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
 
     private ConfigType boolCType, byteCType, shortCType, intCType, longCType, charCType, floatCType, doubleCType, stringCType;
     private ConfigTypeStructFactory structFactory;
+    private Map<DeclaredType, ConfigType> addedTypes = new HashMap<>();
+
+    @Override
+    public void add(@NotNull DeclaredType mirror, @NotNull ConfigType type) {
+        addedTypes.put(mirror, type);
+    }
 
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {
@@ -73,6 +80,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 stringTM);
 
         structFactory = new ConfigTypeStructFactory(this, processingEnv);
+        addedTypes = ImmutableMap.copyOf(addedTypes);
     }
 
     @Override
@@ -152,10 +160,13 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             return arrayOf(fromMirror(((ArrayType) mirror).getComponentType()));
         case DECLARED:
             DeclaredType declaredType = (DeclaredType) mirror;
-            ConfigType configType = declaredTypeCache.get(declaredType);
+            ConfigType configType = addedTypes.get(declaredType);
             if (configType == null) {
-                configType = fromDeclaredType(declaredType);
-                declaredTypeCache.put(declaredType, configType);
+                configType = declaredTypeCache.get(declaredType);
+                if (configType == null) {
+                    configType = fromDeclaredType(declaredType);
+                    declaredTypeCache.put(declaredType, configType);
+                }
             }
             return configType;
         default:
