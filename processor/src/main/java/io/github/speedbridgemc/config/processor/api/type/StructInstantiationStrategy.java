@@ -12,10 +12,24 @@ public interface StructInstantiationStrategy {
     final class Parameter {
         public final @NotNull ConfigType type;
         public final @NotNull String name;
+        public final @NotNull String boundProperty;
+        private String toStringCache;
 
-        public Parameter(@NotNull ConfigType type, @NotNull String name) {
+        public Parameter(@NotNull ConfigType type, @NotNull String name, @NotNull String boundProperty) {
             this.type = type;
             this.name = name;
+            this.boundProperty = boundProperty;
+        }
+
+        @Override
+        public String toString() {
+            if (toStringCache == null) {
+                if (name.equals(boundProperty))
+                    toStringCache = type + " " + name;
+                else
+                    toStringCache = type + " " + name + "@" + boundProperty;
+            }
+            return toStringCache;
         }
     }
 

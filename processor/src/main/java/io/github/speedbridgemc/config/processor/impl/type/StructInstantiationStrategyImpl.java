@@ -89,7 +89,7 @@ public abstract class StructInstantiationStrategyImpl implements StructInstantia
             StringBuilder sb = new StringBuilder("constructor ").append(typeName).append('(');
             if (!params.isEmpty()) {
                 for (Parameter param : params)
-                    sb.append(param.type).append(' ').append(param.name).append(", ");
+                    sb.append(param).append(", ");
                 sb.setLength(sb.length() - 2);
             }
             return sb.append(')').toString();
@@ -120,7 +120,7 @@ public abstract class StructInstantiationStrategyImpl implements StructInstantia
             StringBuilder sb = new StringBuilder("factory ").append(ownerTypeName).append('.').append(methodName).append('(');
             if (!params.isEmpty()) {
                 for (Parameter param : params)
-                    sb.append(param.type).append(' ').append(param.name).append(", ");
+                    sb.append(param).append(", ");
                 sb.setLength(sb.length() - 2);
             }
             return sb.append(')').toString();

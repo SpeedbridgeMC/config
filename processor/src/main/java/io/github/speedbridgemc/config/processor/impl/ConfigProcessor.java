@@ -127,7 +127,7 @@ public final class ConfigProcessor extends AbstractProcessor {
         System.out.format("%s%d properties:%n", indent, cType.properties().size());
         for (ConfigProperty prop : cType.properties()) {
             ConfigType pType = prop.type();
-            System.out.format("%s - %s %s%n", indent, pType, prop.name());
+            System.out.format("%s - %s %s%s%n", indent, pType, prop.name(), prop.canSet() ? "" : " (readonly)");
             switch (pType.kind()) {
             case STRUCT:
                 dumpConfigType(pType, indent + "     ");

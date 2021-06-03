@@ -45,8 +45,8 @@ public class TestConfig {
         public final String hello;
         private final int world;
 
-        public static HelloWorld create(String hello, @Config.Getter("getWorld") int world) {
-            return new HelloWorld(hello, world);
+        public static HelloWorld create(String hello, @Config.BoundProperty("world") int zaWarudo) {
+            return new HelloWorld(hello, zaWarudo);
         }
 
         private HelloWorld(String hello,  int world) {
