@@ -278,6 +278,8 @@ final class ConfigTypeStructFactory {
                                 getter, method));
                         implicitAccessorPairs.add(propName);
                         methodsToSkip.add(getterName);
+                        if (!propertyNames.add(propName))
+                            throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
                     }
                     break;
                 }
@@ -352,22 +354,24 @@ final class ConfigTypeStructFactory {
                     if (accessorPairs.put(propName, new AccessorPair(propType,
                             (ExecutableType) types.asMemberOf(mirror, getter), getter)) != null)
                         throw new RuntimeException("Explicit property \"" + propName + "\": Duplicate name!");
+
+                    continue;
                 }
             } else {
                 if (!setterInfo.isPresent() || setterInfo.get().kind != PropertyUtils.AccessorInfo.Kind.SETTER)
                     throw new RuntimeException("Explicit property \"" + propName + "\": Setter method \"" + setterName + "\" is invalid");
                 if (!types.isSameType(propType, setterInfo.get().propertyType))
                     throw new RuntimeException("Explicit property \"" + propName + "\": Type mismatch between getter method \"" + getterName + "\" and setter method \"" + setterName + "\"");
-
-                // explicit accessor pairs override implicit ones
-                if (implicitAccessorPairs.remove(propName))
-                    accessorPairs.remove(propName);
-
-                if (accessorPairs.put(propName, new AccessorPair(propType,
-                        (ExecutableType) types.asMemberOf(mirror, getter), (ExecutableType) types.asMemberOf(mirror, setter),
-                        getter, setter)) != null)
-                    throw new RuntimeException("Explicit property \"" + propName + "\": Duplicate name!");
             }
+
+            // explicit accessor pairs override implicit ones
+            if (implicitAccessorPairs.remove(propName))
+                accessorPairs.remove(propName);
+
+            if (accessorPairs.put(propName, new AccessorPair(propType,
+                    (ExecutableType) types.asMemberOf(mirror, getter), (ExecutableType) types.asMemberOf(mirror, setter),
+                    getter, setter)) != null)
+                throw new RuntimeException("Explicit property \"" + propName + "\": Duplicate name!");
         }
 
         // finally, covert accessor pairs to properties
