@@ -1,7 +1,6 @@
 package io.github.speedbridgemc.config.processor.impl.type;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.EnumName;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
@@ -17,7 +16,10 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.*;
+import javax.lang.model.type.ArrayType;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleTypeVisitor8;
@@ -83,7 +85,10 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     }
 
     @Override
-    public void addType(@NotNull DeclaredType mirror, @NotNull ConfigType type) {
+    public void addStruct(@NotNull ConfigType type) {
+        if (type.kind() != ConfigTypeKind.STRUCT)
+            throw new IllegalArgumentException("Injected type must be of kind STRUCT!");
+        DeclaredType mirror = (DeclaredType) type.asMirror();
         ConfigType oldType = declaredTypeCache.put(mirror, type);
         if (oldType != null) {
             StringWriter sw = new StringWriter();

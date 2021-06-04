@@ -250,8 +250,6 @@ final class ConfigTypeStructFactory {
                                 (ExecutableType) types.asMemberOf(mirror, method), method));
                     }
                     implicitAccessorPairs.add(propName);
-                    if (!propertyNames.add(propName))
-                        throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
                     break;
                 case SETTER:
                     // try to find getter
@@ -279,8 +277,6 @@ final class ConfigTypeStructFactory {
                                 getter, method));
                         implicitAccessorPairs.add(propName);
                         methodsToSkip.add(getterName);
-                        if (!propertyNames.add(propName))
-                            throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
                     }
                     break;
                 }
@@ -347,7 +343,7 @@ final class ConfigTypeStructFactory {
 
             Optional<PropertyUtils.AccessorInfo> setterInfo = PropertyUtils.getAccessorInfo(setter);
             if (implicitSetter) {
-                if (!setterInfo.isPresent()) {
+                if (setter == getter || !setterInfo.isPresent()) {
                     // explicit accessor pairs override implicit ones
                     if (implicitAccessorPairs.remove(propName))
                         accessorPairs.remove(propName);
@@ -395,6 +391,8 @@ final class ConfigTypeStructFactory {
                         extensions.build(),
                         prop.getterE.getSimpleName().toString()));
             }
+            if (!propertyNames.add(entry.getKey()))
+                throw new RuntimeException("Duplicate property key \"" + entry.getKey()+ "\"!");
         }
 
         // and now, for the instantiation strategy!

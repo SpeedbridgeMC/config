@@ -5,7 +5,6 @@ import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExten
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 
 /**
@@ -19,11 +18,10 @@ public interface ConfigTypeProvider {
     void init(@NotNull ProcessingEnvironment processingEnv);
 
     /**
-     * Adds a preconfigured {@code ConfigType} that maps to a {@link DeclaredType}.
-     * @param mirror type mirror
+     * Adds a preconfigured {@code ConfigType} of kind {@link ConfigTypeKind#STRUCT STRUCT}.
      * @param type matching type
      */
-    void addType(@NotNull DeclaredType mirror, @NotNull ConfigType type);
+    void addStruct(@NotNull ConfigType type);
 
     /**
      * Adds a {@link io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension ConfigPropertyExtension}
