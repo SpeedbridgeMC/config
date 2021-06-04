@@ -20,7 +20,7 @@ public abstract class BaseNamingStrategy implements NamingStrategy {
     }
 
     @Override
-    public @NotNull String id() {
+    public final @NotNull String id() {
         return id;
     }
 

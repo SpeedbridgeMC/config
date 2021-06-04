@@ -122,9 +122,10 @@ public final class ConfigProcessor extends AbstractProcessor {
             if (identifierTE != null) {
                 DeclaredType identifierM = (DeclaredType) identifierTE.asType();
                 provider.addStruct(ConfigType.structBuilder(identifierM)
-                        .property(ConfigProperty.getter(() -> provider.primitiveOf(ConfigTypeKind.STRING), "value", "toString"))
+                        .property(ConfigProperty.getter(() -> provider.primitiveOf(ConfigTypeKind.STRING, false),
+                                "value", "toString"))
                         .instantiationStrategy(StructInstantiationStrategyBuilder.factory(identifierM, "tryParse")
-                                .param(() -> provider.primitiveOf(ConfigTypeKind.STRING), "value")
+                                .param(() -> provider.primitiveOf(ConfigTypeKind.STRING, false), "value")
                                 .build())
                         .build());
             }

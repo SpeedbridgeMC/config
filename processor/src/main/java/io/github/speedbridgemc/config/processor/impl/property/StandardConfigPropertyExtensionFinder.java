@@ -7,20 +7,29 @@ import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExten
 import io.github.speedbridgemc.config.processor.api.property.SerializeExtension;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.seralize.Aliases;
+import io.github.speedbridgemc.config.seralize.SerializedName;
 import org.jetbrains.annotations.NotNull;
 
 @AutoService(ConfigPropertyExtensionFinder.class)
 public final class StandardConfigPropertyExtensionFinder extends BaseConfigPropertyExtensionFinder {
     @Override
     public void findExtensions(@NotNull Callback callback, @NotNull MirrorElementPair @NotNull ... pairs) {
+        extSerialize(callback, pairs);
+    }
+
+    private void extSerialize(@NotNull Callback callback, @NotNull MirrorElementPair @NotNull ... pairs) {
+        String serializedName = null;
         final ImmutableSet.Builder<String> aliasBuilder = ImmutableSet.builder();
         for (MirrorElementPair pair : pairs) {
+            SerializedName serializedName1 = pair.element().getAnnotation(SerializedName.class);
+            if (serializedName1 != null)
+                serializedName = serializedName1.value();
             Aliases aliases = pair.element().getAnnotation(Aliases.class);
             if (aliases == null)
                 continue;
             for (String alias : aliases.value())
                 aliasBuilder.add(alias);
         }
-        callback.putExtension(SerializeExtension.class, new SerializeExtension(aliasBuilder.build()));
+        callback.putExtension(SerializeExtension.class, new SerializeExtension(serializedName, aliasBuilder.build()));
     }
 }

@@ -415,7 +415,7 @@ final class ConfigTypeStructFactory {
             owner = mirror;
             params = Collections.singletonList(voidTM);
         } else {
-            TypeMirror ownerM = AnnotationUtils.getClass(elements, structAnno, Config.Struct::factoryOwner);
+            TypeMirror ownerM = AnnotationUtils.getClass(structAnno, Config.Struct::factoryOwner);
             if (ownerM.getKind() != TypeKind.DECLARED)
                 throw new RuntimeException("Factory owner \"" + ownerM + "\" must be a declared type");
             owner = (DeclaredType) ownerM;
@@ -425,7 +425,7 @@ final class ConfigTypeStructFactory {
                 factoryName = structAnno.factoryName();
                 paramsMapper = Config.Struct::factoryParams;
             } else {
-                ownerM = AnnotationUtils.getClass(elements, structAnno, Config.Struct::constructorOwner);
+                ownerM = AnnotationUtils.getClass(structAnno, Config.Struct::constructorOwner);
                 if (ownerM.getKind() != TypeKind.DECLARED)
                     throw new RuntimeException("Constructor owner \"" + ownerM + "\" must be a declared type");
                 owner = (DeclaredType) ownerM;
@@ -437,7 +437,7 @@ final class ConfigTypeStructFactory {
                     throw new RuntimeException("Can't specify constructor from interface \"" + owner + "\"!");
                 paramsMapper = Config.Struct::constructorParams;
             }
-            params = AnnotationUtils.getClasses(elements, structAnno, paramsMapper);
+            params = AnnotationUtils.getClasses(structAnno, paramsMapper);
         }
 
         int paramCount = params.size();

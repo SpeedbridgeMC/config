@@ -30,6 +30,11 @@ public interface ConfigType {
      * @return type as mirror
      */
     @NotNull TypeMirror asMirror();
+    /**
+     * Checks if this type can hold {@literal null}.
+     * @return {@literal true} if nullable, {@literal false} otherwise
+     */
+    boolean isNullable();
 
     // only for ENUM types
     /**

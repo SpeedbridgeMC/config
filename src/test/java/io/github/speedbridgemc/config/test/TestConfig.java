@@ -3,6 +3,7 @@ package io.github.speedbridgemc.config.test;
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.EnumName;
 import io.github.speedbridgemc.config.seralize.Aliases;
+import io.github.speedbridgemc.config.seralize.SerializedName;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
@@ -63,21 +64,21 @@ public class TestConfig {
 
     @Config.Struct(constructorOwner = TestInterfaceImpl.class)
     public interface TestInterface {
-        int getA();
-        void setA(int a);
+        int getPower();
+        void setPower(int power);
     }
 
     public static class TestInterfaceImpl implements TestInterface {
-        private int a;
+        private int power;
 
         @Override
-        public int getA() {
-            return a;
+        public int getPower() {
+            return power;
         }
 
         @Override
-        public void setA(int a) {
-            this.a = a;
+        public void setPower(int power) {
+            this.power = power;
         }
     }
 
@@ -85,11 +86,13 @@ public class TestConfig {
     public int int1;
     @Config.Property(name = "int_2_baby")
     public int int2;
+    public Integer int3 = 0;
     @Config.Exclude
     public boolean excluded;
 
     public TestEnum testEnum = TestEnum.FOO;
     public HelloWorld helloWorld = HelloWorld.create("hello", "world".hashCode());
+    @SerializedName("powerHolder")
     public TestInterface testInterface = new TestInterfaceImpl();
     public Identifier testId = new Identifier("a", "b");
 

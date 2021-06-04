@@ -7,9 +7,7 @@ import javax.lang.model.AnnotatedConstruct;
 import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.MirroredTypesException;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.Elements;
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.BinaryOperator;
@@ -70,30 +68,23 @@ public final class AnnotationUtils {
         return concatValues(Arrays.asList(constructs), annotationType, valueMapper, initialValueSupplier, valueCombiner);
     }
 
-    public static <A extends Annotation> @NotNull TypeMirror getClass(@NotNull Elements elements,
-                                                                      @NotNull A annotation,
+    public static <A extends Annotation> @NotNull TypeMirror getClass(@NotNull A annotation,
                                                                       @NotNull Function<A, Class<?>> valueMapper) {
-        Class<?> aClass;
         try {
-            aClass = valueMapper.apply(annotation);
+            valueMapper.apply(annotation);
         } catch (MirroredTypeException e) {
             return e.getTypeMirror();
         }
-        return elements.getTypeElement(aClass.getCanonicalName()).asType();
+        throw new InternalError("Getting Class from annotation didn't throw MirroredTypeException?!");
     }
 
-    public static <A extends Annotation> @NotNull List<? extends TypeMirror> getClasses(@NotNull Elements elements,
-                                                                                        @NotNull A annotation,
+    public static <A extends Annotation> @NotNull List<? extends TypeMirror> getClasses(@NotNull A annotation,
                                                                                         @NotNull Function<A, Class<?>[]> valueMapper) {
-        Class<?>[] classes;
         try {
-            classes = valueMapper.apply(annotation);
+            valueMapper.apply(annotation);
         } catch (MirroredTypesException e) {
             return e.getTypeMirrors();
         }
-        ArrayList<TypeMirror> typeMirrors = new ArrayList<>();
-        for (Class<?> aClass : classes)
-            typeMirrors.add(elements.getTypeElement(aClass.getCanonicalName()).asType());
-        return typeMirrors;
+        throw new InternalError("Getting Class[] from annotation didn't throw MirroredTypesException?!");
     }
 }

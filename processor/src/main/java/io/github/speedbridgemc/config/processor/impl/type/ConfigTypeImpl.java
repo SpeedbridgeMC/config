@@ -41,6 +41,11 @@ public abstract class ConfigTypeImpl implements ConfigType {
     }
 
     @Override
+    public boolean isNullable() {
+        return true;
+    }
+
+    @Override
     public @NotNull List<? extends String> enumConstants() {
         return Collections.emptyList();
     }
@@ -76,8 +81,16 @@ public abstract class ConfigTypeImpl implements ConfigType {
     }
 
     public static final class Primitive extends ConfigTypeImpl {
-        public Primitive(@NotNull ConfigTypeKind kind, @NotNull String name, @NotNull TypeMirror typeMirror) {
+        private final boolean nullable;
+
+        public Primitive(@NotNull ConfigTypeKind kind, @NotNull String name, @NotNull TypeMirror typeMirror, boolean nullable) {
             super(kind, name, typeMirror);
+            this.nullable = nullable;
+        }
+
+        @Override
+        public boolean isNullable() {
+            return nullable;
         }
     }
 
