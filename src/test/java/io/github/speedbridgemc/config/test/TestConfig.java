@@ -2,8 +2,8 @@ package io.github.speedbridgemc.config.test;
 
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.EnumName;
-import io.github.speedbridgemc.config.seralize.Aliases;
-import io.github.speedbridgemc.config.seralize.SerializedName;
+import io.github.speedbridgemc.config.serialize.Aliases;
+import io.github.speedbridgemc.config.serialize.SerializedName;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;

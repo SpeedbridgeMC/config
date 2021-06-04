@@ -6,8 +6,8 @@ import io.github.speedbridgemc.config.processor.api.property.BaseConfigPropertyE
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.property.SerializeExtension;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
-import io.github.speedbridgemc.config.seralize.Aliases;
-import io.github.speedbridgemc.config.seralize.SerializedName;
+import io.github.speedbridgemc.config.serialize.Aliases;
+import io.github.speedbridgemc.config.serialize.SerializedName;
 import org.jetbrains.annotations.NotNull;
 
 @AutoService(ConfigPropertyExtensionFinder.class)

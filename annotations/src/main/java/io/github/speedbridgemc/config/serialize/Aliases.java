@@ -1,4 +1,4 @@
-package io.github.speedbridgemc.config.seralize;
+package io.github.speedbridgemc.config.serialize;
 
 import org.jetbrains.annotations.NotNull;
 
