@@ -11,23 +11,23 @@ import java.util.function.Supplier;
 
 public interface ConfigProperty {
     static @NotNull ConfigProperty field(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
-                                         @NotNull String fieldName, boolean isFinal) {
-        return new ConfigPropertyImpl.Field(typeSupplier, name, ImmutableClassToInstanceMap.of(), !isFinal, fieldName);
+                                         @NotNull String fieldName, boolean isFinal, boolean isOptional) {
+        return new ConfigPropertyImpl.Field(typeSupplier, name, ImmutableClassToInstanceMap.of(), !isFinal, isOptional, fieldName);
     }
 
     static @NotNull ConfigProperty field(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
-                                         @NotNull String fieldName) {
-        return field(typeSupplier, name, fieldName, false);
+                                         @NotNull String fieldName, boolean isOptional) {
+        return field(typeSupplier, name, fieldName, isOptional);
     }
 
     static @NotNull ConfigProperty accessors(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
-                                             @NotNull String getterName, @NotNull String setterName) {
-        return new ConfigPropertyImpl.Accessors(typeSupplier, name, ImmutableClassToInstanceMap.of(), getterName, setterName);
+                                             @NotNull String getterName, @NotNull String setterName, boolean isOptional) {
+        return new ConfigPropertyImpl.Accessors(typeSupplier, name, ImmutableClassToInstanceMap.of(), isOptional, getterName, setterName);
     }
 
     static @NotNull ConfigProperty getter(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
-                                          @NotNull String getterName) {
-        return new ConfigPropertyImpl.Accessors(typeSupplier, name, ImmutableClassToInstanceMap.of(), getterName);
+                                          @NotNull String getterName, boolean isOptional) {
+        return new ConfigPropertyImpl.Accessors(typeSupplier, name, ImmutableClassToInstanceMap.of(), isOptional, getterName);
     }
 
     static @NotNull ConfigPropertyBuilder fieldBuilder(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
@@ -52,6 +52,7 @@ public interface ConfigProperty {
 
     @NotNull String name();
     @NotNull ConfigType type();
+    boolean isOptional();
     @NotNull <E extends ConfigPropertyExtension> Optional<E> extension(@NotNull Class<E> type);
 
     @NotNull CodeBlock generateGet(@NotNull String object, @NotNull String destination);

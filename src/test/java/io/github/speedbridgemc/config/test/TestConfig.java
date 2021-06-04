@@ -86,6 +86,7 @@ public class TestConfig {
     public int int1;
     @Config.Property(name = "int_2_baby")
     public int int2;
+    @Config.Property(optional = true)
     public Integer int3 = 0;
     @Config.Exclude
     public boolean excluded;

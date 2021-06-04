@@ -123,7 +123,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                 DeclaredType identifierM = (DeclaredType) identifierTE.asType();
                 provider.addStruct(ConfigType.structBuilder(identifierM)
                         .property(ConfigProperty.getter(() -> provider.primitiveOf(ConfigTypeKind.STRING, false),
-                                "value", "toString"))
+                                "value", "toString", false))
                         .instantiationStrategy(StructInstantiationStrategyBuilder.factory(identifierM, "tryParse")
                                 .param(() -> provider.primitiveOf(ConfigTypeKind.STRING, false), "value")
                                 .build())
@@ -146,7 +146,7 @@ public final class ConfigProcessor extends AbstractProcessor {
         System.out.format("%s%d properties:%n", indent, cType.properties().size());
         for (ConfigProperty prop : cType.properties()) {
             ConfigType pType = prop.type();
-            System.out.format("%s - %s %s%s%n", indent, pType, prop.name(), prop.canSet() ? "" : " (readonly)");
+            System.out.format("%s - %s %s%s%n", indent, pType, prop.name(), propAttr(prop));
             switch (pType.kind()) {
             case STRUCT:
                 dumpConfigType(pType, indent + "     ");
@@ -155,6 +155,19 @@ public final class ConfigProcessor extends AbstractProcessor {
                 break;
             }
         }
+    }
+
+    private @NotNull String propAttr(@NotNull ConfigProperty prop) {
+        StringBuilder sb = new StringBuilder();
+        if (!prop.canSet())
+            sb.append("readonly, ");
+        if (prop.isOptional())
+            sb.append("optional, ");
+        if (sb.length() > 0) {
+            sb.setLength(sb.length() - 2);
+            sb.insert(0, " (").append(')');
+        }
+        return sb.toString();
     }
 
     @Override

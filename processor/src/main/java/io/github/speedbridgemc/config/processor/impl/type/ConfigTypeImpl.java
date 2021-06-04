@@ -81,16 +81,16 @@ public abstract class ConfigTypeImpl implements ConfigType {
     }
 
     public static final class Primitive extends ConfigTypeImpl {
-        private final boolean nullable;
+        private final boolean isNullable;
 
-        public Primitive(@NotNull ConfigTypeKind kind, @NotNull String name, @NotNull TypeMirror typeMirror, boolean nullable) {
+        public Primitive(@NotNull ConfigTypeKind kind, @NotNull String name, @NotNull TypeMirror typeMirror, boolean isNullable) {
             super(kind, name, typeMirror);
-            this.nullable = nullable;
+            this.isNullable = isNullable;
         }
 
         @Override
         public boolean isNullable() {
-            return nullable;
+            return isNullable;
         }
     }
 

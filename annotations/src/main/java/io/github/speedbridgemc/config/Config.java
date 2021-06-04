@@ -20,6 +20,7 @@ public @interface Config {
         @NotNull String name() default "";
         @NotNull String getter() default "";
         @NotNull String setter() default "";
+        boolean optional() default false;
     }
 
     @Documented

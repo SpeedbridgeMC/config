@@ -18,15 +18,17 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
     private final @NotNull Supplier<ConfigType> typeSupplier;
     protected final @NotNull String name;
     protected final @NotNull ImmutableClassToInstanceMap<ConfigPropertyExtension> extensions;
-    protected final boolean canSet;
+    protected final boolean canSet, isOptional;
     private ConfigType type;
 
     protected ConfigPropertyImpl(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
-                                 @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions, boolean canSet) {
+                                 @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
+                                 boolean canSet, boolean isOptional) {
         this.typeSupplier = typeSupplier;
         this.name = name;
         this.extensions = toImmutableClassToInstanceMap(extensions);
         this.canSet = canSet;
+        this.isOptional = isOptional;
     }
 
     @Override
@@ -39,6 +41,11 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
     @Override
     public @NotNull String name() {
         return name;
+    }
+
+    @Override
+    public boolean isOptional() {
+        return isOptional;
     }
 
     @Override
@@ -56,8 +63,9 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
 
         public Field(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
                      @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
-                     boolean canSet, @NotNull String fieldName) {
-            super(typeSupplier, name, extensions, canSet);
+                     boolean canSet, boolean isOptional,
+                     @NotNull String fieldName) {
+            super(typeSupplier, name, extensions, canSet, isOptional);
             this.fieldName = fieldName;
         }
 
@@ -80,16 +88,16 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
 
         public Accessors(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
                          @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
-                         @NotNull String getterName, @NotNull String setterName) {
-            super(typeSupplier, name, extensions, true);
+                         boolean isOptional, @NotNull String getterName, @NotNull String setterName) {
+            super(typeSupplier, name, extensions, true, isOptional);
             this.getterName = getterName;
             this.setterName = setterName;
         }
 
         public Accessors(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
                          @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
-                         @NotNull String getterName) {
-            super(typeSupplier, name, extensions, false);
+                         boolean isOptional, @NotNull String getterName) {
+            super(typeSupplier, name, extensions, false, isOptional);
             this.getterName = getterName;
             setterName = null;
         }

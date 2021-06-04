@@ -13,6 +13,7 @@ public final class ConfigPropertyBuilder {
     private final boolean isAccessors, isReadOnly;
     private final @NotNull String fieldName, getterName, setterName;
     private final @NotNull ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensionsBuilder;
+    private boolean isOptional;
 
     ConfigPropertyBuilder(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
                           boolean isAccessors, boolean isReadOnly,
@@ -25,6 +26,12 @@ public final class ConfigPropertyBuilder {
         this.getterName = getterName;
         this.setterName = setterName;
         extensionsBuilder = ImmutableClassToInstanceMap.builder();
+        isOptional = false;
+    }
+
+    public @NotNull ConfigPropertyBuilder optional() {
+        isOptional = true;
+        return this;
     }
 
     public <E extends ConfigPropertyExtension> @NotNull ConfigPropertyBuilder extension(@NotNull Class<E> type, @NotNull E extension) {
@@ -36,10 +43,10 @@ public final class ConfigPropertyBuilder {
         final ImmutableClassToInstanceMap<ConfigPropertyExtension> extensions = extensionsBuilder.build();
         if (isAccessors) {
             if (isReadOnly)
-                return new ConfigPropertyImpl.Accessors(typeSupplier, name, extensions, getterName);
+                return new ConfigPropertyImpl.Accessors(typeSupplier, name, extensions, isOptional, getterName);
             else
-                return new ConfigPropertyImpl.Accessors(typeSupplier, name, extensions, getterName, setterName);
+                return new ConfigPropertyImpl.Accessors(typeSupplier, name, extensions, isOptional, getterName, setterName);
         } else
-            return new ConfigPropertyImpl.Field(typeSupplier, name, extensions, !isReadOnly, fieldName);
+            return new ConfigPropertyImpl.Field(typeSupplier, name, extensions, !isReadOnly, isOptional, fieldName);
     }
 }

@@ -90,12 +90,14 @@ final class ConfigTypeStructFactory {
         }
         class AccessorPairDef {
             public final @NotNull String name, getter, setter;
+            public final boolean optional;
             public final @NotNull ExecutableElement definingMethod;
 
-            AccessorPairDef(@NotNull String name, @NotNull String getter, @NotNull String setter, @NotNull ExecutableElement definingMethod) {
+            AccessorPairDef(@NotNull String name, @NotNull String getter, @NotNull String setter, boolean optional, @NotNull ExecutableElement definingMethod) {
                 this.name = name;
                 this.getter = getter;
                 this.setter = setter;
+                this.optional = optional;
                 this.definingMethod = definingMethod;
             }
         }
@@ -106,10 +108,12 @@ final class ConfigTypeStructFactory {
             public final boolean hasSetter;
             public final @NotNull ExecutableElement getterE;
             public final ExecutableElement setterE;
+            public final boolean optional;
 
             AccessorPair(@NotNull TypeMirror type,
                          @NotNull ExecutableType getterM, @NotNull ExecutableType setterM,
-                         @NotNull ExecutableElement getterE, @NotNull ExecutableElement setterE) {
+                         @NotNull ExecutableElement getterE, @NotNull ExecutableElement setterE, boolean optional) {
+                this.optional = optional;
                 hasSetter = true;
                 this.type = type;
                 this.getterM = getterM;
@@ -119,7 +123,8 @@ final class ConfigTypeStructFactory {
             }
 
             AccessorPair(@NotNull TypeMirror type,
-                         @NotNull ExecutableType getterM, @NotNull ExecutableElement getterE) {
+                         @NotNull ExecutableType getterM, @NotNull ExecutableElement getterE, boolean optional) {
+                this.optional = optional;
                 hasSetter = false;
                 this.type = type;
                 this.getterM = getterM;
@@ -177,7 +182,7 @@ final class ConfigTypeStructFactory {
                 methods.put(enclosed.getSimpleName().toString(), new MethodData((ExecutableType) enclosedM, (ExecutableElement) enclosed));
                 Config.Property propAnno = enclosed.getAnnotation(Config.Property.class);
                 if (propAnno != null)
-                    accessorPairDefs.add(new AccessorPairDef(propAnno.name(), propAnno.getter(), propAnno.setter(), (ExecutableElement) enclosed));
+                    accessorPairDefs.add(new AccessorPairDef(propAnno.name(), propAnno.getter(), propAnno.setter(), propAnno.optional(), (ExecutableElement) enclosed));
             } else if (enclosed instanceof VariableElement) {
                 fields.put(enclosed.getSimpleName().toString(), new FieldData(enclosedM, (VariableElement) enclosed, mods.contains(Modifier.FINAL)));
             }
@@ -192,18 +197,21 @@ final class ConfigTypeStructFactory {
             VariableElement fieldE = field.getValue().element;
             Config.Property propAnno = fieldE.getAnnotation(Config.Property.class);
             String fieldName = field.getKey();
+            boolean optional = false;
             String propName = "";
             if (propAnno == null) {
                 if (!includeFieldsByDefault)
                     continue;
-            } else
+            } else {
                 propName = propAnno.name();
+                optional = propAnno.optional();
+            }
             if (propName.isEmpty())
                 propName = typeProvider.name(fieldE.getSimpleName().toString());
             ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
             findExtensions(extensions, new MirrorElementPair(fieldM, fieldE));
             propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldM),
-                    propName, extensions.build(), !field.getValue().isFinal, fieldName));
+                    propName, extensions.build(), !field.getValue().isFinal, optional, fieldName));
             if (!propertyNames.add(propName))
                 throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
         }
@@ -257,7 +265,7 @@ final class ConfigTypeStructFactory {
                     if (foundSetter) {
                         accessorPairs.put(propName, new AccessorPair(propType,
                                 (ExecutableType) types.asMemberOf(mirror, method), (ExecutableType) types.asMemberOf(mirror, setter),
-                                method, setter));
+                                method, setter, false));
                         implicitAccessorPairs.add(propName);
                         methodsToSkip.add(setterName);
                     }
@@ -285,7 +293,7 @@ final class ConfigTypeStructFactory {
                     if (foundGetter) {
                         accessorPairs.put(propName, new AccessorPair(propType,
                                 (ExecutableType) types.asMemberOf(mirror, getter), (ExecutableType) types.asMemberOf(mirror, method),
-                                getter, method));
+                                getter, method, false));
                         implicitAccessorPairs.add(propName);
                         methodsToSkip.add(getterName);
                     }
@@ -359,7 +367,7 @@ final class ConfigTypeStructFactory {
                         accessorPairs.remove(propName);
 
                     if (accessorPairs.put(propName, new AccessorPair(propType,
-                            (ExecutableType) types.asMemberOf(mirror, getter), getter)) != null)
+                            (ExecutableType) types.asMemberOf(mirror, getter), getter, accessorPairDef.optional)) != null)
                         throw new RuntimeException("Explicit property \"" + propName + "\": Duplicate name!");
 
                     continue;
@@ -377,7 +385,7 @@ final class ConfigTypeStructFactory {
 
             if (accessorPairs.put(propName, new AccessorPair(propType,
                     (ExecutableType) types.asMemberOf(mirror, getter), (ExecutableType) types.asMemberOf(mirror, setter),
-                    getter, setter)) != null)
+                    getter, setter, accessorPairDef.optional)) != null)
                 throw new RuntimeException("Explicit property \"" + propName + "\": Duplicate name!");
         }
 
@@ -392,13 +400,15 @@ final class ConfigTypeStructFactory {
                 propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(prop.type),
                         entry.getKey(),
                         extensions.build(),
-                        prop.getterE.getSimpleName().toString(), prop.setterE.getSimpleName().toString()));
+                        prop.optional,
+                        prop.setterE.getSimpleName().toString(), prop.getterE.getSimpleName().toString()));
             } else {
                 findExtensions(extensions,
                         new MirrorElementPair(prop.getterM, prop.getterE));
                 propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(prop.type),
                         entry.getKey(),
                         extensions.build(),
+                        prop.optional,
                         prop.getterE.getSimpleName().toString()));
             }
             if (!propertyNames.add(entry.getKey()))
