@@ -91,6 +91,7 @@ public class TestConfig {
     public TestEnum testEnum = TestEnum.FOO;
     public HelloWorld helloWorld = HelloWorld.create("hello", "world".hashCode());
     public TestInterface testInterface = new TestInterfaceImpl();
+    public Identifier testId = new Identifier("a", "b");
 
     private int intProperty;
     private float floatProperty;

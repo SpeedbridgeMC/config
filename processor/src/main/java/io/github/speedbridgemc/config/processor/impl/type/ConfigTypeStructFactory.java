@@ -38,6 +38,7 @@ final class ConfigTypeStructFactory {
     private final Types types;
 
     private final TypeMirror booleanTM, voidTM;
+    private final ImmutableList<ExecutableElement> objectMethods;
 
     private final ArrayList<ConfigPropertyExtensionFinder> extensionFinders;
 
@@ -49,6 +50,9 @@ final class ConfigTypeStructFactory {
 
         booleanTM = elements.getTypeElement(Boolean.class.getCanonicalName()).asType();
         voidTM = elements.getTypeElement(Void.class.getCanonicalName()).asType();
+
+        TypeElement objectElem = elements.getTypeElement(Object.class.getCanonicalName());
+        objectMethods = ImmutableList.copyOf(ElementFilter.methodsIn(objectElem.getEnclosedElements()));
 
         extensionFinders = new ArrayList<>();
     }
@@ -161,6 +165,15 @@ final class ConfigTypeStructFactory {
                                                                         // also erases annotations, apparently
                                                                         // (which is why we also keep the element around)
             if (enclosed instanceof ExecutableElement) {
+                boolean overridesObjectMethod = false;
+                for (ExecutableElement objectMethod : objectMethods) {
+                    if (elements.overrides((ExecutableElement) enclosed, objectMethod, te)) {
+                        overridesObjectMethod = true;
+                        break;
+                    }
+                }
+                if (overridesObjectMethod)
+                    continue;
                 methods.put(enclosed.getSimpleName().toString(), new MethodData((ExecutableType) enclosedM, (ExecutableElement) enclosed));
                 Config.Property propAnno = enclosed.getAnnotation(Config.Property.class);
                 if (propAnno != null)
@@ -245,12 +258,9 @@ final class ConfigTypeStructFactory {
                         accessorPairs.put(propName, new AccessorPair(propType,
                                 (ExecutableType) types.asMemberOf(mirror, method), (ExecutableType) types.asMemberOf(mirror, setter),
                                 method, setter));
+                        implicitAccessorPairs.add(propName);
                         methodsToSkip.add(setterName);
-                    } else {
-                        accessorPairs.put(propName, new AccessorPair(propType,
-                                (ExecutableType) types.asMemberOf(mirror, method), method));
                     }
-                    implicitAccessorPairs.add(propName);
                     break;
                 case SETTER:
                     // try to find getter
@@ -403,7 +413,7 @@ final class ConfigTypeStructFactory {
         if (structAnno == null) {
             isFactory = false;
             owner = mirror;
-            params = Collections.emptyList();
+            params = Collections.singletonList(voidTM);
         } else {
             TypeMirror ownerM = AnnotationUtils.getClass(elements, structAnno, Config.Struct::factoryOwner);
             if (ownerM.getKind() != TypeKind.DECLARED)
@@ -522,7 +532,7 @@ final class ConfigTypeStructFactory {
             for (Map.Entry<String, MirrorElementPair> entry : paramsMap.entrySet()) {
                 final TypeMirror paramMirror = entry.getValue().mirror();
                 Config.BoundProperty boundPropertyAnno = entry.getValue().element().getAnnotation(Config.BoundProperty.class);
-                String boundPropertyName = entry.getValue().element().getSimpleName().toString();
+                String boundPropertyName = typeProvider.name(entry.getValue().element().getSimpleName().toString());
                 if (boundPropertyAnno != null)
                     boundPropertyName = boundPropertyAnno.value();
                 if (!propertyNames.contains(boundPropertyName))

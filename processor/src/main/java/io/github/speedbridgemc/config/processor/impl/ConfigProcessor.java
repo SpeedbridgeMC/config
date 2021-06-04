@@ -6,8 +6,10 @@ import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
+import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
-import io.github.speedbridgemc.config.processor.impl.naming.IdentityNamingStrategy;
+import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategyBuilder;
+import io.github.speedbridgemc.config.processor.impl.naming.SnakeCaseNamingStrategy;
 import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
 import org.jetbrains.annotations.NotNull;
@@ -16,6 +18,7 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -31,6 +34,10 @@ import static java.util.Collections.singleton;
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @AutoService(Processor.class)
 public final class ConfigProcessor extends AbstractProcessor {
+    public static @NotNull String id(@NotNull String path) {
+        return "speedbridge-config:" + path;
+    }
+
     private String version;
     private Messager messager;
     private Elements elements;
@@ -102,7 +109,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             TypeElement type = (TypeElement) annotatedElem;
             Config config = type.getAnnotation(Config.class);
 
-            NamingStrategy namingStrategy = new IdentityNamingStrategy();
+            NamingStrategy namingStrategy = new SnakeCaseNamingStrategy();
             namingStrategy.init(processingEnv);
             ConfigPropertyExtensionFinder extensionFinder = new StandardConfigPropertyExtensionFinder();
             extensionFinder.init(processingEnv);
@@ -110,6 +117,17 @@ public final class ConfigProcessor extends AbstractProcessor {
             provider.init(processingEnv);
             provider.addExtensionFinder(extensionFinder);
             provider.setNamingStrategy(namingStrategy, "");
+
+            TypeElement identifierTE = elements.getTypeElement("io.github.speedbridgemc.config.test.Identifier");
+            if (identifierTE != null) {
+                DeclaredType identifierM = (DeclaredType) identifierTE.asType();
+                provider.addStruct(ConfigType.structBuilder(identifierM)
+                        .property(ConfigProperty.getter(() -> provider.primitiveOf(ConfigTypeKind.STRING), "value", "toString"))
+                        .instantiationStrategy(StructInstantiationStrategyBuilder.factory(identifierM, "tryParse")
+                                .param(() -> provider.primitiveOf(ConfigTypeKind.STRING), "value")
+                                .build())
+                        .build());
+            }
 
             ConfigType cType = provider.fromMirror(type.asType());
             System.out.println(cType);
