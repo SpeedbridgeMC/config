@@ -177,7 +177,6 @@ final class ConfigTypeStructFactory {
         for (Map.Entry<String, FieldData> field : fields.entrySet()) {
             TypeMirror fieldM = field.getValue().mirror;
             VariableElement fieldE = field.getValue().element;
-            MirrorElementPair fieldMEP = new MirrorElementPair(fieldM, fieldE);
             Config.Property propAnno = fieldE.getAnnotation(Config.Property.class);
             String fieldName = field.getKey();
             String propName = "";
@@ -187,9 +186,9 @@ final class ConfigTypeStructFactory {
             } else
                 propName = propAnno.name();
             if (propName.isEmpty())
-                propName = typeProvider.name(fieldMEP);
+                propName = typeProvider.name(fieldE.getSimpleName().toString());
             ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
-            findExtensions(extensions, fieldMEP);
+            findExtensions(extensions, new MirrorElementPair(fieldM, fieldE));
             propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldM),
                     propName, extensions.build(), !field.getValue().isFinal, fieldName));
             if (!propertyNames.add(propName))
@@ -216,7 +215,8 @@ final class ConfigTypeStructFactory {
                     continue;
                 TypeMirror propType = accessorInfo.get().propertyType;
                 boolean isBool = isBool(accessorInfo.get().propertyType);
-                String propName = PropertyUtils.getPropertyName(methodName, isBool);
+                String internalPropName = PropertyUtils.getPropertyName(methodName, isBool);
+                String propName = typeProvider.name(internalPropName);
                 if (accessorPairs.containsKey(propName))
                     // TODO error details
                     throw new RuntimeException("Duplicate implicit property name \"" + propName + "\"!");
@@ -226,7 +226,7 @@ final class ConfigTypeStructFactory {
                     boolean foundSetter = false;
                     String setterName = "";
                     ExecutableElement setter = null;
-                    for (String possibleName : new String[]{PropertyUtils.makeSetterName(propName), propName}) {
+                    for (String possibleName : new String[]{PropertyUtils.makeSetterName(internalPropName), internalPropName}) {
                         setterName = possibleName;
                         for (MethodData setter1 : methods.get(setterName)) {
                             setter = setter1.element;
@@ -257,7 +257,7 @@ final class ConfigTypeStructFactory {
                     boolean foundGetter = false;
                     String getterName = "";
                     ExecutableElement getter = null;
-                    for (String possibleName : new String[]{PropertyUtils.makeGetterName(propName, isBool), propName}) {
+                    for (String possibleName : new String[]{PropertyUtils.makeGetterName(internalPropName, isBool), internalPropName}) {
                         getterName = possibleName;
                         for (MethodData getter1 : methods.get(getterName)) {
                             getter = getter1.element;
@@ -331,8 +331,7 @@ final class ConfigTypeStructFactory {
             if (propName.isEmpty()) {
                 propName = AnnotationUtils.getFirstValue(Config.Property.class, Config.Property::name, s -> !s.isEmpty(), getter, setter);
                 if (propName == null)
-                    propName = typeProvider.name(MirrorElementPair.create(types, mirror, getter),
-                            MirrorElementPair.create(types, mirror, setter));
+                    propName = typeProvider.name(PropertyUtils.getPropertyName(getter.getSimpleName().toString(), isBool(getter.getReturnType())));
             }
 
             TypeMirror propType;

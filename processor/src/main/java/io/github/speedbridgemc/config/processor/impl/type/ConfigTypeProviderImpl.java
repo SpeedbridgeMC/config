@@ -8,7 +8,6 @@ import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExten
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
-import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.Messager;
@@ -116,8 +115,8 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
         this.namingStrategyVariant = variant;
     }
 
-    @NotNull String name(@NotNull MirrorElementPair @NotNull ... pairs) {
-        return namingStrategy.name(namingStrategyVariant, pairs);
+    @NotNull String name(@NotNull String originalName) {
+        return namingStrategy.name(namingStrategyVariant, originalName);
     }
 
     @Override
@@ -210,7 +209,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 if (nameAnno != null && !nameAnno.value().isEmpty())
                     constName = nameAnno.value();
                 else
-                    constName = namingStrategy.name(namingStrategyVariant, MirrorElementPair.create(types, mirror, field));
+                    constName = namingStrategy.name(namingStrategyVariant, field.getSimpleName().toString());
                 constantsBuilder.add(constName);
             }
             return new ConfigTypeImpl.Enum(mirror, constantsBuilder.build());
