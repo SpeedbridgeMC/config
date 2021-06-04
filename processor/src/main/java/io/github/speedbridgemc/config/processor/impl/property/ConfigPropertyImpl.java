@@ -10,18 +10,20 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.toImmutableClassToInstanceMap;
 
 public abstract class ConfigPropertyImpl implements ConfigProperty {
-    protected final @NotNull ConfigType type;
+    private final @NotNull Supplier<ConfigType> typeSupplier;
     protected final @NotNull String name;
     protected final @NotNull ImmutableClassToInstanceMap<ConfigPropertyExtension> extensions;
     protected final boolean canSet;
+    private ConfigType type;
 
-    protected ConfigPropertyImpl(@NotNull ConfigType type, @NotNull String name,
+    protected ConfigPropertyImpl(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
                                  @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions, boolean canSet) {
-        this.type = type;
+        this.typeSupplier = typeSupplier;
         this.name = name;
         this.extensions = toImmutableClassToInstanceMap(extensions);
         this.canSet = canSet;
@@ -29,6 +31,8 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
 
     @Override
     public @NotNull ConfigType type() {
+        if (type == null)
+            type = typeSupplier.get();
         return type;
     }
 
@@ -50,10 +54,10 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
     public static final class Field extends ConfigPropertyImpl {
         private final @NotNull String fieldName;
 
-        public Field(@NotNull ConfigType type, @NotNull String name,
+        public Field(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
                      @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
                      boolean canSet, @NotNull String fieldName) {
-            super(type, name, extensions, canSet);
+            super(typeSupplier, name, extensions, canSet);
             this.fieldName = fieldName;
         }
 
@@ -74,18 +78,18 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
         private final @NotNull String getterName;
         private final @Nullable String setterName;
 
-        public Accessors(@NotNull ConfigType type, @NotNull String name,
+        public Accessors(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
                          @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
                          @NotNull String getterName, @NotNull String setterName) {
-            super(type, name, extensions, true);
+            super(typeSupplier, name, extensions, true);
             this.getterName = getterName;
             this.setterName = setterName;
         }
 
-        public Accessors(@NotNull ConfigType type, @NotNull String name,
+        public Accessors(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
                          @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
                          @NotNull String getterName) {
-            super(type, name, extensions, false);
+            super(typeSupplier, name, extensions, false);
             this.getterName = getterName;
             setterName = null;
         }

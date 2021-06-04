@@ -12,6 +12,7 @@ import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import org.jetbrains.annotations.NotNull;
 
+import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
@@ -21,6 +22,9 @@ import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.SimpleTypeVisitor8;
 import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +33,7 @@ import java.util.Map;
 public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private boolean initialized = false;
     private ProcessingEnvironment processingEnv;
+    private Messager messager;
     private Elements elements;
     private Types types;
     private TypeMirror stringTM, enumTM, collectionTM, mapTM;
@@ -39,12 +44,6 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
 
     private ConfigType boolCType, byteCType, shortCType, intCType, longCType, charCType, floatCType, doubleCType, stringCType;
     private ConfigTypeStructFactory structFactory;
-    private Map<DeclaredType, ConfigType> addedTypes = new HashMap<>();
-
-    @Override
-    public void add(@NotNull DeclaredType mirror, @NotNull ConfigType type) {
-        addedTypes.put(mirror, type);
-    }
 
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {
@@ -52,6 +51,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             throw new IllegalStateException("Already initialized!");
         initialized = true;
         this.processingEnv = processingEnv;
+        messager = processingEnv.getMessager();
         elements = processingEnv.getElementUtils();
         types = processingEnv.getTypeUtils();
         stringTM = elements.getTypeElement(String.class.getCanonicalName()).asType();
@@ -80,7 +80,24 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 stringTM);
 
         structFactory = new ConfigTypeStructFactory(this, processingEnv);
-        addedTypes = ImmutableMap.copyOf(addedTypes);
+    }
+
+    @Override
+    public void addType(@NotNull DeclaredType mirror, @NotNull ConfigType type) {
+        ConfigType oldType = declaredTypeCache.put(mirror, type);
+        if (oldType != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            pw.println("Pre-existing type for mirror \"" + mirror + "\" replaced!");
+            pw.println("Was: " + oldType);
+            pw.println("Replaced by: " + type);
+            try {
+                throw new Exception("Stack trace");
+            } catch (Exception e) {
+                e.printStackTrace(pw);
+            }
+            messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING, sw.toString());
+        }
     }
 
     @Override
@@ -160,13 +177,10 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             return arrayOf(fromMirror(((ArrayType) mirror).getComponentType()));
         case DECLARED:
             DeclaredType declaredType = (DeclaredType) mirror;
-            ConfigType configType = addedTypes.get(declaredType);
+            ConfigType configType = declaredTypeCache.get(declaredType);
             if (configType == null) {
-                configType = declaredTypeCache.get(declaredType);
-                if (configType == null) {
-                    configType = fromDeclaredType(declaredType);
-                    declaredTypeCache.put(declaredType, configType);
-                }
+                configType = fromDeclaredType(declaredType);
+                declaredTypeCache.put(declaredType, configType);
             }
             return configType;
         default:

@@ -29,6 +29,7 @@ import javax.tools.Diagnostic;
 import java.util.*;
 import java.util.function.Function;
 
+// this is the class responsible for converting any Java class into a matching ConfigType of kind STRUCT
 final class ConfigTypeStructFactory {
     private final ConfigTypeProviderImpl typeProvider;
     private final ProcessingEnvironment processingEnv;
@@ -186,10 +187,10 @@ final class ConfigTypeStructFactory {
                 propName = propAnno.name();
             if (propName.isEmpty())
                 propName = typeProvider.name(fieldMEP);
-            ConfigType fieldType = typeProvider.fromMirror(fieldM);
             ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
             findExtensions(extensions, fieldMEP);
-            propertiesBuilder.add(new ConfigPropertyImpl.Field(fieldType, propName, extensions.build(), !field.getValue().isFinal, fieldName));
+            propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldM),
+                    propName, extensions.build(), !field.getValue().isFinal, fieldName));
             if (!propertyNames.add(propName))
                 throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
         }
@@ -382,13 +383,15 @@ final class ConfigTypeStructFactory {
                 findExtensions(extensions,
                         new MirrorElementPair(prop.getterM, prop.getterE),
                         new MirrorElementPair(prop.setterM, prop.setterE));
-                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(typeProvider.fromMirror(prop.type), entry.getKey(),
+                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(prop.type),
+                        entry.getKey(),
                         extensions.build(),
                         prop.getterE.getSimpleName().toString(), prop.setterE.getSimpleName().toString()));
             } else {
                 findExtensions(extensions,
                         new MirrorElementPair(prop.getterM, prop.getterE));
-                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(typeProvider.fromMirror(prop.type), entry.getKey(),
+                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(prop.type),
+                        entry.getKey(),
                         extensions.build(),
                         prop.getterE.getSimpleName().toString()));
             }

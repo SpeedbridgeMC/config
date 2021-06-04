@@ -13,18 +13,17 @@ import javax.lang.model.type.TypeMirror;
  */
 public interface ConfigTypeProvider {
     /**
-     * Adds a {@code ConfigType} that maps to a {@link DeclaredType}.<p>
-     * Cannot be called after {@link #init(ProcessingEnvironment)}.
-     * @param mirror type mirror
-     * @param type matching type
-     */
-    void add(@NotNull DeclaredType mirror, @NotNull ConfigType type);
-
-    /**
      * Initializes the provider.
      * @param processingEnv annotation processing environment
      */
     void init(@NotNull ProcessingEnvironment processingEnv);
+
+    /**
+     * Adds a preconfigured {@code ConfigType} that maps to a {@link DeclaredType}.
+     * @param mirror type mirror
+     * @param type matching type
+     */
+    void addType(@NotNull DeclaredType mirror, @NotNull ConfigType type);
 
     /**
      * Adds a {@link io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension ConfigPropertyExtension}
