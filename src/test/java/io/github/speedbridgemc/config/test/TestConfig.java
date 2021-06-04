@@ -40,8 +40,9 @@ public class TestConfig {
         }
     }
 
-    @Config.Struct(factoryOwner = HelloWorld.class, factoryName = "create")
+    @Config.Struct(scanFor = { }, factoryOwner = HelloWorld.class, factoryName = "create")
     public static class HelloWorld {
+        @Config.Property(name = "hello")
         public final String hello;
         private final int world;
 
@@ -54,6 +55,7 @@ public class TestConfig {
             this.world = world;
         }
 
+        @Config.Property(name = "world")
         public int getWorld() {
             return world;
         }

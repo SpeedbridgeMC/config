@@ -8,12 +8,6 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.TYPE)
 public @interface Config {
-    @NotNull ScanTarget @NotNull [] scanFor() default { ScanTarget.FIELDS, ScanTarget.PROPERTIES };
-
-    enum ScanTarget {
-        FIELDS, PROPERTIES
-    }
-
     @Documented
     @Retention(RetentionPolicy.SOURCE)
     @Target({ ElementType.FIELD, ElementType.METHOD })
@@ -32,6 +26,8 @@ public @interface Config {
     @Retention(RetentionPolicy.SOURCE)
     @Target(ElementType.TYPE)
     @interface Struct {
+        @NotNull ScanTarget @NotNull [] scanFor() default { ScanTarget.FIELDS, ScanTarget.PROPERTIES };
+
         @NotNull Class<?> constructorOwner() default Void.class;
         @NotNull Class<?>[] constructorParams() default { Void.class };
         @NotNull Class<?> factoryOwner() default Void.class;

@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.LinkedHashMultimap;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.ScanTarget;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
@@ -128,11 +129,11 @@ final class ConfigTypeStructFactory {
 
         boolean includeFieldsByDefault = true;
         boolean includePropertiesByDefault = true;
-        Config config = te.getAnnotation(Config.class);
-        if (config != null) {
+        Config.Struct structAnno = te.getAnnotation(Config.Struct.class);
+        if (structAnno != null) {
             includeFieldsByDefault = false;
             includePropertiesByDefault = false;
-            for (Config.ScanTarget target : config.scanFor()) {
+            for (ScanTarget target : structAnno.scanFor()) {
                 switch (target) {
                 case FIELDS:
                     includeFieldsByDefault = true;
@@ -396,7 +397,6 @@ final class ConfigTypeStructFactory {
         }
 
         // and now, for the instantiation strategy!
-        Config.Struct structAnno = mirror.asElement().getAnnotation(Config.Struct.class);
         boolean isFactory;
         DeclaredType owner;
         String factoryName = "";
