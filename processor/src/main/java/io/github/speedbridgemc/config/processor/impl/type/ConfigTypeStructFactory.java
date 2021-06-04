@@ -524,14 +524,14 @@ final class ConfigTypeStructFactory {
             ImmutableList.Builder<StructInstantiationStrategy.Parameter> paramsBuilder = ImmutableList.builder();
             for (Map.Entry<String, MirrorElementPair> entry : paramsMap.entrySet()) {
                 final TypeMirror paramMirror = entry.getValue().mirror();
-                final ConfigType paramType = typeProvider.fromMirror(paramMirror);
                 Config.BoundProperty boundPropertyAnno = entry.getValue().element().getAnnotation(Config.BoundProperty.class);
                 String boundPropertyName = entry.getValue().element().getSimpleName().toString();
                 if (boundPropertyAnno != null)
                     boundPropertyName = boundPropertyAnno.value();
                 if (!propertyNames.contains(boundPropertyName))
                     throw new RuntimeException("Missing bound property \"" + boundPropertyName + "\" for parameter \"" + entry.getValue().element() + "\"!");
-                paramsBuilder.add(new StructInstantiationStrategy.Parameter(paramType, entry.getKey(), boundPropertyName));
+                paramsBuilder.add(new StructInstantiationStrategyImpl.ParameterImpl(() -> typeProvider.fromMirror(paramMirror),
+                        entry.getKey(), boundPropertyName));
             }
             if (isFactory)
                 instantiationStrategy = new StructInstantiationStrategyImpl.Factory(paramsBuilder.build(),
@@ -550,7 +550,7 @@ final class ConfigTypeStructFactory {
                 throw new RuntimeException("Failed to find factory method " + mirror + " " + owner + "." + factoryName + "(" + sb + ")");
             else if (te.getKind() == ElementKind.INTERFACE) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING, "Type cannot be instantiated", te);
-                instantiationStrategy = StructInstantiationStrategyImpl.None.INSTANCE;
+                instantiationStrategy = StructInstantiationStrategy.NONE;
             } else
                 throw new RuntimeException("Failed to find constructor " + owner + "(" + sb + ")");
         }

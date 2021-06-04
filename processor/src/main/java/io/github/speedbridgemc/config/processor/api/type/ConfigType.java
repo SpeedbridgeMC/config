@@ -11,6 +11,10 @@ import java.util.Optional;
  * Represents a value type in a configuration file.
  */
 public interface ConfigType {
+    static @NotNull ConfigStructBuilder structBuilder(@NotNull TypeMirror forMirror) {
+        return new ConfigStructBuilder(forMirror);
+    }
+
     /**
      * Gets the kind of this type.
      * @return type kind

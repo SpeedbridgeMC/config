@@ -98,7 +98,7 @@ public abstract class ConfigTypeImpl implements ConfigType {
     public static final class Array extends ConfigTypeImpl {
         private final @NotNull ConfigType componentType;
 
-        protected Array(@NotNull TypeMirror typeMirror, @NotNull ConfigType componentType) {
+        public Array(@NotNull TypeMirror typeMirror, @NotNull ConfigType componentType) {
             super(ConfigTypeKind.ARRAY, "array{" + componentType.name() + "}", typeMirror);
             this.componentType = componentType;
         }
@@ -112,7 +112,7 @@ public abstract class ConfigTypeImpl implements ConfigType {
     public static final class Map extends ConfigTypeImpl {
         private final @NotNull ConfigType keyType, valueType;
 
-        protected Map(@NotNull TypeMirror typeMirror, @NotNull ConfigType keyType, @NotNull ConfigType valueType) {
+        public Map(@NotNull TypeMirror typeMirror, @NotNull ConfigType keyType, @NotNull ConfigType valueType) {
             super(ConfigTypeKind.MAP, "map{" + keyType.name() + " -> " + valueType.name() + "}", typeMirror);
             this.keyType = keyType;
             this.valueType = valueType;
@@ -133,7 +133,7 @@ public abstract class ConfigTypeImpl implements ConfigType {
         private final @NotNull StructInstantiationStrategy instantiationStrategy;
         private final @NotNull ImmutableList<ConfigProperty> properties;
 
-        protected Struct(@NotNull TypeMirror typeMirror,
+        public Struct(@NotNull TypeMirror typeMirror,
                          @NotNull StructInstantiationStrategy instantiationStrategy,
                          @NotNull List<ConfigProperty> properties) {
             super(ConfigTypeKind.STRUCT, "struct{" + typeMirror + "}", typeMirror);

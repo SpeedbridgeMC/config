@@ -3,15 +3,59 @@ package io.github.speedbridgemc.config.processor.impl.type;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
+import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.toImmutableList;
 
 public abstract class StructInstantiationStrategyImpl implements StructInstantiationStrategy {
+    public static final class ParameterImpl implements Parameter {
+        private final @NotNull Supplier<ConfigType> typeSupplier;
+        public final @NotNull String name;
+        public final @NotNull String boundProperty;
+        private ConfigType type;
+        private String toStringCache;
+
+        public ParameterImpl(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name, @NotNull String boundProperty) {
+            this.typeSupplier = typeSupplier;
+            this.name = name;
+            this.boundProperty = boundProperty;
+        }
+
+        @Override
+        public @NotNull ConfigType type() {
+            if (type == null)
+                type = typeSupplier.get();
+            return type;
+        }
+
+        @Override
+        public @NotNull String name() {
+            return name;
+        }
+
+        @Override
+        public @NotNull String boundProperty() {
+            return boundProperty;
+        }
+
+        @Override
+        public String toString() {
+            if (toStringCache == null) {
+                if (name.equals(boundProperty))
+                    toStringCache = type() + " " + name;
+                else
+                    toStringCache = type() + " " + name + "@" + boundProperty;
+            }
+            return toStringCache;
+        }
+    }
+
     protected final @NotNull ImmutableList<Parameter> params;
     protected final @NotNull String paramTemplate;
     protected String toStringCache;
@@ -21,7 +65,7 @@ public abstract class StructInstantiationStrategyImpl implements StructInstantia
         final int paramCount = params.size();
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < paramCount; i++) {
-            sb.append("$").append(params.get(i).name);
+            sb.append("$").append(params.get(i).name());
             if (i < paramCount - 1)
                 sb.append(", ");
         }

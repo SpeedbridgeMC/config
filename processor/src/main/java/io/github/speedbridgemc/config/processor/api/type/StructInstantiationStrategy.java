@@ -1,6 +1,7 @@
 package io.github.speedbridgemc.config.processor.api.type;
 
 import com.squareup.javapoet.CodeBlock;
+import io.github.speedbridgemc.config.processor.impl.type.StructInstantiationStrategyImpl;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Collections;
@@ -9,28 +10,12 @@ import java.util.List;
 import java.util.Map;
 
 public interface StructInstantiationStrategy {
-    final class Parameter {
-        public final @NotNull ConfigType type;
-        public final @NotNull String name;
-        public final @NotNull String boundProperty;
-        private String toStringCache;
+    @NotNull StructInstantiationStrategy NONE = StructInstantiationStrategyImpl.None.INSTANCE;
 
-        public Parameter(@NotNull ConfigType type, @NotNull String name, @NotNull String boundProperty) {
-            this.type = type;
-            this.name = name;
-            this.boundProperty = boundProperty;
-        }
-
-        @Override
-        public String toString() {
-            if (toStringCache == null) {
-                if (name.equals(boundProperty))
-                    toStringCache = type + " " + name;
-                else
-                    toStringCache = type + " " + name + "@" + boundProperty;
-            }
-            return toStringCache;
-        }
+    interface Parameter {
+        @NotNull ConfigType type();
+        @NotNull String name();
+        @NotNull String boundProperty();
     }
 
     boolean canInstantiate();
