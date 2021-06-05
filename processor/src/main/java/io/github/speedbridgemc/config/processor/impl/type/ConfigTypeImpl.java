@@ -11,6 +11,7 @@ import javax.lang.model.type.TypeMirror;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.toImmutableList;
 
@@ -26,17 +27,17 @@ public abstract class ConfigTypeImpl implements ConfigType {
     }
 
     @Override
-    public final @NotNull ConfigTypeKind kind() {
+    public @NotNull ConfigTypeKind kind() {
         return kind;
     }
 
     @Override
-    public final @NotNull String name() {
+    public @NotNull String name() {
         return name;
     }
 
     @Override
-    public final @NotNull TypeMirror asMirror() {
+    public @NotNull TypeMirror asMirror() {
         return typeMirror;
     }
 
@@ -109,36 +110,66 @@ public abstract class ConfigTypeImpl implements ConfigType {
     }
 
     public static final class Array extends ConfigTypeImpl {
-        private final @NotNull ConfigType componentType;
+        private final @NotNull Supplier<ConfigType> componentTypeSupplier;
+        private ConfigType componentType;
 
-        public Array(@NotNull TypeMirror typeMirror, @NotNull ConfigType componentType) {
-            super(ConfigTypeKind.ARRAY, "array{" + componentType.name() + "}", typeMirror);
-            this.componentType = componentType;
+        public Array(@NotNull TypeMirror typeMirror, Supplier<ConfigType> componentTypeSupplier) {
+            super(ConfigTypeKind.ARRAY, "", typeMirror);
+            this.componentTypeSupplier = componentTypeSupplier;
+        }
+        
+        private @NotNull ConfigType componentType0() {
+            if (componentType == null)
+                componentType = componentTypeSupplier.get();
+            return componentType;
+        }
+
+        @Override
+        public @NotNull String name() {
+            return "array{" + componentType0().name() + "}";
         }
 
         @Override
         public @NotNull Optional<ConfigType> componentType() {
-            return Optional.of(componentType);
+            return Optional.of(componentType0());
         }
     }
 
     public static final class Map extends ConfigTypeImpl {
-        private final @NotNull ConfigType keyType, valueType;
+        private final @NotNull Supplier<ConfigType> keyTypeSupplier, valueTypeSupplier;
+        private ConfigType keyType, valueType;
 
-        public Map(@NotNull TypeMirror typeMirror, @NotNull ConfigType keyType, @NotNull ConfigType valueType) {
-            super(ConfigTypeKind.MAP, "map{" + keyType.name() + " -> " + valueType.name() + "}", typeMirror);
-            this.keyType = keyType;
-            this.valueType = valueType;
+        public Map(@NotNull TypeMirror typeMirror, @NotNull Supplier<ConfigType> keyTypeSupplier, @NotNull Supplier<ConfigType> valueTypeSupplier) {
+            super(ConfigTypeKind.MAP, "", typeMirror);
+            this.keyTypeSupplier = keyTypeSupplier;
+            this.valueTypeSupplier = valueTypeSupplier;
+        }
+
+        private @NotNull ConfigType keyType0() {
+            if (keyType == null)
+                keyType = keyTypeSupplier.get();
+            return keyType;
+        }
+
+        private @NotNull ConfigType valueType0() {
+            if (valueType == null)
+                valueType = valueTypeSupplier.get();
+            return valueType;
+        }
+
+        @Override
+        public @NotNull String name() {
+            return "map{" + keyType0().name() + " -> " + valueType0().name() + "}";
         }
 
         @Override
         public @NotNull Optional<ConfigType> keyType() {
-            return Optional.of(keyType);
+            return Optional.of(keyType0());
         }
 
         @Override
         public @NotNull Optional<ConfigType> valueType() {
-            return Optional.of(valueType);
+            return Optional.of(valueType0());
         }
     }
 

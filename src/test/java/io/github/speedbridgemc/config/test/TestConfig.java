@@ -41,14 +41,14 @@ public class TestConfig {
         }
     }
 
-    @Config.Struct(scanFor = { }, factoryOwner = HelloWorld.class, factoryName = "create")
+    @Config.Struct(scanFor = { }, factoryOwner = HelloWorld.class, factoryName = "create", boundProperties = { "hello" })
     public static class HelloWorld {
         @Config.Property(name = "hello")
         public final String hello;
         private final int world;
 
-        public static HelloWorld create(String hello, @Config.BoundProperty("world") int zaWarudo) {
-            return new HelloWorld(hello, zaWarudo);
+        public static HelloWorld create(String hiya, @Config.BoundProperty("world") int zaWarudo) {
+            return new HelloWorld(hiya, zaWarudo);
         }
 
         private HelloWorld(String hello,  int world) {

@@ -67,6 +67,8 @@ final class ConfigTypeStructFactory {
             finder.findExtensions(mapBuilder::put, pairs);
     }
 
+    private static final String[] DUMMY_STRING_ARRAY = new String[0];
+
     public @NotNull ConfigType create(@NotNull DeclaredType mirror) {
         class FieldData {
             public final @NotNull TypeMirror mirror;
@@ -419,6 +421,7 @@ final class ConfigTypeStructFactory {
         boolean isFactory;
         DeclaredType owner;
         String factoryName = "";
+        String[] boundProperties = DUMMY_STRING_ARRAY;
         List<? extends TypeMirror> params;
         if (structAnno == null) {
             isFactory = false;
@@ -428,6 +431,7 @@ final class ConfigTypeStructFactory {
             TypeMirror ownerM = AnnotationUtils.getClass(structAnno, Config.Struct::factoryOwner);
             if (ownerM.getKind() != TypeKind.DECLARED)
                 throw new RuntimeException("Factory owner \"" + ownerM + "\" must be a declared type");
+            boundProperties = structAnno.boundProperties();
             owner = (DeclaredType) ownerM;
             isFactory = !types.isSameType(owner, voidTM);
             Function<Config.Struct, Class<?>[]> paramsMapper;
@@ -486,7 +490,7 @@ final class ConfigTypeStructFactory {
                         final TypeMirror erasure = types.erasure(mParams.get(i));
                         if (types.isSameType(erasure, params.get(i))) {
                             VariableElement paramElem = method.getParameters().get(i);
-                            paramsMap.put(paramElem.getSimpleName().toString(), new MirrorElementPair(erasure, paramElem));
+                            paramsMap.put(paramElem.getSimpleName().toString(), new MirrorElementPair(mParams.get(i), paramElem));
                         } else {
                             mismatch = true;
                             paramsMap.clear();
@@ -523,7 +527,7 @@ final class ConfigTypeStructFactory {
                     final TypeMirror erasure = types.erasure(mParams.get(i));
                     if (types.isSameType(erasure, params.get(i))) {
                         VariableElement paramElem = method.getParameters().get(i);
-                        paramsMap.put(paramElem.getSimpleName().toString(), new MirrorElementPair(erasure, paramElem));
+                        paramsMap.put(paramElem.getSimpleName().toString(), new MirrorElementPair(mParams.get(i), paramElem));
                     } else {
                         mismatch = true;
                         paramsMap.clear();
@@ -539,11 +543,19 @@ final class ConfigTypeStructFactory {
 
         if (found) {
             ImmutableList.Builder<StructInstantiationStrategy.Parameter> paramsBuilder = ImmutableList.builder();
+            int i = 0;
             for (Map.Entry<String, MirrorElementPair> entry : paramsMap.entrySet()) {
+                String boundPropertyName = "";
+                if (i < boundProperties.length) {
+                    boundPropertyName = boundProperties[i];
+                    i++;
+                }
                 final TypeMirror paramMirror = entry.getValue().mirror();
                 Config.BoundProperty boundPropertyAnno = entry.getValue().element().getAnnotation(Config.BoundProperty.class);
-                String boundPropertyName = typeProvider.name(entry.getValue().element().getSimpleName().toString());
-                if (boundPropertyAnno != null)
+                if (boundPropertyAnno == null) {
+                    if (boundPropertyName.isEmpty())
+                        boundPropertyName = typeProvider.name(entry.getValue().element().getSimpleName().toString());
+                } else
                     boundPropertyName = boundPropertyAnno.value();
                 if (!propertyNames.contains(boundPropertyName))
                     throw new RuntimeException("Missing bound property \"" + boundPropertyName + "\" for parameter \"" + entry.getValue().element() + "\"!");

@@ -7,8 +7,8 @@ public final class Identifier {
     private static final @NotNull String DEFAULT_NAMESPACE = "speedbrige-config";
     private final @NotNull String path, namespace;
 
-    public @Nullable Identifier tryParse(@NotNull String value) {
-        String[] split = value.split(":");
+    public @Nullable Identifier tryParse(@NotNull String string) {
+        String[] split = string.split(":");
         if (split.length == 1)
             return new Identifier(DEFAULT_NAMESPACE, split[0]);
         else if (split.length == 2)

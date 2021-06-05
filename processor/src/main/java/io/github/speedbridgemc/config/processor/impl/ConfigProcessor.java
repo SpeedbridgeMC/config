@@ -125,7 +125,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                         .property(ConfigProperty.getter(() -> provider.primitiveOf(ConfigTypeKind.STRING, false),
                                 "value", "toString", false))
                         .instantiationStrategy(StructInstantiationStrategyBuilder.factory(identifierM, "tryParse")
-                                .param(() -> provider.primitiveOf(ConfigTypeKind.STRING, false), "value")
+                                .param(() -> provider.primitiveOf(ConfigTypeKind.STRING, false), "string", "value")
                                 .build())
                         .build());
             }

@@ -167,13 +167,13 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     @Override
     public @NotNull ConfigType arrayOf(@NotNull ConfigType componentType) {
         return new ConfigTypeImpl.Array(types.getArrayType(componentType.asMirror()),
-                componentType);
+                () -> componentType);
     }
 
     @Override
     public @NotNull ConfigType mapOf(@NotNull ConfigType keyType, @NotNull ConfigType valueType) {
         return new ConfigTypeImpl.Map(types.getDeclaredType(mapTE, keyType.asMirror(), valueType.asMirror()),
-                keyType, valueType);
+                () -> keyType, () -> valueType);
     }
 
     @Override
@@ -239,14 +239,14 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             TypeMirror compType = mirror.accept(collectionTypeArgFinder, null);
             if (compType == null)
                 throw new RuntimeException("Got null component type (T in Collection<T>) for " + mirror);
-            return new ConfigTypeImpl.Array(mirror, fromMirror(compType));
+            return new ConfigTypeImpl.Array(mirror, () -> fromMirror(compType));
         }
         // 3. subtype of Map - type of kind MAP
         if (types.isAssignable(mirrorErasure, mapTM)) {
             MapTypeArgs typeArgs = mirror.accept(mapTypeArgsFinder, null);
             if (typeArgs == null)
                 throw new RuntimeException("Got null key/value types (K and V in Map<K, V>) for " + mirror);
-            return new ConfigTypeImpl.Map(mirror, fromMirror(typeArgs.keyType), fromMirror(typeArgs.valueType));
+            return new ConfigTypeImpl.Map(mirror, () -> fromMirror(typeArgs.keyType), () -> fromMirror(typeArgs.valueType));
         }
         TypeName typeName = TypeName.get(mirror).withoutAnnotations();
         // 4. boxed primitives - type of kind (unboxed primitive)
