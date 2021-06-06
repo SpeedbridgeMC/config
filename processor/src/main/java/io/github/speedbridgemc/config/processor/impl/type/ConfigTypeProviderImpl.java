@@ -2,6 +2,7 @@ package io.github.speedbridgemc.config.processor.impl.type;
 
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
+import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.EnumName;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
@@ -9,6 +10,7 @@ import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -46,6 +48,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private ConfigType boolCType, byteCType, shortCType, intCType, longCType, charCType, floatCType, doubleCType, stringCType;
     private ConfigType boolNullCType, byteNullCType, shortNullCType, intNullCType, longNullCType, charNullCType, floatNullCType, doubleNullCType, stringNullCType;
     private ConfigTypeStructFactory structFactory;
+    private HashMap<TypeMirror, Config.StructOverride> structOverrides;
 
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {
@@ -101,6 +104,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 stringTM, true);
 
         structFactory = new ConfigTypeStructFactory(this, processingEnv);
+        structOverrides = new HashMap<>();
     }
 
     @Override
@@ -177,6 +181,11 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     }
 
     @Override
+    public void setStructOverride(@NotNull DeclaredType mirror, @Nullable Config.StructOverride structOverride) {
+        structOverrides.put(types.erasure(mirror), structOverride);
+    }
+
+    @Override
     public @NotNull ConfigType fromMirror(@NotNull TypeMirror mirror) {
         if (types.isSameType(mirror, stringTM))
             return stringCType;
@@ -203,7 +212,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             DeclaredType declaredType = (DeclaredType) mirror;
             ConfigType configType = declaredTypeCache.get(declaredType);
             if (configType == null) {
-                configType = fromDeclaredType(declaredType);
+                configType = fromDeclaredType(declaredType, null);
                 declaredTypeCache.put(declaredType, configType);
             }
             return configType;
@@ -214,7 +223,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
 
     private final @NotNull HashMap<DeclaredType, ConfigType> declaredTypeCache = new HashMap<>();
 
-    private @NotNull ConfigType fromDeclaredType(@NotNull DeclaredType mirror) {
+    private @NotNull ConfigType fromDeclaredType(@NotNull DeclaredType mirror, @Nullable Config.StructOverride structOverride) {
         TypeMirror mirrorErasure = types.erasure(mirror);
 
         // 5 possible cases (6 if you count String, but that's handled in fromMirror)
@@ -271,7 +280,9 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             throw new RuntimeException("Unknown primitive " + typeName + "!");
         }
         // 5. anything else - type of kind STRUCT (delegated to ConfigTypeStructFactory)
-        return structFactory.create(mirror);
+        if (structOverride == null)
+            structOverride = structOverrides.get(mirrorErasure);
+        return structFactory.create(mirror, structOverride);
     }
 
     private final @NotNull CollectionTypeArgFinder collectionTypeArgFinder = new CollectionTypeArgFinder();

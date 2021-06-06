@@ -16,6 +16,7 @@ import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.processor.api.util.PropertyUtils;
 import io.github.speedbridgemc.config.processor.impl.property.ConfigPropertyImpl;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
@@ -69,7 +70,7 @@ final class ConfigTypeStructFactory {
 
     private static final String[] DUMMY_STRING_ARRAY = new String[0];
 
-    public @NotNull ConfigType create(@NotNull DeclaredType mirror) {
+    public @NotNull ConfigType create(@NotNull DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
         class FieldData {
             public final @NotNull TypeMirror mirror;
             public final @NotNull VariableElement element;
@@ -94,13 +95,15 @@ final class ConfigTypeStructFactory {
             public final @NotNull String name, getter, setter;
             public final boolean optional;
             public final @NotNull ExecutableElement definingMethod;
+            public final @NotNull ExecutableType definingMethodType;
 
-            AccessorPairDef(@NotNull String name, @NotNull String getter, @NotNull String setter, boolean optional, @NotNull ExecutableElement definingMethod) {
+            AccessorPairDef(@NotNull String name, @NotNull String getter, @NotNull String setter, boolean optional, @NotNull ExecutableElement definingMethod, @NotNull ExecutableType definingMethodType) {
                 this.name = name;
                 this.getter = getter;
                 this.setter = setter;
                 this.optional = optional;
                 this.definingMethod = definingMethod;
+                this.definingMethodType = definingMethodType;
             }
         }
         class AccessorPair {
@@ -140,21 +143,25 @@ final class ConfigTypeStructFactory {
 
         boolean includeFieldsByDefault = true;
         boolean includePropertiesByDefault = true;
-        Config.Struct structAnno = te.getAnnotation(Config.Struct.class);
-        if (structAnno != null) {
-            includeFieldsByDefault = false;
-            includePropertiesByDefault = false;
-            for (ScanTarget target : structAnno.scanFor()) {
-                switch (target) {
-                case FIELDS:
-                    includeFieldsByDefault = true;
-                    break;
-                case PROPERTIES:
-                    includePropertiesByDefault = true;
-                    break;
+        Config.Struct structAnno;
+        if (structOverride == null) {
+            structAnno = te.getAnnotation(Config.Struct.class);
+            if (structAnno != null) {
+                includeFieldsByDefault = false;
+                includePropertiesByDefault = false;
+                for (ScanTarget target : structAnno.scanFor()) {
+                    switch (target) {
+                    case FIELDS:
+                        includeFieldsByDefault = true;
+                        break;
+                    case PROPERTIES:
+                        includePropertiesByDefault = true;
+                        break;
+                    }
                 }
             }
-        }
+        } else
+            structAnno = structOverride.override();
 
         LinkedHashMap<String, FieldData> fields = new LinkedHashMap<>();
         LinkedHashMultimap<String, MethodData> methods = LinkedHashMultimap.create();
@@ -184,7 +191,7 @@ final class ConfigTypeStructFactory {
                 methods.put(enclosed.getSimpleName().toString(), new MethodData((ExecutableType) enclosedM, (ExecutableElement) enclosed));
                 Config.Property propAnno = enclosed.getAnnotation(Config.Property.class);
                 if (propAnno != null)
-                    accessorPairDefs.add(new AccessorPairDef(propAnno.name(), propAnno.getter(), propAnno.setter(), propAnno.optional(), (ExecutableElement) enclosed));
+                    accessorPairDefs.add(new AccessorPairDef(propAnno.name(), propAnno.getter(), propAnno.setter(), propAnno.optional(), (ExecutableElement) enclosed, (ExecutableType) enclosedM));
             } else if (enclosed instanceof VariableElement) {
                 fields.put(enclosed.getSimpleName().toString(), new FieldData(enclosedM, (VariableElement) enclosed, mods.contains(Modifier.FINAL)));
             }
@@ -192,6 +199,65 @@ final class ConfigTypeStructFactory {
 
         ImmutableList.Builder<ConfigProperty> propertiesBuilder = ImmutableList.builder();
         HashSet<String> propertyNames = new HashSet<>();
+
+        // properties from struct override
+        if (structOverride != null) {
+            for (Config.Property property : structOverride.properties()) {
+                final String propName = property.name();
+                if (propName.isEmpty())
+                    throw new RuntimeException("Empty property name!");
+                ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensionsBuilder = ImmutableClassToInstanceMap.builder();
+                if (property.field().isEmpty()) {
+                    if (property.getter().isEmpty())
+                        throw new RuntimeException("Property must have field or getter defined!");
+                    Set<MethodData> getterDataSet = methods.get(property.getter());
+                    MethodData getterData = null;
+                    Optional<PropertyUtils.AccessorInfo> getterAccInfOpt = Optional.empty();
+                    for (MethodData methodData : getterDataSet) {
+                        getterAccInfOpt = PropertyUtils.getAccessorInfo(methodData.mirror);
+                        if (getterAccInfOpt.isPresent()) {
+                            getterData = methodData;
+                            break;
+                        }
+                    }
+                    PropertyUtils.AccessorInfo getterAccInf = getterAccInfOpt.orElseThrow(() ->
+                            new RuntimeException("Can't find valid getter void " + mirror + "." + property.getter() + "()"));
+                    MirrorElementPair getterMEP = new MirrorElementPair(getterData.mirror, getterData.element);
+                    if (property.setter().isEmpty()) {
+                        findExtensions(extensionsBuilder, getterMEP);
+                        propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
+                                propName, extensionsBuilder.build(), property.optional(), property.getter()));
+                    } else {
+                        Set<MethodData> setterDataSet = methods.get(property.setter());
+                        MethodData setterData = null;
+                        Optional<PropertyUtils.AccessorInfo> setterAccInfOpt = Optional.empty();
+                        for (MethodData methodData : setterDataSet) {
+                            setterAccInfOpt = PropertyUtils.getAccessorInfo(methodData.mirror);
+                            if (setterAccInfOpt.isPresent()) {
+                                setterData = methodData;
+                                break;
+                            }
+                        }
+                        PropertyUtils.AccessorInfo setterAccInf = setterAccInfOpt.orElseThrow(() ->
+                                new RuntimeException("Can't find valid setter " + getterAccInf.propertyType + " " + mirror + "." + property.setter() + "()"));
+                        if (!types.isSameType(getterAccInf.propertyType, setterAccInf.propertyType))
+                            throw new RuntimeException(mirror + ": Type mismatch between getter" + property.getter() + " and setter " + property.setter());
+                        findExtensions(extensionsBuilder, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
+                        propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
+                                propName, extensionsBuilder.build(), property.optional(), property.getter(), property.setter()));
+                    }
+                } else {
+                    FieldData fieldData = fields.get(property.field());
+                    if (fieldData == null)
+                        throw new RuntimeException("Missing field \"" + property.field() + "\"!");
+                    findExtensions(extensionsBuilder, new MirrorElementPair(fieldData.mirror, fieldData.element));
+                    propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldData.mirror),
+                            propName, extensionsBuilder.build(), !fieldData.isFinal, property.optional(), property.field()));
+                }
+                if (!propertyNames.add(propName))
+                    throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
+            }
+        }
 
         // fields
         for (Map.Entry<String, FieldData> field : fields.entrySet()) {
@@ -233,7 +299,8 @@ final class ConfigTypeStructFactory {
                 if (method.getAnnotation(Config.Property.class) != null)
                     // handled later
                     continue;
-                Optional<PropertyUtils.AccessorInfo> accessorInfo = PropertyUtils.getAccessorInfo(method);
+                ExecutableType methodType = entry.getValue().mirror;
+                Optional<PropertyUtils.AccessorInfo> accessorInfo = PropertyUtils.getAccessorInfo(methodType);
                 if (!accessorInfo.isPresent())
                     continue;
                 TypeMirror propType = accessorInfo.get().propertyType;
@@ -253,7 +320,7 @@ final class ConfigTypeStructFactory {
                         setterName = possibleName;
                         for (MethodData setter1 : methods.get(setterName)) {
                             setter = setter1.element;
-                            Optional<PropertyUtils.AccessorInfo> setterInfo = PropertyUtils.getAccessorInfo(setter);
+                            Optional<PropertyUtils.AccessorInfo> setterInfo = PropertyUtils.getAccessorInfo(setter1.mirror);
                             if (!setterInfo.isPresent() || setterInfo.get().kind != PropertyUtils.AccessorInfo.Kind.SETTER)
                                 continue;
                             if (!types.isSameType(propType, setterInfo.get().propertyType))
@@ -281,7 +348,7 @@ final class ConfigTypeStructFactory {
                         getterName = possibleName;
                         for (MethodData getter1 : methods.get(getterName)) {
                             getter = getter1.element;
-                            Optional<PropertyUtils.AccessorInfo> getterInfo = PropertyUtils.getAccessorInfo(getter);
+                            Optional<PropertyUtils.AccessorInfo> getterInfo = PropertyUtils.getAccessorInfo(getter1.mirror);
                             if (!getterInfo.isPresent() || getterInfo.get().kind != PropertyUtils.AccessorInfo.Kind.GETTER)
                                 continue;
                             if (!types.isSameType(propType, getterInfo.get().propertyType))
@@ -308,39 +375,47 @@ final class ConfigTypeStructFactory {
         // TODO clean up errors (collect instead of throwing)
         for (AccessorPairDef accessorPairDef : accessorPairDefs) {
             ExecutableElement getter;
+            ExecutableType getterType;
             String getterName;
             if (accessorPairDef.getter.isEmpty()) {
                 getter = accessorPairDef.definingMethod;
+                getterType = accessorPairDef.definingMethodType;
                 getterName = getter.getSimpleName().toString();
             } else {
                 getterName = accessorPairDef.getter;
                 getter = null;
+                getterType = null;
                 for (MethodData possibleGetter : methods.get(getterName)) {
-                    Optional<PropertyUtils.AccessorInfo> getterInfo = PropertyUtils.getAccessorInfo(possibleGetter.element);
+                    Optional<PropertyUtils.AccessorInfo> getterInfo = PropertyUtils.getAccessorInfo(possibleGetter.mirror);
                     if (!getterInfo.isPresent() || getterInfo.get().kind != PropertyUtils.AccessorInfo.Kind.GETTER)
                         continue;
                     getter = possibleGetter.element;
+                    getterType = possibleGetter.mirror;
                     break;
                 }
                 if (getter == null)
                     throw new RuntimeException("Explicit property \"" + accessorPairDef.name + "\": Getter method \"" + getterName + "\" is missing");
             }
             ExecutableElement setter;
+            ExecutableType setterType;
             String setterName;
             boolean implicitSetter;
             if (accessorPairDef.setter.isEmpty()) {
                 implicitSetter = true;
                 setter = accessorPairDef.definingMethod;
+                setterType = accessorPairDef.definingMethodType;
                 setterName = setter.getSimpleName().toString();
             } else {
                 implicitSetter = false;
                 setterName = accessorPairDef.setter;
                 setter = null;
+                setterType = null;
                 for (MethodData possibleSetter : methods.get(setterName)) {
-                    Optional<PropertyUtils.AccessorInfo> setterInfo = PropertyUtils.getAccessorInfo(possibleSetter.element);
+                    Optional<PropertyUtils.AccessorInfo> setterInfo = PropertyUtils.getAccessorInfo(possibleSetter.mirror);
                     if (!setterInfo.isPresent() || setterInfo.get().kind != PropertyUtils.AccessorInfo.Kind.SETTER)
                         continue;
                     setter = possibleSetter.element;
+                    setterType = possibleSetter.mirror;
                     break;
                 }
                 if (setter == null)
@@ -356,12 +431,12 @@ final class ConfigTypeStructFactory {
 
             TypeMirror propType;
 
-            Optional<PropertyUtils.AccessorInfo> getterInfo = PropertyUtils.getAccessorInfo(getter);
+            Optional<PropertyUtils.AccessorInfo> getterInfo = PropertyUtils.getAccessorInfo(getterType);
             if (!getterInfo.isPresent() || getterInfo.get().kind != PropertyUtils.AccessorInfo.Kind.GETTER)
                 throw new RuntimeException("Explicit property \"" + propName + "\": Getter method \"" + getterName + "\" is invalid");
             propType = getterInfo.get().propertyType;
 
-            Optional<PropertyUtils.AccessorInfo> setterInfo = PropertyUtils.getAccessorInfo(setter);
+            Optional<PropertyUtils.AccessorInfo> setterInfo = PropertyUtils.getAccessorInfo(setterType);
             if (implicitSetter) {
                 if (setter == getter || !setterInfo.isPresent()) {
                     // explicit accessor pairs override implicit ones
@@ -454,6 +529,7 @@ final class ConfigTypeStructFactory {
             params = AnnotationUtils.getClasses(structAnno, paramsMapper);
         }
 
+        final DeclaredType mirrorErasure = (DeclaredType) types.erasure(mirror);
         int paramCount = params.size();
         boolean paramsUnspecified = paramCount == 1 && types.isSameType(params.get(0), voidTM);
         TypeElement ownerElem = elements.getTypeElement(owner.toString());
@@ -461,6 +537,8 @@ final class ConfigTypeStructFactory {
         boolean found = false;
         StructInstantiationStrategy instantiationStrategy;
         if (isFactory) {
+            // FIXME: THIS DOES NOT WORK WITH GENERICS!
+            //  param types need to be substituted with actual type parameter values
             for (ExecutableElement method : ElementFilter.methodsIn(ownerElem.getEnclosedElements())) {
                 Set<Modifier> modifiers = method.getModifiers();
                 if (!modifiers.contains(Modifier.PUBLIC) || !modifiers.contains(Modifier.STATIC))
@@ -468,7 +546,7 @@ final class ConfigTypeStructFactory {
                 if (!factoryName.equals(method.getSimpleName().toString()))
                     continue;
                 ExecutableType asMember = (ExecutableType) types.asMemberOf(owner, method);
-                if (!types.isSameType(mirror, asMember.getReturnType()))
+                if (!types.isSameType(mirrorErasure, types.erasure(asMember.getReturnType())))
                     continue;
                 List<? extends TypeMirror> mParams = asMember.getParameterTypes();
                 if (paramsUnspecified) {

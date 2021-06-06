@@ -1,10 +1,13 @@
 package io.github.speedbridgemc.config.processor.api.type;
 
+import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 
 /**
@@ -59,6 +62,15 @@ public interface ConfigTypeProvider {
      * @return map type
      */
     @NotNull ConfigType mapOf(@NotNull ConfigType keyType, @NotNull ConfigType valueType);
+
+    /**
+     * Sets a {@link io.github.speedbridgemc.config.Config.StructOverride StructOverride} for creating a {@code ConfigType}
+     * from a specific {@link DeclaredType}.
+     * @param mirror type mirror
+     * @param structOverride override for struct annotation<br>
+     *                       (only used for {@code DeclaredType}s that don't have a {@code ConfigType} yet)
+     */
+    void setStructOverride(@NotNull DeclaredType mirror, @Nullable Config.StructOverride structOverride);
 
     /**
      * Gets a {@code ConfigType} from a {@link TypeMirror}.

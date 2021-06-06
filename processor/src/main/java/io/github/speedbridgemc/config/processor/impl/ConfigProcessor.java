@@ -9,6 +9,7 @@ import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategyBuilder;
+import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.impl.naming.SnakeCaseNamingStrategy;
 import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
@@ -19,6 +20,8 @@ import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -117,6 +120,14 @@ public final class ConfigProcessor extends AbstractProcessor {
             provider.init(processingEnv);
             provider.addExtensionFinder(extensionFinder);
             provider.setNamingStrategy(namingStrategy, "");
+
+            for (Config.StructOverride structOverride : config.structOverrides()) {
+                TypeMirror mirror = AnnotationUtils.getClass(structOverride, Config.StructOverride::target);
+                if (mirror.getKind() != TypeKind.DECLARED)
+                    // TODO warning
+                    continue;
+                provider.setStructOverride((DeclaredType) mirror, structOverride);
+            }
 
             TypeElement identifierTE = elements.getTypeElement("io.github.speedbridgemc.config.test.Identifier");
             if (identifierTE != null) {

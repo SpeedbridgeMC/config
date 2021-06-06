@@ -8,7 +8,13 @@ import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 
-@Config
+@Config(structOverrides = {
+        @Config.StructOverride(target = TestData.class, override = @Config.Struct(factoryOwner = TestData.class, factoryName = "of"),
+        properties = {
+                @Config.Property(name = "data1", getter = "getData1"),
+                @Config.Property(name = "data2", getter = "getData2")
+        })
+})
 public class TestConfig {
     public enum TestEnum {
         @EnumName("foo")
@@ -96,6 +102,7 @@ public class TestConfig {
     @SerializedName("powerHolder")
     public TestInterface testInterface = new TestInterfaceImpl();
     public Identifier testId = new Identifier("a", "b");
+    public TestData testData = TestData.of(24, "yoyoyo");
 
     private int intProperty;
     private float floatProperty;

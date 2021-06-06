@@ -2,7 +2,7 @@ package io.github.speedbridgemc.config.processor.api.util;
 
 import org.jetbrains.annotations.NotNull;
 
-import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import java.util.Optional;
@@ -24,11 +24,11 @@ public final class PropertyUtils {
         }
     }
 
-    public static @NotNull Optional<AccessorInfo> getAccessorInfo(@NotNull ExecutableElement method) {
-        if (method.getParameters().isEmpty() && method.getReturnType().getKind() != TypeKind.VOID)
+    public static @NotNull Optional<AccessorInfo> getAccessorInfo(ExecutableType method) {
+        if (method.getParameterTypes().isEmpty() && method.getReturnType().getKind() != TypeKind.VOID)
             return Optional.of(new AccessorInfo(AccessorInfo.Kind.GETTER, method.getReturnType()));
-        else if (method.getParameters().size() == 1 && method.getReturnType().getKind() == TypeKind.VOID)
-            return Optional.of(new AccessorInfo(AccessorInfo.Kind.SETTER, method.getParameters().get(0).asType()));
+        else if (method.getParameterTypes().size() == 1 && method.getReturnType().getKind() == TypeKind.VOID)
+            return Optional.of(new AccessorInfo(AccessorInfo.Kind.SETTER, method.getParameterTypes().get(0)));
         return Optional.empty();
     }
 
