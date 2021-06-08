@@ -8,8 +8,9 @@ import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.ScanTarget;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
-import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
+import io.github.speedbridgemc.config.processor.api.type.BaseStructFactory;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
+import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
@@ -25,52 +26,30 @@ import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
-import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.util.*;
 import java.util.function.Function;
 
 // this is the class responsible for converting any Java class into a matching ConfigType of kind STRUCT
-final class ConfigTypeStructFactory {
-    private final ConfigTypeProviderImpl typeProvider;
-    private final ProcessingEnvironment processingEnv;
-    private final Elements elements;
-    private final Types types;
+public final class StandardStructFactory extends BaseStructFactory {
+    private TypeMirror booleanTM, voidTM;
+    private ImmutableList<ExecutableElement> objectMethods;
 
-    private final TypeMirror booleanTM, voidTM;
-    private final ImmutableList<ExecutableElement> objectMethods;
-
-    private final ArrayList<ConfigPropertyExtensionFinder> extensionFinders;
-
-    public ConfigTypeStructFactory(ConfigTypeProviderImpl typeProvider, ProcessingEnvironment processingEnv) {
-        this.typeProvider = typeProvider;
-        this.processingEnv = processingEnv;
-        elements = processingEnv.getElementUtils();
-        types = processingEnv.getTypeUtils();
+    @Override
+    public void init(@NotNull ProcessingEnvironment processingEnv, @NotNull ConfigTypeProvider typeProvider) {
+        super.init(processingEnv, typeProvider);
 
         booleanTM = elements.getTypeElement(Boolean.class.getCanonicalName()).asType();
         voidTM = elements.getTypeElement(Void.class.getCanonicalName()).asType();
 
         TypeElement objectElem = elements.getTypeElement(Object.class.getCanonicalName());
         objectMethods = ImmutableList.copyOf(ElementFilter.methodsIn(objectElem.getEnclosedElements()));
-
-        extensionFinders = new ArrayList<>();
-    }
-
-    public void addExtensionFinder(@NotNull ConfigPropertyExtensionFinder extensionFinder) {
-        extensionFinders.add(extensionFinder);
-    }
-
-    private void findExtensions(@NotNull ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> mapBuilder,
-                                @NotNull MirrorElementPair @NotNull ... pairs) {
-        for (ConfigPropertyExtensionFinder finder : extensionFinders)
-            finder.findExtensions(mapBuilder::put, pairs);
     }
 
     private static final String[] DUMMY_STRING_ARRAY = new String[0];
 
-    public @NotNull ConfigType create(@NotNull DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
+    @Override
+    public @NotNull Optional<ConfigType> createStruct(@NotNull DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
         TypeElement te = (TypeElement) mirror.asElement();
 
         boolean includeFieldsByDefault = true;
@@ -137,9 +116,9 @@ final class ConfigTypeStructFactory {
         getPropertiesFromFields(includeFieldsByDefault, fields, propertiesBuilder, propertyNames);
         getPropertiesFromAccessorPairs(mirror, includePropertiesByDefault, methods, accessorPairDefs, propertiesBuilder, propertyNames);
         StructInstantiationStrategy instantiationStrategy = createInstantiationStrategy(mirror, te, structAnno, propertyNames);
-        return new ConfigTypeImpl.Struct(mirror,
+        return Optional.of(new ConfigTypeImpl.Struct(mirror,
                 instantiationStrategy,
-                propertiesBuilder.build());
+                propertiesBuilder.build()));
     }
 
     // region Intermediary data classes
@@ -235,7 +214,7 @@ final class ConfigTypeStructFactory {
                         new RuntimeException("Can't find valid getter void " + mirror + "." + property.getter() + "()"));
                 MirrorElementPair getterMEP = new MirrorElementPair(getterData.mirror, getterData.element);
                 if (property.setter().isEmpty()) {
-                    findExtensions(extensionsBuilder, getterMEP);
+                    typeProvider.findExtensions(extensionsBuilder, getterMEP);
                     propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
                             propName, extensionsBuilder.build(), property.optional(), property.getter()));
                 } else {
@@ -253,7 +232,7 @@ final class ConfigTypeStructFactory {
                             new RuntimeException("Can't find valid setter " + getterAccInf.propertyType + " " + mirror + "." + property.setter() + "()"));
                     if (!types.isSameType(getterAccInf.propertyType, setterAccInf.propertyType))
                         throw new RuntimeException(mirror + ": Type mismatch between getter" + property.getter() + " and setter " + property.setter());
-                    findExtensions(extensionsBuilder, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
+                    typeProvider.findExtensions(extensionsBuilder, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
                     propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
                             propName, extensionsBuilder.build(), property.optional(), property.getter(), property.setter()));
                 }
@@ -261,7 +240,7 @@ final class ConfigTypeStructFactory {
                 FieldData fieldData = fields.get(property.field());
                 if (fieldData == null)
                     throw new RuntimeException("Missing field \"" + property.field() + "\"!");
-                findExtensions(extensionsBuilder, new MirrorElementPair(fieldData.mirror, fieldData.element));
+                typeProvider.findExtensions(extensionsBuilder, new MirrorElementPair(fieldData.mirror, fieldData.element));
                 propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldData.mirror),
                         propName, extensionsBuilder.build(), !fieldData.isFinal, property.optional(), property.field()));
             }
@@ -288,7 +267,7 @@ final class ConfigTypeStructFactory {
             if (propName.isEmpty())
                 propName = typeProvider.name(fieldE.getSimpleName().toString());
             ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
-            findExtensions(extensions, new MirrorElementPair(fieldM, fieldE));
+            typeProvider.findExtensions(extensions, new MirrorElementPair(fieldM, fieldE));
             propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldM),
                     propName, extensions.build(), !field.getValue().isFinal, optional, fieldName));
             if (!propertyNames.add(propName))
@@ -482,7 +461,7 @@ final class ConfigTypeStructFactory {
             AccessorPair prop = entry.getValue();
             ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
             if (prop.hasSetter) {
-                findExtensions(extensions,
+                typeProvider.findExtensions(extensions,
                         new MirrorElementPair(prop.getterM, prop.getterE),
                         new MirrorElementPair(prop.setterM, prop.setterE));
                 propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(prop.type),
@@ -491,7 +470,7 @@ final class ConfigTypeStructFactory {
                         prop.optional,
                         prop.setterE.getSimpleName().toString(), prop.getterE.getSimpleName().toString()));
             } else {
-                findExtensions(extensions,
+                typeProvider. findExtensions(extensions,
                         new MirrorElementPair(prop.getterM, prop.getterE));
                 propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(prop.type),
                         entry.getKey(),

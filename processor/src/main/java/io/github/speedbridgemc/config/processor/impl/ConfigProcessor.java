@@ -5,14 +5,12 @@ import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
-import io.github.speedbridgemc.config.processor.api.type.ConfigType;
-import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
-import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
-import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategyBuilder;
+import io.github.speedbridgemc.config.processor.api.type.*;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.impl.naming.SnakeCaseNamingStrategy;
 import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
+import io.github.speedbridgemc.config.processor.impl.type.StandardStructFactory;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.*;
@@ -112,36 +110,39 @@ public final class ConfigProcessor extends AbstractProcessor {
             TypeElement type = (TypeElement) annotatedElem;
             Config config = type.getAnnotation(Config.class);
 
+            ConfigTypeProvider typeProvider = new ConfigTypeProviderImpl();
+            typeProvider.init(processingEnv);
             NamingStrategy namingStrategy = new SnakeCaseNamingStrategy();
             namingStrategy.init(processingEnv);
             ConfigPropertyExtensionFinder extensionFinder = new StandardConfigPropertyExtensionFinder();
             extensionFinder.init(processingEnv);
-            ConfigTypeProvider provider = new ConfigTypeProviderImpl();
-            provider.init(processingEnv);
-            provider.addExtensionFinder(extensionFinder);
-            provider.setNamingStrategy(namingStrategy, "");
+            StructFactory structFactory = new StandardStructFactory();
+            structFactory.init(processingEnv, typeProvider);
+            typeProvider.setNamingStrategy(namingStrategy, "");
+            typeProvider.addExtensionFinder(extensionFinder);
+            typeProvider.addStructFactory(structFactory);
 
             for (Config.StructOverride structOverride : config.structOverrides()) {
                 TypeMirror mirror = AnnotationUtils.getClass(structOverride, Config.StructOverride::target);
                 if (mirror.getKind() != TypeKind.DECLARED)
                     // TODO warning
                     continue;
-                provider.setStructOverride((DeclaredType) mirror, structOverride);
+                typeProvider.setStructOverride((DeclaredType) mirror, structOverride);
             }
 
             TypeElement identifierTE = elements.getTypeElement("io.github.speedbridgemc.config.test.Identifier");
             if (identifierTE != null) {
                 DeclaredType identifierM = (DeclaredType) identifierTE.asType();
-                provider.addStruct(ConfigType.structBuilder(identifierM)
-                        .property(ConfigProperty.getter(() -> provider.primitiveOf(ConfigTypeKind.STRING, false),
+                typeProvider.addStruct(ConfigType.structBuilder(identifierM)
+                        .property(ConfigProperty.getter(() -> typeProvider.primitiveOf(ConfigTypeKind.STRING, false),
                                 "value", "toString", false))
                         .instantiationStrategy(StructInstantiationStrategyBuilder.factory(identifierM, "tryParse")
-                                .param(() -> provider.primitiveOf(ConfigTypeKind.STRING, false), "string", "value")
+                                .param(() -> typeProvider.primitiveOf(ConfigTypeKind.STRING, false), "string", "value")
                                 .build())
                         .build());
             }
 
-            ConfigType cType = provider.fromMirror(type.asType());
+            ConfigType cType = typeProvider.fromMirror(type.asType());
             System.out.println(cType);
             dumpConfigType(cType);
         }

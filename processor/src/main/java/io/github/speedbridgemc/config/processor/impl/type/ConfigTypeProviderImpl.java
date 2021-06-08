@@ -1,14 +1,18 @@
 package io.github.speedbridgemc.config.processor.impl.type;
 
+import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.EnumName;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
+import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
+import io.github.speedbridgemc.config.processor.api.type.StructFactory;
+import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,10 +32,7 @@ import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private boolean initialized = false;
@@ -47,8 +48,10 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
 
     private ConfigType boolCType, byteCType, shortCType, intCType, longCType, charCType, floatCType, doubleCType, stringCType;
     private ConfigType boolNullCType, byteNullCType, shortNullCType, intNullCType, longNullCType, charNullCType, floatNullCType, doubleNullCType, stringNullCType;
-    private ConfigTypeStructFactory structFactory;
-    private HashMap<TypeMirror, Config.StructOverride> structOverrides;
+
+    private final HashMap<TypeMirror, Config.StructOverride> structOverrides = new HashMap<>();
+    private final ArrayList<StructFactory> structFactories = new ArrayList<>();
+    private final ArrayList<ConfigPropertyExtensionFinder> extensionFinders = new ArrayList<>();
 
     @Override
     public void init(@NotNull ProcessingEnvironment processingEnv) {
@@ -102,45 +105,6 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 types.getPrimitiveType(TypeKind.DOUBLE), true);
         stringNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.STRING, "string?",
                 stringTM, true);
-
-        structFactory = new ConfigTypeStructFactory(this, processingEnv);
-        structOverrides = new HashMap<>();
-    }
-
-    @Override
-    public void addStruct(@NotNull ConfigType type) {
-        if (type.kind() != ConfigTypeKind.STRUCT)
-            throw new IllegalArgumentException("Injected type must be of kind STRUCT!");
-        DeclaredType mirror = (DeclaredType) type.asMirror();
-        ConfigType oldType = declaredTypeCache.put(mirror, type);
-        if (oldType != null) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            pw.println("Pre-existing type for mirror \"" + mirror + "\" replaced!");
-            pw.println("Was: " + oldType);
-            pw.println("Replaced by: " + type);
-            try {
-                throw new Exception("Stack trace");
-            } catch (Exception e) {
-                e.printStackTrace(pw);
-            }
-            messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING, sw.toString());
-        }
-    }
-
-    @Override
-    public void addExtensionFinder(@NotNull ConfigPropertyExtensionFinder extensionFinder) {
-        structFactory.addExtensionFinder(extensionFinder);
-    }
-
-    @Override
-    public void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant) {
-        this.namingStrategy = strategy;
-        this.namingStrategyVariant = variant;
-    }
-
-    @NotNull String name(@NotNull String originalName) {
-        return namingStrategy.name(namingStrategyVariant, originalName);
     }
 
     @Override
@@ -181,8 +145,57 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     }
 
     @Override
+    public void addStruct(@NotNull ConfigType type) {
+        if (type.kind() != ConfigTypeKind.STRUCT)
+            throw new IllegalArgumentException("Injected type must be of kind STRUCT!");
+        DeclaredType mirror = (DeclaredType) type.asMirror();
+        ConfigType oldType = declaredTypeCache.put(mirror, type);
+        if (oldType != null) {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            pw.println("Pre-existing type for mirror \"" + mirror + "\" replaced!");
+            pw.println("Was: " + oldType);
+            pw.println("Replaced by: " + type);
+            try {
+                throw new Exception("Stack trace");
+            } catch (Exception e) {
+                e.printStackTrace(pw);
+            }
+            messager.printMessage(Diagnostic.Kind.MANDATORY_WARNING, sw.toString());
+        }
+    }
+
+    @Override
+    public void addExtensionFinder(@NotNull ConfigPropertyExtensionFinder extensionFinder) {
+        extensionFinders.add(extensionFinder);
+    }
+
+    @Override
+    public void findExtensions(ImmutableClassToInstanceMap.@NotNull Builder<ConfigPropertyExtension> mapBuilder,
+                               @NotNull MirrorElementPair @NotNull ... pairs) {
+        for (ConfigPropertyExtensionFinder finder : extensionFinders)
+            finder.findExtensions(mapBuilder::put, pairs);
+    }
+
+    @Override
+    public void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant) {
+        this.namingStrategy = strategy;
+        this.namingStrategyVariant = variant;
+    }
+
+    @Override
+    public @NotNull String name(@NotNull String originalName) {
+        return namingStrategy.name(namingStrategyVariant, originalName);
+    }
+
+    @Override
     public void setStructOverride(@NotNull DeclaredType mirror, @Nullable Config.StructOverride structOverride) {
         structOverrides.put(types.erasure(mirror), structOverride);
+    }
+
+    @Override
+    public void addStructFactory(@NotNull StructFactory structFactory) {
+        structFactories.add(structFactory);
     }
 
     @Override
@@ -279,10 +292,16 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
                 return doubleNullCType;
             throw new RuntimeException("Unknown primitive " + typeName + "!");
         }
-        // 5. anything else - type of kind STRUCT (delegated to ConfigTypeStructFactory)
+        // 5. anything else - type of kind STRUCT (delegated to StructFactory)
         if (structOverride == null)
             structOverride = structOverrides.get(mirrorErasure);
-        return structFactory.create(mirror, structOverride);
+        Optional<ConfigType> struct = Optional.empty();
+        for (StructFactory structFactory : structFactories) {
+            struct = structFactory.createStruct(mirror, structOverride);
+            if (struct.isPresent())
+                break;
+        }
+        return struct.orElseThrow(() -> new RuntimeException("Failed to create struct config type from \"" + mirror + "\"!"));
     }
 
     private final @NotNull CollectionTypeArgFinder collectionTypeArgFinder = new CollectionTypeArgFinder();
