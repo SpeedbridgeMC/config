@@ -71,74 +71,6 @@ final class ConfigTypeStructFactory {
     private static final String[] DUMMY_STRING_ARRAY = new String[0];
 
     public @NotNull ConfigType create(@NotNull DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
-        class FieldData {
-            public final @NotNull TypeMirror mirror;
-            public final @NotNull VariableElement element;
-            public final boolean isFinal;
-
-            FieldData(@NotNull TypeMirror mirror, @NotNull VariableElement element, boolean isFinal) {
-                this.mirror = mirror;
-                this.element = element;
-                this.isFinal = isFinal;
-            }
-        }
-        class MethodData {
-            public final @NotNull ExecutableType mirror;
-            public final @NotNull ExecutableElement element;
-
-            MethodData(@NotNull ExecutableType mirror, @NotNull ExecutableElement element) {
-                this.mirror = mirror;
-                this.element = element;
-            }
-        }
-        class AccessorPairDef {
-            public final @NotNull String name, getter, setter;
-            public final boolean optional;
-            public final @NotNull ExecutableElement definingMethod;
-            public final @NotNull ExecutableType definingMethodType;
-
-            AccessorPairDef(@NotNull String name, @NotNull String getter, @NotNull String setter, boolean optional, @NotNull ExecutableElement definingMethod, @NotNull ExecutableType definingMethodType) {
-                this.name = name;
-                this.getter = getter;
-                this.setter = setter;
-                this.optional = optional;
-                this.definingMethod = definingMethod;
-                this.definingMethodType = definingMethodType;
-            }
-        }
-        class AccessorPair {
-            public final @NotNull TypeMirror type;
-            public final @NotNull ExecutableType getterM;
-            public final ExecutableType setterM;
-            public final boolean hasSetter;
-            public final @NotNull ExecutableElement getterE;
-            public final ExecutableElement setterE;
-            public final boolean optional;
-
-            AccessorPair(@NotNull TypeMirror type,
-                         @NotNull ExecutableType getterM, @NotNull ExecutableType setterM,
-                         @NotNull ExecutableElement getterE, @NotNull ExecutableElement setterE, boolean optional) {
-                this.optional = optional;
-                hasSetter = true;
-                this.type = type;
-                this.getterM = getterM;
-                this.setterM = setterM;
-                this.getterE = getterE;
-                this.setterE = setterE;
-            }
-
-            AccessorPair(@NotNull TypeMirror type,
-                         @NotNull ExecutableType getterM, @NotNull ExecutableElement getterE, boolean optional) {
-                this.optional = optional;
-                hasSetter = false;
-                this.type = type;
-                this.getterM = getterM;
-                this.getterE = getterE;
-                setterM = null;
-                setterE = null;
-            }
-        }
-
         TypeElement te = (TypeElement) mirror.asElement();
 
         boolean includeFieldsByDefault = true;
@@ -200,66 +132,145 @@ final class ConfigTypeStructFactory {
         ImmutableList.Builder<ConfigProperty> propertiesBuilder = ImmutableList.builder();
         HashSet<String> propertyNames = new HashSet<>();
 
-        // properties from struct override
-        if (structOverride != null) {
-            for (Config.Property property : structOverride.properties()) {
-                final String propName = property.name();
-                if (propName.isEmpty())
-                    throw new RuntimeException("Empty property name!");
-                ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensionsBuilder = ImmutableClassToInstanceMap.builder();
-                if (property.field().isEmpty()) {
-                    if (property.getter().isEmpty())
-                        throw new RuntimeException("Property must have field or getter defined!");
-                    Set<MethodData> getterDataSet = methods.get(property.getter());
-                    MethodData getterData = null;
-                    Optional<PropertyUtils.AccessorInfo> getterAccInfOpt = Optional.empty();
-                    for (MethodData methodData : getterDataSet) {
-                        getterAccInfOpt = PropertyUtils.getAccessorInfo(methodData.mirror);
-                        if (getterAccInfOpt.isPresent()) {
-                            getterData = methodData;
+        if (structOverride != null)
+            getPropertiesFromStructOverride(mirror, structOverride, fields, methods, propertiesBuilder, propertyNames);
+        getPropertiesFromFields(includeFieldsByDefault, fields, propertiesBuilder, propertyNames);
+        getPropertiesFromAccessorPairs(mirror, includePropertiesByDefault, methods, accessorPairDefs, propertiesBuilder, propertyNames);
+        StructInstantiationStrategy instantiationStrategy = createInstantiationStrategy(mirror, te, structAnno, propertyNames);
+        return new ConfigTypeImpl.Struct(mirror,
+                instantiationStrategy,
+                propertiesBuilder.build());
+    }
+
+    // region Intermediary data classes
+    private static final class FieldData {
+        public final @NotNull TypeMirror mirror;
+        public final @NotNull VariableElement element;
+        public final boolean isFinal;
+
+        FieldData(@NotNull TypeMirror mirror, @NotNull VariableElement element, boolean isFinal) {
+            this.mirror = mirror;
+            this.element = element;
+            this.isFinal = isFinal;
+        }
+    }
+    private static final class MethodData {
+        public final @NotNull ExecutableType mirror;
+        public final @NotNull ExecutableElement element;
+
+        MethodData(@NotNull ExecutableType mirror, @NotNull ExecutableElement element) {
+            this.mirror = mirror;
+            this.element = element;
+        }
+    }
+    private static final class AccessorPairDef {
+        public final @NotNull String name, getter, setter;
+        public final boolean optional;
+        public final @NotNull ExecutableElement definingMethod;
+        public final @NotNull ExecutableType definingMethodType;
+
+        AccessorPairDef(@NotNull String name, @NotNull String getter, @NotNull String setter, boolean optional, @NotNull ExecutableElement definingMethod, @NotNull ExecutableType definingMethodType) {
+            this.name = name;
+            this.getter = getter;
+            this.setter = setter;
+            this.optional = optional;
+            this.definingMethod = definingMethod;
+            this.definingMethodType = definingMethodType;
+        }
+    }
+    private static final class AccessorPair {
+        public final @NotNull TypeMirror type;
+        public final @NotNull ExecutableType getterM;
+        public final ExecutableType setterM;
+        public final boolean hasSetter;
+        public final @NotNull ExecutableElement getterE;
+        public final ExecutableElement setterE;
+        public final boolean optional;
+
+        AccessorPair(@NotNull TypeMirror type,
+                     @NotNull ExecutableType getterM, @NotNull ExecutableType setterM,
+                     @NotNull ExecutableElement getterE, @NotNull ExecutableElement setterE, boolean optional) {
+            this.optional = optional;
+            hasSetter = true;
+            this.type = type;
+            this.getterM = getterM;
+            this.setterM = setterM;
+            this.getterE = getterE;
+            this.setterE = setterE;
+        }
+
+        AccessorPair(@NotNull TypeMirror type,
+                     @NotNull ExecutableType getterM, @NotNull ExecutableElement getterE, boolean optional) {
+            this.optional = optional;
+            hasSetter = false;
+            this.type = type;
+            this.getterM = getterM;
+            this.getterE = getterE;
+            setterM = null;
+            setterE = null;
+        }
+    }
+    // endregion
+
+    private void getPropertiesFromStructOverride(@NotNull DeclaredType mirror, Config.@NotNull StructOverride structOverride, LinkedHashMap<String, FieldData> fields, LinkedHashMultimap<String, MethodData> methods, ImmutableList.Builder<ConfigProperty> propertiesBuilder, HashSet<String> propertyNames) {
+        for (Config.Property property : structOverride.properties()) {
+            final String propName = property.name();
+            if (propName.isEmpty())
+                throw new RuntimeException("Empty property name!");
+            ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensionsBuilder = ImmutableClassToInstanceMap.builder();
+            if (property.field().isEmpty()) {
+                if (property.getter().isEmpty())
+                    throw new RuntimeException("Property must have field or getter defined!");
+                Set<MethodData> getterDataSet = methods.get(property.getter());
+                MethodData getterData = null;
+                Optional<PropertyUtils.AccessorInfo> getterAccInfOpt = Optional.empty();
+                for (MethodData methodData : getterDataSet) {
+                    getterAccInfOpt = PropertyUtils.getAccessorInfo(methodData.mirror);
+                    if (getterAccInfOpt.isPresent()) {
+                        getterData = methodData;
+                        break;
+                    }
+                }
+                PropertyUtils.AccessorInfo getterAccInf = getterAccInfOpt.orElseThrow(() ->
+                        new RuntimeException("Can't find valid getter void " + mirror + "." + property.getter() + "()"));
+                MirrorElementPair getterMEP = new MirrorElementPair(getterData.mirror, getterData.element);
+                if (property.setter().isEmpty()) {
+                    findExtensions(extensionsBuilder, getterMEP);
+                    propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
+                            propName, extensionsBuilder.build(), property.optional(), property.getter()));
+                } else {
+                    Set<MethodData> setterDataSet = methods.get(property.setter());
+                    MethodData setterData = null;
+                    Optional<PropertyUtils.AccessorInfo> setterAccInfOpt = Optional.empty();
+                    for (MethodData methodData : setterDataSet) {
+                        setterAccInfOpt = PropertyUtils.getAccessorInfo(methodData.mirror);
+                        if (setterAccInfOpt.isPresent()) {
+                            setterData = methodData;
                             break;
                         }
                     }
-                    PropertyUtils.AccessorInfo getterAccInf = getterAccInfOpt.orElseThrow(() ->
-                            new RuntimeException("Can't find valid getter void " + mirror + "." + property.getter() + "()"));
-                    MirrorElementPair getterMEP = new MirrorElementPair(getterData.mirror, getterData.element);
-                    if (property.setter().isEmpty()) {
-                        findExtensions(extensionsBuilder, getterMEP);
-                        propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
-                                propName, extensionsBuilder.build(), property.optional(), property.getter()));
-                    } else {
-                        Set<MethodData> setterDataSet = methods.get(property.setter());
-                        MethodData setterData = null;
-                        Optional<PropertyUtils.AccessorInfo> setterAccInfOpt = Optional.empty();
-                        for (MethodData methodData : setterDataSet) {
-                            setterAccInfOpt = PropertyUtils.getAccessorInfo(methodData.mirror);
-                            if (setterAccInfOpt.isPresent()) {
-                                setterData = methodData;
-                                break;
-                            }
-                        }
-                        PropertyUtils.AccessorInfo setterAccInf = setterAccInfOpt.orElseThrow(() ->
-                                new RuntimeException("Can't find valid setter " + getterAccInf.propertyType + " " + mirror + "." + property.setter() + "()"));
-                        if (!types.isSameType(getterAccInf.propertyType, setterAccInf.propertyType))
-                            throw new RuntimeException(mirror + ": Type mismatch between getter" + property.getter() + " and setter " + property.setter());
-                        findExtensions(extensionsBuilder, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
-                        propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
-                                propName, extensionsBuilder.build(), property.optional(), property.getter(), property.setter()));
-                    }
-                } else {
-                    FieldData fieldData = fields.get(property.field());
-                    if (fieldData == null)
-                        throw new RuntimeException("Missing field \"" + property.field() + "\"!");
-                    findExtensions(extensionsBuilder, new MirrorElementPair(fieldData.mirror, fieldData.element));
-                    propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldData.mirror),
-                            propName, extensionsBuilder.build(), !fieldData.isFinal, property.optional(), property.field()));
+                    PropertyUtils.AccessorInfo setterAccInf = setterAccInfOpt.orElseThrow(() ->
+                            new RuntimeException("Can't find valid setter " + getterAccInf.propertyType + " " + mirror + "." + property.setter() + "()"));
+                    if (!types.isSameType(getterAccInf.propertyType, setterAccInf.propertyType))
+                        throw new RuntimeException(mirror + ": Type mismatch between getter" + property.getter() + " and setter " + property.setter());
+                    findExtensions(extensionsBuilder, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
+                    propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
+                            propName, extensionsBuilder.build(), property.optional(), property.getter(), property.setter()));
                 }
-                if (!propertyNames.add(propName))
-                    throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
+            } else {
+                FieldData fieldData = fields.get(property.field());
+                if (fieldData == null)
+                    throw new RuntimeException("Missing field \"" + property.field() + "\"!");
+                findExtensions(extensionsBuilder, new MirrorElementPair(fieldData.mirror, fieldData.element));
+                propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldData.mirror),
+                        propName, extensionsBuilder.build(), !fieldData.isFinal, property.optional(), property.field()));
             }
+            if (!propertyNames.add(propName))
+                throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
         }
+    }
 
-        // fields
+    private void getPropertiesFromFields(boolean includeFieldsByDefault, LinkedHashMap<String, FieldData> fields, ImmutableList.Builder<ConfigProperty> propertiesBuilder, HashSet<String> propertyNames) {
         for (Map.Entry<String, FieldData> field : fields.entrySet()) {
             TypeMirror fieldM = field.getValue().mirror;
             VariableElement fieldE = field.getValue().element;
@@ -283,9 +294,9 @@ final class ConfigTypeStructFactory {
             if (!propertyNames.add(propName))
                 throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
         }
+    }
 
-        // properties (accessor pairs)
-
+    private void getPropertiesFromAccessorPairs(@NotNull DeclaredType mirror, boolean includePropertiesByDefault, LinkedHashMultimap<String, MethodData> methods, HashSet<AccessorPairDef> accessorPairDefs, ImmutableList.Builder<ConfigProperty> propertiesBuilder, HashSet<String> propertyNames) {
         HashMap<String, AccessorPair> accessorPairs = new HashMap<>();
         // discover and zip up implicit accessor pairs
         HashSet<String> implicitAccessorPairs = new HashSet<>();
@@ -491,8 +502,10 @@ final class ConfigTypeStructFactory {
             if (!propertyNames.add(entry.getKey()))
                 throw new RuntimeException("Duplicate property key \"" + entry.getKey()+ "\"!");
         }
+    }
 
-        // and now, for the instantiation strategy!
+    @NotNull
+    private StructInstantiationStrategy createInstantiationStrategy(@NotNull DeclaredType mirror, TypeElement te, Config.Struct structAnno, HashSet<String> propertyNames) {
         boolean isFactory;
         DeclaredType owner;
         String factoryName = "";
@@ -546,7 +559,8 @@ final class ConfigTypeStructFactory {
                 if (!factoryName.equals(method.getSimpleName().toString()))
                     continue;
                 ExecutableType asMember = (ExecutableType) types.asMemberOf(owner, method);
-                if (!types.isSameType(mirrorErasure, types.erasure(asMember.getReturnType())))
+                TypeMirror returnType = asMember.getReturnType();
+                if (!types.isSameType(mirrorErasure, types.erasure(returnType)))
                     continue;
                 List<? extends TypeMirror> mParams = asMember.getParameterTypes();
                 if (paramsUnspecified) {
@@ -661,10 +675,7 @@ final class ConfigTypeStructFactory {
             } else
                 throw new RuntimeException("Failed to find constructor " + owner + "(" + sb + ")");
         }
-
-        return new ConfigTypeImpl.Struct(mirror,
-                instantiationStrategy,
-                propertiesBuilder.build());
+        return instantiationStrategy;
     }
 
     private boolean isBool(@NotNull TypeMirror type) {
