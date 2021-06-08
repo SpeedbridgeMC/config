@@ -60,11 +60,21 @@ public interface ConfigTypeProvider {
 
     /**
      * Finds {@link ConfigPropertyExtension}s using the specified mirror-element pairs.
+     * @param callback callback
+     * @param pairs mirror-element pairs
+     */
+    void findExtensions(@NotNull ConfigPropertyExtensionFinder.Callback callback,
+                        @NotNull MirrorElementPair @NotNull ... pairs);
+
+    /**
+     * Finds {@link ConfigPropertyExtension}s using the specified mirror-element pairs.
      * @param mapBuilder extension map builder
      * @param pairs mirror-element pairs
      */
-    void findExtensions(@NotNull ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> mapBuilder,
-                        @NotNull MirrorElementPair @NotNull ... pairs);
+    default void findExtensions(@NotNull ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> mapBuilder,
+                        @NotNull MirrorElementPair @NotNull ... pairs) {
+        findExtensions(mapBuilder::put, pairs);
+    }
 
     /**
      * Sets the naming strategy to use when creating struct types.

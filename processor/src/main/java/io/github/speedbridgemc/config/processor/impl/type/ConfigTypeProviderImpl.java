@@ -171,10 +171,10 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     }
 
     @Override
-    public void findExtensions(ImmutableClassToInstanceMap.@NotNull Builder<ConfigPropertyExtension> mapBuilder,
+    public void findExtensions(ConfigPropertyExtensionFinder.@NotNull Callback mapBuilder,
                                @NotNull MirrorElementPair @NotNull ... pairs) {
         for (ConfigPropertyExtensionFinder finder : extensionFinders)
-            finder.findExtensions(mapBuilder::put, pairs);
+            finder.findExtensions(mapBuilder, pairs);
     }
 
     @Override
