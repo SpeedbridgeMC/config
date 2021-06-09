@@ -6,6 +6,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.SOURCE)
 @Target(ElementType.TYPE)
 public @interface Config {
+    String[] components();
     StructOverride[] structOverrides() default { };
 
     @Retention(RetentionPolicy.SOURCE)

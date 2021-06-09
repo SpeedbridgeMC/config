@@ -8,7 +8,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 
-@Config(structOverrides = {
+@Config(components = { },
+        structOverrides = {
         @Config.StructOverride(target = TestData.class, override = @Config.Struct(factoryOwner = TestData.class, factoryName = "of"),
         properties = {
                 @Config.Property(name = "data1", getter = "getData1"),
