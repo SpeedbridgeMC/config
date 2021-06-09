@@ -1,11 +1,8 @@
 package io.github.speedbridgemc.config.processor.api.type;
 
-import com.google.common.collect.ImmutableClassToInstanceMap;
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
-import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
-import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -69,26 +66,11 @@ public interface ConfigTypeProvider {
     void addExtensionFinder(@NotNull ConfigPropertyExtensionFinder extensionFinder);
 
     /**
-     * Finds {@link ConfigPropertyExtension}s using the specified mirror-element pairs.
-     * @param callback callback
-     * @param pairs mirror-element pairs
-     */
-    void findExtensions(@NotNull ConfigPropertyExtensionFinder.Callback callback,
-                        @NotNull MirrorElementPair @NotNull ... pairs);
-
-    /**
      * Sets the naming strategy to use when creating struct types.
      * @param strategy naming strategy to use
      * @param variant strategy variant to use
      */
     void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant);
-
-    /**
-     * Converts a naming using the {@linkplain #setNamingStrategy(NamingStrategy, String) current naming strategy}.
-     * @param originalName original name
-     * @return converted name
-     */
-    @NotNull String name(@NotNull String originalName);
 
     /**
      * Sets a {@link io.github.speedbridgemc.config.Config.StructOverride StructOverride} for creating a {@code ConfigType}

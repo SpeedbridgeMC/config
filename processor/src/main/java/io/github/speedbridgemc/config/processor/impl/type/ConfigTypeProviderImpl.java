@@ -35,6 +35,25 @@ import java.io.StringWriter;
 import java.util.*;
 
 public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
+    private class StructFactoryContextImpl implements StructFactory.Context {
+        @Override
+        public @NotNull ConfigTypeProvider typeProvider() {
+            return ConfigTypeProviderImpl.this;
+        }
+
+        @Override
+        public @NotNull String name(@NotNull String originalName) {
+            return namingStrategy.name(namingStrategyVariant, originalName);
+        }
+
+        @Override
+        public void findExtensions(ConfigPropertyExtensionFinder.@NotNull Callback mapBuilder,
+                                   @NotNull MirrorElementPair @NotNull ... pairs) {
+            for (ConfigPropertyExtensionFinder finder : extensionFinders)
+                finder.findExtensions(mapBuilder, pairs);
+        }
+    }
+
     private boolean initialized = false;
     private ProcessingEnvironment processingEnv;
     private Messager messager;
@@ -49,6 +68,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private ConfigType boolCType, byteCType, shortCType, intCType, longCType, charCType, floatCType, doubleCType, stringCType;
     private ConfigType boolNullCType, byteNullCType, shortNullCType, intNullCType, longNullCType, charNullCType, floatNullCType, doubleNullCType, stringNullCType;
 
+    private final StructFactoryContextImpl structFactoryCtx = new StructFactoryContextImpl();
     private final HashMap<TypeMirror, Config.StructOverride> structOverrides = new HashMap<>();
     private final ArrayList<StructFactory> structFactories = new ArrayList<>();
     private final ArrayList<ConfigPropertyExtensionFinder> extensionFinders = new ArrayList<>();
@@ -170,21 +190,9 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     }
 
     @Override
-    public void findExtensions(ConfigPropertyExtensionFinder.@NotNull Callback mapBuilder,
-                               @NotNull MirrorElementPair @NotNull ... pairs) {
-        for (ConfigPropertyExtensionFinder finder : extensionFinders)
-            finder.findExtensions(mapBuilder, pairs);
-    }
-
-    @Override
     public void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant) {
         this.namingStrategy = strategy;
         this.namingStrategyVariant = variant;
-    }
-
-    @Override
-    public @NotNull String name(@NotNull String originalName) {
-        return namingStrategy.name(namingStrategyVariant, originalName);
     }
 
     @Override
@@ -295,7 +303,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
         Config.StructOverride structOverride = structOverrides.get(mirrorErasure);
         Optional<ConfigType> struct = Optional.empty();
         for (StructFactory structFactory : structFactories) {
-            struct = structFactory.createStruct(mirror, structOverride);
+            struct = structFactory.createStruct(structFactoryCtx, mirror, structOverride);
             if (struct.isPresent())
                 break;
         }

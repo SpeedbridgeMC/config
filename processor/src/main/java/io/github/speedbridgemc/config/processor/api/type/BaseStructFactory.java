@@ -13,10 +13,9 @@ public abstract class BaseStructFactory implements StructFactory {
     protected Messager messager;
     protected Types types;
     protected Elements elements;
-    protected ConfigTypeProvider typeProvider;
 
     @Override
-    public void init(@NotNull ProcessingEnvironment processingEnv, @NotNull ConfigTypeProvider typeProvider) {
+    public void init(@NotNull ProcessingEnvironment processingEnv) {
         if (initialized)
             throw new IllegalStateException("Already initialized!");
         initialized = true;
@@ -24,6 +23,5 @@ public abstract class BaseStructFactory implements StructFactory {
         messager = processingEnv.getMessager();
         types = processingEnv.getTypeUtils();
         elements = processingEnv.getElementUtils();
-        this.typeProvider = typeProvider;
     }
 }

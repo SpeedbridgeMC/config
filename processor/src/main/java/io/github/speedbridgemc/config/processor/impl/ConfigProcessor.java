@@ -121,7 +121,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             ConfigPropertyExtensionFinder extensionFinder = new StandardConfigPropertyExtensionFinder();
             extensionFinder.init(processingEnv);
             StructFactory structFactory = new StandardStructFactory();
-            structFactory.init(processingEnv, typeProvider);
+            structFactory.init(processingEnv);
             typeProvider.setNamingStrategy(namingStrategy, "");
             typeProvider.addExtensionFinder(extensionFinder);
             typeProvider.addStructFactory(structFactory);

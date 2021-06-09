@@ -30,8 +30,8 @@ public final class StandardStructFactory extends BaseStructFactory {
     private ImmutableList<ExecutableElement> objectMethods;
 
     @Override
-    public void init(@NotNull ProcessingEnvironment processingEnv, @NotNull ConfigTypeProvider typeProvider) {
-        super.init(processingEnv, typeProvider);
+    public void init(@NotNull ProcessingEnvironment processingEnv) {
+        super.init(processingEnv);
 
         booleanTM = MirrorUtils.getDeclaredType(elements, Boolean.class);
         voidTM = MirrorUtils.getDeclaredType(elements, Void.class);
@@ -43,7 +43,8 @@ public final class StandardStructFactory extends BaseStructFactory {
     private static final String[] DUMMY_STRING_ARRAY = new String[0];
 
     @Override
-    public @NotNull Optional<ConfigType> createStruct(@NotNull DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
+    public @NotNull Optional<ConfigType> createStruct(@NotNull Context ctx,
+                                                      @NotNull DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
         TypeElement te = (TypeElement) mirror.asElement();
 
         boolean includeFieldsByDefault = true;
@@ -106,12 +107,12 @@ public final class StandardStructFactory extends BaseStructFactory {
         HashSet<String> propertyNames = new HashSet<>();
 
         if (structOverride != null)
-            getPropertiesFromStructOverride(mirror, structOverride, fields, methods, structBuilder::property, propertyNames);
-        getPropertiesFromFields(includeFieldsByDefault, fields, structBuilder::property, propertyNames);
-        getPropertiesFromAccessorPairs(mirror, includePropertiesByDefault, methods, accessorPairDefs, structBuilder::property, propertyNames);
+            getPropertiesFromStructOverride(ctx, mirror, structOverride, fields, methods, structBuilder::property, propertyNames);
+        getPropertiesFromFields(ctx, includeFieldsByDefault, fields, structBuilder::property, propertyNames);
+        getPropertiesFromAccessorPairs(ctx, mirror, includePropertiesByDefault, methods, accessorPairDefs, structBuilder::property, propertyNames);
 
         return Optional.of(structBuilder
-                .instantiationStrategy(createInstantiationStrategy(mirror, te, structAnno, propertyNames))
+                .instantiationStrategy(createInstantiationStrategy(ctx, mirror, te, structAnno, propertyNames))
                 .build());
     }
 
@@ -185,7 +186,10 @@ public final class StandardStructFactory extends BaseStructFactory {
     }
     // endregion
 
-    private void getPropertiesFromStructOverride(@NotNull DeclaredType mirror, Config.@NotNull StructOverride structOverride, LinkedHashMap<String, FieldData> fields, LinkedHashMultimap<String, MethodData> methods, Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
+    private void getPropertiesFromStructOverride(@NotNull Context ctx,
+                                                 @NotNull DeclaredType mirror, Config.@NotNull StructOverride structOverride,
+                                                 LinkedHashMap<String, FieldData> fields, LinkedHashMultimap<String, MethodData> methods,
+                                                 Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
         for (Config.Property property : structOverride.properties()) {
             final String propName = property.name();
             if (propName.isEmpty())
@@ -208,9 +212,9 @@ public final class StandardStructFactory extends BaseStructFactory {
                         new RuntimeException("Can't find valid getter void " + mirror + "." + property.getter() + "()"));
                 MirrorElementPair getterMEP = new MirrorElementPair(getterData.mirror, getterData.element);
                 if (property.setter().isEmpty()) {
-                    propertyBuilder = ConfigProperty.getterBuilder(Lazy.wrap(() -> typeProvider.fromMirror(getterAccInf.propertyType)),
+                    propertyBuilder = ConfigProperty.getterBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(getterAccInf.propertyType)),
                             propName, property.getter());
-                    typeProvider.findExtensions(propertyBuilder::extension, getterMEP);
+                    ctx.findExtensions(propertyBuilder::extension, getterMEP);
                 } else {
                     Set<MethodData> setterDataSet = methods.get(property.setter());
                     MethodData setterData = null;
@@ -226,17 +230,17 @@ public final class StandardStructFactory extends BaseStructFactory {
                             new RuntimeException("Can't find valid setter " + getterAccInf.propertyType + " " + mirror + "." + property.setter() + "()"));
                     if (!types.isSameType(getterAccInf.propertyType, setterAccInf.propertyType))
                         throw new RuntimeException(mirror + ": Type mismatch between getter" + property.getter() + " and setter " + property.setter());
-                    propertyBuilder = ConfigProperty.accessorsBuilder(Lazy.wrap(() -> typeProvider.fromMirror(getterAccInf.propertyType)),
+                    propertyBuilder = ConfigProperty.accessorsBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(getterAccInf.propertyType)),
                             propName, property.getter(), property.setter());
-                    typeProvider.findExtensions(propertyBuilder::extension, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
+                    ctx.findExtensions(propertyBuilder::extension, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
                 }
             } else {
                 FieldData fieldData = fields.get(property.field());
                 if (fieldData == null)
                     throw new RuntimeException("Missing field \"" + property.field() + "\"!");
-                propertyBuilder = ConfigProperty.fieldBuilder(Lazy.wrap(() -> typeProvider.fromMirror(fieldData.mirror)),
+                propertyBuilder = ConfigProperty.fieldBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(fieldData.mirror)),
                         propName, property.field(), fieldData.isFinal);
-                typeProvider.findExtensions(propertyBuilder::extension, new MirrorElementPair(fieldData.mirror, fieldData.element));
+                ctx.findExtensions(propertyBuilder::extension, new MirrorElementPair(fieldData.mirror, fieldData.element));
             }
             if (property.optional())
                 propertyBuilder.optional();
@@ -246,7 +250,9 @@ public final class StandardStructFactory extends BaseStructFactory {
         }
     }
 
-    private void getPropertiesFromFields(boolean includeFieldsByDefault, LinkedHashMap<String, FieldData> fields, Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
+    private void getPropertiesFromFields(@NotNull Context ctx, boolean includeFieldsByDefault,
+                                         LinkedHashMap<String, FieldData> fields, Consumer<ConfigProperty> propertyCallback,
+                                         HashSet<String> propertyNames) {
         for (Map.Entry<String, FieldData> field : fields.entrySet()) {
             TypeMirror fieldM = field.getValue().mirror;
             VariableElement fieldE = field.getValue().element;
@@ -262,10 +268,10 @@ public final class StandardStructFactory extends BaseStructFactory {
                 optional = propAnno.optional();
             }
             if (propName.isEmpty())
-                propName = typeProvider.name(fieldE.getSimpleName().toString());
-            ConfigPropertyBuilder propertyBuilder = ConfigProperty.fieldBuilder(Lazy.wrap(() -> typeProvider.fromMirror(fieldM)),
+                propName = ctx.name(fieldE.getSimpleName().toString());
+            ConfigPropertyBuilder propertyBuilder = ConfigProperty.fieldBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(fieldM)),
                     propName, fieldName, !field.getValue().isFinal);
-            typeProvider.findExtensions(propertyBuilder::extension, new MirrorElementPair(fieldM, fieldE));
+            ctx.findExtensions(propertyBuilder::extension, new MirrorElementPair(fieldM, fieldE));
             if (optional)
                 propertyBuilder.optional();
             propertyCallback.accept(propertyBuilder.build());
@@ -274,7 +280,10 @@ public final class StandardStructFactory extends BaseStructFactory {
         }
     }
 
-    private void getPropertiesFromAccessorPairs(@NotNull DeclaredType mirror, boolean includePropertiesByDefault, LinkedHashMultimap<String, MethodData> methods, HashSet<AccessorPairDef> accessorPairDefs, Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
+    private void getPropertiesFromAccessorPairs(@NotNull Context ctx, @NotNull DeclaredType mirror,
+                                                boolean includePropertiesByDefault, LinkedHashMultimap<String, MethodData> methods,
+                                                HashSet<AccessorPairDef> accessorPairDefs,
+                                                Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
         HashMap<String, AccessorPair> accessorPairs = new HashMap<>();
         // discover and zip up implicit accessor pairs
         HashSet<String> implicitAccessorPairs = new HashSet<>();
@@ -295,7 +304,7 @@ public final class StandardStructFactory extends BaseStructFactory {
                 TypeMirror propType = accessorInfo.get().propertyType;
                 boolean isBool = isBool(accessorInfo.get().propertyType);
                 String internalPropName = PropertyUtils.getPropertyName(methodName, isBool);
-                String propName = typeProvider.name(internalPropName);
+                String propName = ctx.name(internalPropName);
                 if (accessorPairs.containsKey(propName))
                     // TODO error details
                     throw new RuntimeException("Duplicate implicit property name \"" + propName + "\"!");
@@ -415,7 +424,7 @@ public final class StandardStructFactory extends BaseStructFactory {
             if (propName.isEmpty()) {
                 propName = AnnotationUtils.getFirstValue(Config.Property.class, Config.Property::name, s -> !s.isEmpty(), getter, setter);
                 if (propName == null)
-                    propName = typeProvider.name(PropertyUtils.getPropertyName(getter.getSimpleName().toString(), isBool(getter.getReturnType())));
+                    propName = ctx.name(PropertyUtils.getPropertyName(getter.getSimpleName().toString(), isBool(getter.getReturnType())));
             }
 
             TypeMirror propType;
@@ -461,15 +470,15 @@ public final class StandardStructFactory extends BaseStructFactory {
             ConfigPropertyBuilder propertyBuilder;
             if (prop.hasSetter) {
                 assert prop.setterM != null && prop.setterE != null;
-                propertyBuilder = ConfigProperty.accessorsBuilder(Lazy.wrap(() -> typeProvider.fromMirror(prop.type)),
+                propertyBuilder = ConfigProperty.accessorsBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(prop.type)),
                         entry.getKey(), prop.getterE.getSimpleName().toString(), prop.setterE.getSimpleName().toString());
-                typeProvider.findExtensions(propertyBuilder::extension,
+                ctx.findExtensions(propertyBuilder::extension,
                         new MirrorElementPair(prop.getterM, prop.getterE),
                         new MirrorElementPair(prop.setterM, prop.setterE));
             } else {
-                propertyBuilder = ConfigProperty.getterBuilder(Lazy.wrap(() -> typeProvider.fromMirror(prop.type)),
+                propertyBuilder = ConfigProperty.getterBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(prop.type)),
                         entry.getKey(), prop.getterE.getSimpleName().toString());
-                typeProvider.findExtensions(propertyBuilder::extension,
+                ctx.findExtensions(propertyBuilder::extension,
                         new MirrorElementPair(prop.getterM, prop.getterE));
             }
             if (prop.optional)
@@ -481,7 +490,9 @@ public final class StandardStructFactory extends BaseStructFactory {
     }
 
     @NotNull
-    private StructInstantiationStrategy createInstantiationStrategy(@NotNull DeclaredType mirror, TypeElement te, Config.Struct structAnno, HashSet<String> propertyNames) {
+    private StructInstantiationStrategy createInstantiationStrategy(@NotNull Context ctx, @NotNull DeclaredType mirror,
+                                                                    TypeElement te, Config.Struct structAnno,
+                                                                    HashSet<String> propertyNames) {
         boolean isFactory;
         DeclaredType owner;
         String factoryName = "";
@@ -626,12 +637,12 @@ public final class StandardStructFactory extends BaseStructFactory {
                 Config.BoundProperty boundPropertyAnno = entry.getValue().element().getAnnotation(Config.BoundProperty.class);
                 if (boundPropertyAnno == null) {
                     if (boundPropertyName.isEmpty())
-                        boundPropertyName = typeProvider.name(entry.getValue().element().getSimpleName().toString());
+                        boundPropertyName = ctx.name(entry.getValue().element().getSimpleName().toString());
                 } else
                     boundPropertyName = boundPropertyAnno.value();
                 if (!propertyNames.contains(boundPropertyName))
                     throw new RuntimeException("Missing bound property \"" + boundPropertyName + "\" for parameter \"" + entry.getValue().element() + "\"!");
-                instantiationStrategyBuilder.param(Lazy.wrap(() -> typeProvider.fromMirror(paramMirror)),
+                instantiationStrategyBuilder.param(Lazy.wrap(() -> ctx.typeProvider().fromMirror(paramMirror)),
                         entry.getKey(), boundPropertyName);
             }
             return instantiationStrategyBuilder.build();
