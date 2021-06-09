@@ -145,7 +145,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     @Override
     public void addStruct(@NotNull ConfigType type) {
         if (type.kind() != ConfigTypeKind.STRUCT)
-            throw new IllegalArgumentException("Injected type must be of kind STRUCT!");
+            throw new IllegalArgumentException("Injected type must be of kind " + ConfigTypeKind.STRUCT + "!");
         DeclaredType mirror = (DeclaredType) type.asMirror();
         ConfigType oldType = declaredTypeCache.put(mirror, type);
         if (oldType != null) {

@@ -9,9 +9,7 @@ import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.type.TypeMirror;
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.toImmutableList;
 
@@ -48,32 +46,32 @@ public abstract class ConfigTypeImpl implements ConfigType {
 
     @Override
     public @NotNull List<? extends String> enumConstants() {
-        return Collections.emptyList();
+        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.ENUM + "!");
     }
 
     @Override
-    public @NotNull Optional<ConfigType> componentType() {
-        return Optional.empty();
+    public @NotNull ConfigType componentType() {
+        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.ARRAY + "!");
     }
 
     @Override
-    public @NotNull Optional<ConfigType> keyType() {
-        return Optional.empty();
+    public @NotNull ConfigType keyType() {
+        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.MAP + "!");
     }
 
     @Override
-    public @NotNull Optional<ConfigType> valueType() {
-        return Optional.empty();
+    public @NotNull ConfigType valueType() {
+        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.MAP + "!");
     }
 
     @Override
-    public @NotNull Optional<StructInstantiationStrategy> instantiationStrategy() {
-        return Optional.empty();
+    public @NotNull StructInstantiationStrategy instantiationStrategy() {
+        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.STRUCT + "!");
     }
 
     @Override
     public @NotNull List<? extends ConfigProperty> properties() {
-        return Collections.emptyList();
+        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.STRUCT + "!");
     }
 
     @Override
@@ -123,8 +121,8 @@ public abstract class ConfigTypeImpl implements ConfigType {
         }
 
         @Override
-        public @NotNull Optional<ConfigType> componentType() {
-            return Optional.of(componentType.get());
+        public @NotNull ConfigType componentType() {
+            return componentType.get();
         }
     }
 
@@ -143,13 +141,13 @@ public abstract class ConfigTypeImpl implements ConfigType {
         }
 
         @Override
-        public @NotNull Optional<ConfigType> keyType() {
-            return Optional.of(keyType.get());
+        public @NotNull ConfigType keyType() {
+            return keyType.get();
         }
 
         @Override
-        public @NotNull Optional<ConfigType> valueType() {
-            return Optional.of(valueType.get());
+        public @NotNull ConfigType valueType() {
+            return valueType.get();
         }
     }
 
@@ -166,8 +164,8 @@ public abstract class ConfigTypeImpl implements ConfigType {
         }
 
         @Override
-        public @NotNull Optional<StructInstantiationStrategy> instantiationStrategy() {
-            return Optional.of(instantiationStrategy);
+        public @NotNull StructInstantiationStrategy instantiationStrategy() {
+            return instantiationStrategy;
         }
 
         @Override

@@ -15,20 +15,20 @@ import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.
 
 public abstract class StructInstantiationStrategyImpl implements StructInstantiationStrategy {
     public static final class ParameterImpl implements Parameter {
-        private final @NotNull Lazy<ConfigType> typeLazy;
+        private final @NotNull Lazy<ConfigType> type;
         public final @NotNull String name;
         public final @NotNull String boundProperty;
         private String toStringCache;
 
-        public ParameterImpl(@NotNull Lazy<ConfigType> typeLazy, @NotNull String name, @NotNull String boundProperty) {
-            this.typeLazy = typeLazy;
+        public ParameterImpl(@NotNull Lazy<ConfigType> type, @NotNull String name, @NotNull String boundProperty) {
+            this.type = type;
             this.name = name;
             this.boundProperty = boundProperty;
         }
 
         @Override
         public @NotNull ConfigType type() {
-            return typeLazy.get();
+            return type.get();
         }
 
         @Override
@@ -104,7 +104,7 @@ public abstract class StructInstantiationStrategyImpl implements StructInstantia
 
         @Override
         public @NotNull CodeBlock generateNew(@NotNull String destination, @NotNull Map<String, String> paramSources) {
-            throw new IllegalStateException("Can't instantiate an instance of this struct!");
+            throw new UnsupportedOperationException("Can't instantiate an instance of this struct!");
         }
 
         @Override

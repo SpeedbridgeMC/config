@@ -38,8 +38,7 @@ public interface ConfigType {
 
     // only for ENUM types
     /**
-     * Gets the constants this enum type contains.<p>
-     * If this type is not an enum, returns an empty list.
+     * Gets the constants this enum type contains.
      * @return enum constant names
      */
     @NotNull List<? extends String> enumConstants();
@@ -47,31 +46,30 @@ public interface ConfigType {
     // only for ARRAY types
     /**
      * Gets the component type of this array type.
-     * @return component type, or {@code Optional.empty()} if not an array
+     * @return component type
      */
-    @NotNull Optional<ConfigType> componentType();
+    @NotNull ConfigType componentType();
 
     // only for MAP types
     /**
      * Gets the key type of this map type.
-     * @return key type, or {@code Optional.empty()} if not a map
+     * @return key type
      */
-    @NotNull Optional<ConfigType> keyType();
+    @NotNull ConfigType keyType();
     /**
      * Gets the value type of this map type.
-     * @return value type, or {@code Optional.empty()} if not a map
+     * @return value type
      */
-    @NotNull Optional<ConfigType> valueType();
+    @NotNull ConfigType valueType();
 
     // only for STRUCT types
     /**
      * Gets the instantiation strategy of this struct type.
-     * @return instantiation strategy, or {@code Optional.empty()} if not a struct
+     * @return instantiation strategy
      */
-    @NotNull Optional<StructInstantiationStrategy> instantiationStrategy();
+    @NotNull StructInstantiationStrategy instantiationStrategy();
     /**
-     * Gets the nested properties of this struct type.<p>
-     * If this type is not a struct, returns an empty list.
+     * Gets the nested properties of this struct type.
      * @return type properties
      */
     @NotNull List<? extends ConfigProperty> properties();

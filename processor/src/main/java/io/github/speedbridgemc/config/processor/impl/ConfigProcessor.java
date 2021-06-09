@@ -156,8 +156,7 @@ public final class ConfigProcessor extends AbstractProcessor {
     }
 
     private void dumpConfigType(@NotNull ConfigType cType, @NotNull String indent) {
-        //noinspection OptionalGetWithoutIsPresent
-        System.out.format("%sinstantiation strategy: %s%n", indent, cType.instantiationStrategy().get());
+        System.out.format("%sinstantiation strategy: %s%n", indent, cType.instantiationStrategy());
         System.out.format("%s%d properties:%n", indent, cType.properties().size());
         for (ConfigProperty prop : cType.properties()) {
             ConfigType pType = prop.type();
