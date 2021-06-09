@@ -17,7 +17,7 @@ public interface ConfigProperty {
 
     static @NotNull ConfigProperty field(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
                                          @NotNull String fieldName, boolean isOptional) {
-        return field(typeSupplier, name, fieldName, isOptional);
+        return field(typeSupplier, name, fieldName, false, isOptional);
     }
 
     static @NotNull ConfigProperty accessors(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
