@@ -1,22 +1,17 @@
 package io.github.speedbridgemc.config.processor.impl.type;
 
-import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.LinkedHashMultimap;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.ScanTarget;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
-import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
-import io.github.speedbridgemc.config.processor.api.type.BaseStructFactory;
-import io.github.speedbridgemc.config.processor.api.type.ConfigType;
-import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
-import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
+import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyBuilder;
+import io.github.speedbridgemc.config.processor.api.type.*;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.processor.api.util.PropertyUtils;
-import io.github.speedbridgemc.config.processor.impl.property.ConfigPropertyImpl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -29,6 +24,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 // this is the class responsible for converting any Java class into a matching ConfigType of kind STRUCT
@@ -109,17 +105,17 @@ public final class StandardStructFactory extends BaseStructFactory {
             }
         }
 
-        ImmutableList.Builder<ConfigProperty> propertiesBuilder = ImmutableList.builder();
+        ConfigStructBuilder structBuilder = ConfigType.structBuilder(mirror);
         HashSet<String> propertyNames = new HashSet<>();
 
         if (structOverride != null)
-            getPropertiesFromStructOverride(mirror, structOverride, fields, methods, propertiesBuilder, propertyNames);
-        getPropertiesFromFields(includeFieldsByDefault, fields, propertiesBuilder, propertyNames);
-        getPropertiesFromAccessorPairs(mirror, includePropertiesByDefault, methods, accessorPairDefs, propertiesBuilder, propertyNames);
-        StructInstantiationStrategy instantiationStrategy = createInstantiationStrategy(mirror, te, structAnno, propertyNames);
-        return Optional.of(new ConfigTypeImpl.Struct(mirror,
-                instantiationStrategy,
-                propertiesBuilder.build()));
+            getPropertiesFromStructOverride(mirror, structOverride, fields, methods, structBuilder::property, propertyNames);
+        getPropertiesFromFields(includeFieldsByDefault, fields, structBuilder::property, propertyNames);
+        getPropertiesFromAccessorPairs(mirror, includePropertiesByDefault, methods, accessorPairDefs, structBuilder::property, propertyNames);
+
+        return Optional.of(structBuilder
+                .instantiationStrategy(createInstantiationStrategy(mirror, te, structAnno, propertyNames))
+                .build());
     }
 
     // region Intermediary data classes
@@ -192,12 +188,12 @@ public final class StandardStructFactory extends BaseStructFactory {
     }
     // endregion
 
-    private void getPropertiesFromStructOverride(@NotNull DeclaredType mirror, Config.@NotNull StructOverride structOverride, LinkedHashMap<String, FieldData> fields, LinkedHashMultimap<String, MethodData> methods, ImmutableList.Builder<ConfigProperty> propertiesBuilder, HashSet<String> propertyNames) {
+    private void getPropertiesFromStructOverride(@NotNull DeclaredType mirror, Config.@NotNull StructOverride structOverride, LinkedHashMap<String, FieldData> fields, LinkedHashMultimap<String, MethodData> methods, Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
         for (Config.Property property : structOverride.properties()) {
             final String propName = property.name();
             if (propName.isEmpty())
                 throw new RuntimeException("Empty property name!");
-            ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensionsBuilder = ImmutableClassToInstanceMap.builder();
+            ConfigPropertyBuilder propertyBuilder;
             if (property.field().isEmpty()) {
                 if (property.getter().isEmpty())
                     throw new RuntimeException("Property must have field or getter defined!");
@@ -215,9 +211,9 @@ public final class StandardStructFactory extends BaseStructFactory {
                         new RuntimeException("Can't find valid getter void " + mirror + "." + property.getter() + "()"));
                 MirrorElementPair getterMEP = new MirrorElementPair(getterData.mirror, getterData.element);
                 if (property.setter().isEmpty()) {
-                    typeProvider.findExtensions(extensionsBuilder, getterMEP);
-                    propertiesBuilder.add(new ConfigPropertyImpl.Accessors(Lazy.wrap(() -> typeProvider.fromMirror(getterAccInf.propertyType)),
-                            propName, extensionsBuilder.build(), property.optional(), property.getter()));
+                    propertyBuilder = ConfigProperty.getterBuilder(Lazy.wrap(() -> typeProvider.fromMirror(getterAccInf.propertyType)),
+                            propName, property.getter());
+                    typeProvider.findExtensions(propertyBuilder::extension, getterMEP);
                 } else {
                     Set<MethodData> setterDataSet = methods.get(property.setter());
                     MethodData setterData = null;
@@ -233,24 +229,27 @@ public final class StandardStructFactory extends BaseStructFactory {
                             new RuntimeException("Can't find valid setter " + getterAccInf.propertyType + " " + mirror + "." + property.setter() + "()"));
                     if (!types.isSameType(getterAccInf.propertyType, setterAccInf.propertyType))
                         throw new RuntimeException(mirror + ": Type mismatch between getter" + property.getter() + " and setter " + property.setter());
-                    typeProvider.findExtensions(extensionsBuilder, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
-                    propertiesBuilder.add(new ConfigPropertyImpl.Accessors(Lazy.wrap(() -> typeProvider.fromMirror(getterAccInf.propertyType)),
-                            propName, extensionsBuilder.build(), property.optional(), property.getter(), property.setter()));
+                    propertyBuilder = ConfigProperty.accessorsBuilder(Lazy.wrap(() -> typeProvider.fromMirror(getterAccInf.propertyType)),
+                            propName, property.getter(), property.setter());
+                    typeProvider.findExtensions(propertyBuilder::extension, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
                 }
             } else {
                 FieldData fieldData = fields.get(property.field());
                 if (fieldData == null)
                     throw new RuntimeException("Missing field \"" + property.field() + "\"!");
-                typeProvider.findExtensions(extensionsBuilder, new MirrorElementPair(fieldData.mirror, fieldData.element));
-                propertiesBuilder.add(new ConfigPropertyImpl.Field(Lazy.wrap(() -> typeProvider.fromMirror(fieldData.mirror)),
-                        propName, extensionsBuilder.build(), !fieldData.isFinal, property.optional(), property.field()));
+                propertyBuilder = ConfigProperty.fieldBuilder(Lazy.wrap(() -> typeProvider.fromMirror(fieldData.mirror)),
+                        propName, property.field(), fieldData.isFinal);
+                typeProvider.findExtensions(propertyBuilder::extension, new MirrorElementPair(fieldData.mirror, fieldData.element));
             }
+            if (property.optional())
+                propertyBuilder.optional();
+            propertyCallback.accept(propertyBuilder.build());
             if (!propertyNames.add(propName))
                 throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
         }
     }
 
-    private void getPropertiesFromFields(boolean includeFieldsByDefault, LinkedHashMap<String, FieldData> fields, ImmutableList.Builder<ConfigProperty> propertiesBuilder, HashSet<String> propertyNames) {
+    private void getPropertiesFromFields(boolean includeFieldsByDefault, LinkedHashMap<String, FieldData> fields, Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
         for (Map.Entry<String, FieldData> field : fields.entrySet()) {
             TypeMirror fieldM = field.getValue().mirror;
             VariableElement fieldE = field.getValue().element;
@@ -267,16 +266,18 @@ public final class StandardStructFactory extends BaseStructFactory {
             }
             if (propName.isEmpty())
                 propName = typeProvider.name(fieldE.getSimpleName().toString());
-            ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
-            typeProvider.findExtensions(extensions, new MirrorElementPair(fieldM, fieldE));
-            propertiesBuilder.add(new ConfigPropertyImpl.Field(Lazy.wrap(() -> typeProvider.fromMirror(fieldM)),
-                    propName, extensions.build(), !field.getValue().isFinal, optional, fieldName));
+            ConfigPropertyBuilder propertyBuilder = ConfigProperty.fieldBuilder(Lazy.wrap(() -> typeProvider.fromMirror(fieldM)),
+                    propName, fieldName, !field.getValue().isFinal);
+            typeProvider.findExtensions(propertyBuilder::extension, new MirrorElementPair(fieldM, fieldE));
+            if (optional)
+                propertyBuilder.optional();
+            propertyCallback.accept(propertyBuilder.build());
             if (!propertyNames.add(propName))
                 throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
         }
     }
 
-    private void getPropertiesFromAccessorPairs(@NotNull DeclaredType mirror, boolean includePropertiesByDefault, LinkedHashMultimap<String, MethodData> methods, HashSet<AccessorPairDef> accessorPairDefs, ImmutableList.Builder<ConfigProperty> propertiesBuilder, HashSet<String> propertyNames) {
+    private void getPropertiesFromAccessorPairs(@NotNull DeclaredType mirror, boolean includePropertiesByDefault, LinkedHashMultimap<String, MethodData> methods, HashSet<AccessorPairDef> accessorPairDefs, Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
         HashMap<String, AccessorPair> accessorPairs = new HashMap<>();
         // discover and zip up implicit accessor pairs
         HashSet<String> implicitAccessorPairs = new HashSet<>();
@@ -460,25 +461,23 @@ public final class StandardStructFactory extends BaseStructFactory {
         // finally, covert accessor pairs to properties
         for (Map.Entry<String, AccessorPair> entry : accessorPairs.entrySet()) {
             AccessorPair prop = entry.getValue();
-            ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
+            ConfigPropertyBuilder propertyBuilder;
             if (prop.hasSetter) {
-                typeProvider.findExtensions(extensions,
+                assert prop.setterM != null && prop.setterE != null;
+                propertyBuilder = ConfigProperty.accessorsBuilder(Lazy.wrap(() -> typeProvider.fromMirror(prop.type)),
+                        entry.getKey(), prop.getterE.getSimpleName().toString(), prop.setterE.getSimpleName().toString());
+                typeProvider.findExtensions(propertyBuilder::extension,
                         new MirrorElementPair(prop.getterM, prop.getterE),
                         new MirrorElementPair(prop.setterM, prop.setterE));
-                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(Lazy.wrap(() -> typeProvider.fromMirror(prop.type)),
-                        entry.getKey(),
-                        extensions.build(),
-                        prop.optional,
-                        prop.setterE.getSimpleName().toString(), prop.getterE.getSimpleName().toString()));
             } else {
-                typeProvider. findExtensions(extensions,
+                propertyBuilder = ConfigProperty.getterBuilder(Lazy.wrap(() -> typeProvider.fromMirror(prop.type)),
+                        entry.getKey(), prop.getterE.getSimpleName().toString());
+                typeProvider.findExtensions(propertyBuilder::extension,
                         new MirrorElementPair(prop.getterM, prop.getterE));
-                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(Lazy.wrap(() -> typeProvider.fromMirror(prop.type)),
-                        entry.getKey(),
-                        extensions.build(),
-                        prop.optional,
-                        prop.getterE.getSimpleName().toString()));
             }
+            if (prop.optional)
+                propertyBuilder.optional();
+            propertyCallback.accept(propertyBuilder.build());
             if (!propertyNames.add(entry.getKey()))
                 throw new RuntimeException("Duplicate property key \"" + entry.getKey()+ "\"!");
         }
@@ -528,7 +527,6 @@ public final class StandardStructFactory extends BaseStructFactory {
         TypeElement ownerElem = elements.getTypeElement(owner.toString());
         LinkedHashMap<String, MirrorElementPair> paramsMap = new LinkedHashMap<>();
         boolean found = false;
-        StructInstantiationStrategy instantiationStrategy;
         if (isFactory) {
             // FIXME: THIS DOES NOT WORK WITH GENERICS!
             //  param types need to be substituted with actual type parameter values
@@ -614,7 +612,12 @@ public final class StandardStructFactory extends BaseStructFactory {
         }
 
         if (found) {
-            ImmutableList.Builder<StructInstantiationStrategy.Parameter> paramsBuilder = ImmutableList.builder();
+            TypeName ownerName = TypeName.get(owner).withoutAnnotations();
+            StructInstantiationStrategyBuilder instantiationStrategyBuilder;
+            if (isFactory)
+                instantiationStrategyBuilder = StructInstantiationStrategyBuilder.factory(ownerName, factoryName);
+            else
+                instantiationStrategyBuilder = StructInstantiationStrategyBuilder.constructor(ownerName);
             int i = 0;
             for (Map.Entry<String, MirrorElementPair> entry : paramsMap.entrySet()) {
                 String boundPropertyName = "";
@@ -631,15 +634,10 @@ public final class StandardStructFactory extends BaseStructFactory {
                     boundPropertyName = boundPropertyAnno.value();
                 if (!propertyNames.contains(boundPropertyName))
                     throw new RuntimeException("Missing bound property \"" + boundPropertyName + "\" for parameter \"" + entry.getValue().element() + "\"!");
-                paramsBuilder.add(new StructInstantiationStrategyImpl.ParameterImpl(Lazy.wrap(() -> typeProvider.fromMirror(paramMirror)),
-                        entry.getKey(), boundPropertyName));
+                instantiationStrategyBuilder.param(Lazy.wrap(() -> typeProvider.fromMirror(paramMirror)),
+                        entry.getKey(), boundPropertyName);
             }
-            if (isFactory)
-                instantiationStrategy = new StructInstantiationStrategyImpl.Factory(paramsBuilder.build(),
-                        TypeName.get(owner).withoutAnnotations(), factoryName);
-            else
-                instantiationStrategy = new StructInstantiationStrategyImpl.Constructor(paramsBuilder.build(),
-                        TypeName.get(owner).withoutAnnotations());
+            return instantiationStrategyBuilder.build();
         } else {
             StringBuilder sb = new StringBuilder();
             if (!params.isEmpty()) {
@@ -651,11 +649,10 @@ public final class StandardStructFactory extends BaseStructFactory {
                 throw new RuntimeException("Failed to find factory method " + mirror + " " + owner + "." + factoryName + "(" + sb + ")");
             else if (te.getKind() == ElementKind.INTERFACE) {
                 processingEnv.getMessager().printMessage(Diagnostic.Kind.MANDATORY_WARNING, "Type cannot be instantiated", te);
-                instantiationStrategy = StructInstantiationStrategy.NONE;
+                return StructInstantiationStrategy.NONE;
             } else
                 throw new RuntimeException("Failed to find constructor " + owner + "(" + sb + ")");
         }
-        return instantiationStrategy;
     }
 
     private boolean isBool(@NotNull TypeMirror type) {

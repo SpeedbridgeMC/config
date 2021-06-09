@@ -77,16 +77,6 @@ public interface ConfigTypeProvider {
                         @NotNull MirrorElementPair @NotNull ... pairs);
 
     /**
-     * Finds {@link ConfigPropertyExtension}s using the specified mirror-element pairs.
-     * @param mapBuilder extension map builder
-     * @param pairs mirror-element pairs
-     */
-    default void findExtensions(@NotNull ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> mapBuilder,
-                        @NotNull MirrorElementPair @NotNull ... pairs) {
-        findExtensions(mapBuilder::put, pairs);
-    }
-
-    /**
      * Sets the naming strategy to use when creating struct types.
      * @param strategy naming strategy to use
      * @param variant strategy variant to use

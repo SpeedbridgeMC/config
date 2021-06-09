@@ -5,14 +5,14 @@ import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeImpl;
 import org.jetbrains.annotations.NotNull;
 
-import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.DeclaredType;
 
 public final class ConfigStructBuilder {
-    private final @NotNull TypeMirror mirror;
+    private final @NotNull DeclaredType mirror;
     private final @NotNull ImmutableList.Builder<ConfigProperty> propertiesBuilder;
     private @NotNull StructInstantiationStrategy instantiationStrategy;
 
-    ConfigStructBuilder(@NotNull TypeMirror mirror) {
+    ConfigStructBuilder(@NotNull DeclaredType mirror) {
         this.mirror = mirror;
         propertiesBuilder = ImmutableList.builder();
         instantiationStrategy = StructInstantiationStrategy.NONE;

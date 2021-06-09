@@ -3,6 +3,7 @@ package io.github.speedbridgemc.config.processor.api.type;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import org.jetbrains.annotations.NotNull;
 
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import java.util.List;
 import java.util.Optional;
@@ -11,7 +12,7 @@ import java.util.Optional;
  * Represents a value type in a configuration file.
  */
 public interface ConfigType {
-    static @NotNull ConfigStructBuilder structBuilder(@NotNull TypeMirror forMirror) {
+    static @NotNull ConfigStructBuilder structBuilder(@NotNull DeclaredType forMirror) {
         return new ConfigStructBuilder(forMirror);
     }
 
