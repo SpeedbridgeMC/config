@@ -47,26 +47,26 @@ public interface ConfigType {
     // only for ARRAY types
     /**
      * Gets the component type of this array type.
-     * @return component type, or {@link Optional#empty()} if not an array
+     * @return component type, or {@code Optional.empty()} if not an array
      */
     @NotNull Optional<ConfigType> componentType();
 
     // only for MAP types
     /**
      * Gets the key type of this map type.
-     * @return key type, or {@link Optional#empty()} if not a map
+     * @return key type, or {@code Optional.empty()} if not a map
      */
     @NotNull Optional<ConfigType> keyType();
     /**
      * Gets the value type of this map type.
-     * @return value type, or {@link Optional#empty()} if not a map
+     * @return value type, or {@code Optional.empty()} if not a map
      */
     @NotNull Optional<ConfigType> valueType();
 
     // only for STRUCT types
     /**
      * Gets the instantiation strategy of this struct type.
-     * @return instantiation strategy, or {@link Optional#empty()} if not a struct
+     * @return instantiation strategy, or {@code Optional.empty()} if not a struct
      */
     @NotNull Optional<StructInstantiationStrategy> instantiationStrategy();
     /**
@@ -78,7 +78,7 @@ public interface ConfigType {
     /**
      * Gets the nested property with the specified name in this struct type, if it exists.
      * @param name property name
-     * @return property, or {@literal Optional.empty()} if this struct doesn't contain a property with that name
+     * @return property, or {@code Optional.empty()} if this struct doesn't contain a property with that name
      */
     default @NotNull Optional<ConfigProperty> property(@NotNull String name) {
         for (ConfigProperty prop : properties()) {

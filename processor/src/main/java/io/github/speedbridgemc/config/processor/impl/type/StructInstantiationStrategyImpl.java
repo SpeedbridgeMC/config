@@ -10,7 +10,6 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 
 import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.toImmutableList;
 
@@ -96,6 +95,11 @@ public abstract class StructInstantiationStrategyImpl implements StructInstantia
 
         private None() {
             super(ImmutableList.of());
+        }
+
+        @Override
+        public boolean canInstantiate() {
+            return false;
         }
 
         @Override

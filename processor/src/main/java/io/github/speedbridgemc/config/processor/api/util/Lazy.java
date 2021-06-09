@@ -5,7 +5,9 @@ import org.jetbrains.annotations.NotNull;
 import java.util.function.Supplier;
 
 /**
- * Represents a <em>lazy-loading</em> supplier - a supplier that only evaluates its result once and caches it for later invocations.
+ * Represents a <em>lazy-loading</em> supplier.<p>
+ * A lazy-loading supplier supplier that only computes its result once, when its {@linkplain #get()} method is first invoked.<br>
+ * On later invocations of {@code get()}, it will retrieve the previously computed result.
  * @param <T> result type
  */
 @FunctionalInterface
@@ -19,9 +21,9 @@ public interface Lazy<T> extends Supplier<T> {
      * @param <T> result type
      * @return wrapped supplier
      */
-    static <T> @NotNull Lazy<T> wrap(@NotNull Supplier<T> supplier) {
+    static <T> @NotNull Lazy<T> wrap(@NotNull Supplier<? extends T> supplier) {
         return new Lazy<T>() {
-            private final @NotNull Supplier<T> _supplier = supplier;
+            private final @NotNull Supplier<? extends T> _supplier = supplier;
             private boolean present = false;
             private T value;
 
