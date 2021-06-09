@@ -8,10 +8,7 @@ import io.github.speedbridgemc.config.ScanTarget;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyBuilder;
 import io.github.speedbridgemc.config.processor.api.type.*;
-import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
-import io.github.speedbridgemc.config.processor.api.util.Lazy;
-import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
-import io.github.speedbridgemc.config.processor.api.util.PropertyUtils;
+import io.github.speedbridgemc.config.processor.api.util.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,8 +33,8 @@ public final class StandardStructFactory extends BaseStructFactory {
     public void init(@NotNull ProcessingEnvironment processingEnv, @NotNull ConfigTypeProvider typeProvider) {
         super.init(processingEnv, typeProvider);
 
-        booleanTM = elements.getTypeElement(Boolean.class.getCanonicalName()).asType();
-        voidTM = elements.getTypeElement(Void.class.getCanonicalName()).asType();
+        booleanTM = MirrorUtils.getDeclaredType(elements, Boolean.class);
+        voidTM = MirrorUtils.getDeclaredType(elements, Void.class);
 
         TypeElement objectElem = elements.getTypeElement(Object.class.getCanonicalName());
         objectMethods = ImmutableList.copyOf(ElementFilter.methodsIn(objectElem.getEnclosedElements()));

@@ -9,6 +9,7 @@ import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExten
 import io.github.speedbridgemc.config.processor.api.type.*;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
+import io.github.speedbridgemc.config.processor.api.util.MirrorUtils;
 import io.github.speedbridgemc.config.processor.impl.naming.SnakeCaseNamingStrategy;
 import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
@@ -84,6 +85,7 @@ public final class ConfigProcessor extends AbstractProcessor {
                     "Your build of Speedbridge Config's annotation processor is probably broken!");
             return;
         }
+        messager.printMessage(Diagnostic.Kind.NOTE, "Running Speedbridge Config Annotation Processor v" + version);
 
         final ClassLoader cl = ConfigProcessor.class.getClassLoader();
     }
@@ -132,18 +134,15 @@ public final class ConfigProcessor extends AbstractProcessor {
                 typeProvider.setStructOverride((DeclaredType) mirror, structOverride);
             }
 
-            TypeElement identifierTE = elements.getTypeElement("io.github.speedbridgemc.config.test.Identifier");
-            if (identifierTE != null) {
-                Lazy<ConfigType> stringLazy = Lazy.of(typeProvider.primitiveOf(ConfigTypeKind.STRING));
-                DeclaredType identifierM = (DeclaredType) identifierTE.asType();
-                typeProvider.addStruct(ConfigType.structBuilder(identifierM)
-                        .property(ConfigProperty.getter(stringLazy,
-                                "value", "toString", false))
-                        .instantiationStrategy(StructInstantiationStrategyBuilder.factory(TypeName.get(identifierM), "tryParse")
-                                .param(stringLazy, "string", "value")
-                                .build())
-                        .build());
-            }
+            Lazy<ConfigType> stringLazy = Lazy.of(typeProvider.primitiveOf(ConfigTypeKind.STRING));
+            DeclaredType identifierM = MirrorUtils.getDeclaredType(elements, "io.github.speedbridgemc.config.test.Identifier");
+            typeProvider.addStruct(ConfigType.structBuilder(identifierM)
+                    .property(ConfigProperty.getter(stringLazy,
+                            "value", "toString", false))
+                    .instantiationStrategy(StructInstantiationStrategyBuilder.factory(TypeName.get(identifierM), "tryParse")
+                            .param(stringLazy, "string", "value")
+                            .build())
+                    .build());
 
             ConfigType cType = typeProvider.fromMirror(type.asType());
             System.out.println(cType);

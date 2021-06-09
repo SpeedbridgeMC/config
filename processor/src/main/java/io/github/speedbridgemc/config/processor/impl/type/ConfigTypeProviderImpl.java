@@ -12,6 +12,7 @@ import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.api.type.StructFactory;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
+import io.github.speedbridgemc.config.processor.api.util.MirrorUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -61,10 +62,10 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
         messager = processingEnv.getMessager();
         elements = processingEnv.getElementUtils();
         types = processingEnv.getTypeUtils();
-        stringTM = elements.getTypeElement(String.class.getCanonicalName()).asType();
-        enumTM = types.erasure(elements.getTypeElement(Enum.class.getCanonicalName()).asType());
-        collectionTM = types.erasure(elements.getTypeElement(Collection.class.getCanonicalName()).asType());
-        mapTE = elements.getTypeElement(Map.class.getCanonicalName());
+        stringTM = MirrorUtils.getDeclaredType(elements, String.class);
+        enumTM = types.erasure(MirrorUtils.getDeclaredType(elements, Enum.class));
+        collectionTM = types.erasure(MirrorUtils.getDeclaredType(elements, Collection.class));
+        mapTE = MirrorUtils.getTypeElement(elements, Map.class);
         mapTM = types.erasure(mapTE.asType());
 
         boolCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.BOOL, "bool",
@@ -291,7 +292,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             throw new RuntimeException("Unknown primitive " + typeName + "!");
         }
         // 5. anything else - type of kind STRUCT (delegated to StructFactory)
-        Config.StructOverride structOverride = structOverride = structOverrides.get(mirrorErasure);
+        Config.StructOverride structOverride = structOverrides.get(mirrorErasure);
         Optional<ConfigType> struct = Optional.empty();
         for (StructFactory structFactory : structFactories) {
             struct = structFactory.createStruct(mirror, structOverride);
