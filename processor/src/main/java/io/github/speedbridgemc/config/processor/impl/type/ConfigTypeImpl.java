@@ -5,13 +5,13 @@ import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
+import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import org.jetbrains.annotations.NotNull;
 
 import javax.lang.model.type.TypeMirror;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.toImmutableList;
 
@@ -110,66 +110,46 @@ public abstract class ConfigTypeImpl implements ConfigType {
     }
 
     public static final class Array extends ConfigTypeImpl {
-        private final @NotNull Supplier<ConfigType> componentTypeSupplier;
-        private ConfigType componentType;
+        private final @NotNull Lazy<ConfigType> componentType;
 
-        public Array(@NotNull TypeMirror typeMirror, Supplier<ConfigType> componentTypeSupplier) {
+        public Array(@NotNull TypeMirror typeMirror, @NotNull Lazy<ConfigType> componentType) {
             super(ConfigTypeKind.ARRAY, "", typeMirror);
-            this.componentTypeSupplier = componentTypeSupplier;
-        }
-        
-        private @NotNull ConfigType componentType0() {
-            if (componentType == null)
-                componentType = componentTypeSupplier.get();
-            return componentType;
+            this.componentType = componentType;
         }
 
         @Override
         public @NotNull String name() {
-            return "array{" + componentType0().name() + "}";
+            return "array{" + componentType.get().name() + "}";
         }
 
         @Override
         public @NotNull Optional<ConfigType> componentType() {
-            return Optional.of(componentType0());
+            return Optional.of(componentType.get());
         }
     }
 
     public static final class Map extends ConfigTypeImpl {
-        private final @NotNull Supplier<ConfigType> keyTypeSupplier, valueTypeSupplier;
-        private ConfigType keyType, valueType;
+        private final @NotNull Lazy<ConfigType> keyType, valueType;
 
-        public Map(@NotNull TypeMirror typeMirror, @NotNull Supplier<ConfigType> keyTypeSupplier, @NotNull Supplier<ConfigType> valueTypeSupplier) {
+        public Map(@NotNull TypeMirror typeMirror, @NotNull Lazy<ConfigType> keyType, @NotNull Lazy<ConfigType> valueType) {
             super(ConfigTypeKind.MAP, "", typeMirror);
-            this.keyTypeSupplier = keyTypeSupplier;
-            this.valueTypeSupplier = valueTypeSupplier;
-        }
-
-        private @NotNull ConfigType keyType0() {
-            if (keyType == null)
-                keyType = keyTypeSupplier.get();
-            return keyType;
-        }
-
-        private @NotNull ConfigType valueType0() {
-            if (valueType == null)
-                valueType = valueTypeSupplier.get();
-            return valueType;
+            this.keyType = keyType;
+            this.valueType = valueType;
         }
 
         @Override
         public @NotNull String name() {
-            return "map{" + keyType0().name() + " -> " + valueType0().name() + "}";
+            return "map{" + keyType.get().name() + " -> " + valueType.get().name() + "}";
         }
 
         @Override
         public @NotNull Optional<ConfigType> keyType() {
-            return Optional.of(keyType0());
+            return Optional.of(keyType.get());
         }
 
         @Override
         public @NotNull Optional<ConfigType> valueType() {
-            return Optional.of(valueType0());
+            return Optional.of(valueType.get());
         }
     }
 

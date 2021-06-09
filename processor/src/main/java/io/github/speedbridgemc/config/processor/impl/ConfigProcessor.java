@@ -1,12 +1,14 @@
 package io.github.speedbridgemc.config.processor.impl;
 
 import com.google.auto.service.AutoService;
+import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.*;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
+import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.impl.naming.SnakeCaseNamingStrategy;
 import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
@@ -132,12 +134,13 @@ public final class ConfigProcessor extends AbstractProcessor {
 
             TypeElement identifierTE = elements.getTypeElement("io.github.speedbridgemc.config.test.Identifier");
             if (identifierTE != null) {
+                Lazy<ConfigType> stringLazy = Lazy.of(typeProvider.primitiveOf(ConfigTypeKind.STRING));
                 DeclaredType identifierM = (DeclaredType) identifierTE.asType();
                 typeProvider.addStruct(ConfigType.structBuilder(identifierM)
-                        .property(ConfigProperty.getter(() -> typeProvider.primitiveOf(ConfigTypeKind.STRING, false),
+                        .property(ConfigProperty.getter(stringLazy,
                                 "value", "toString", false))
-                        .instantiationStrategy(StructInstantiationStrategyBuilder.factory(identifierM, "tryParse")
-                                .param(() -> typeProvider.primitiveOf(ConfigTypeKind.STRING, false), "string", "value")
+                        .instantiationStrategy(StructInstantiationStrategyBuilder.factory(TypeName.get(identifierM), "tryParse")
+                                .param(stringLazy, "string", "value")
                                 .build())
                         .build());
             }

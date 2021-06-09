@@ -32,6 +32,16 @@ public interface ConfigTypeProvider {
     @NotNull ConfigType primitiveOf(@NotNull ConfigTypeKind kind, boolean nullable);
 
     /**
+     * Gets a {@code ConfigType} that represents a primitive.<p>
+     * Equivalent to {@code primitiveOf(kind, false)}.
+     * @param kind primitive kind
+     * @return type of specified kind
+     */
+    default @NotNull ConfigType primitiveOf(@NotNull ConfigTypeKind kind) {
+        return primitiveOf(kind, false);
+    }
+
+    /**
      * Gets a {@code ConfigType} that represents an array, with the specified type as its component type.
      * @param componentType component type
      * @return array type

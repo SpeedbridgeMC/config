@@ -5,6 +5,7 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
+import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -15,23 +16,20 @@ import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.
 
 public abstract class StructInstantiationStrategyImpl implements StructInstantiationStrategy {
     public static final class ParameterImpl implements Parameter {
-        private final @NotNull Supplier<ConfigType> typeSupplier;
+        private final @NotNull Lazy<ConfigType> typeLazy;
         public final @NotNull String name;
         public final @NotNull String boundProperty;
-        private ConfigType type;
         private String toStringCache;
 
-        public ParameterImpl(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name, @NotNull String boundProperty) {
-            this.typeSupplier = typeSupplier;
+        public ParameterImpl(@NotNull Lazy<ConfigType> typeLazy, @NotNull String name, @NotNull String boundProperty) {
+            this.typeLazy = typeLazy;
             this.name = name;
             this.boundProperty = boundProperty;
         }
 
         @Override
         public @NotNull ConfigType type() {
-            if (type == null)
-                type = typeSupplier.get();
-            return type;
+            return typeLazy.get();
         }
 
         @Override

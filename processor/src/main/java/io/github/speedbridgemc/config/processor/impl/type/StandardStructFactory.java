@@ -13,6 +13,7 @@ import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
+import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.processor.api.util.PropertyUtils;
 import io.github.speedbridgemc.config.processor.impl.property.ConfigPropertyImpl;
@@ -215,7 +216,7 @@ public final class StandardStructFactory extends BaseStructFactory {
                 MirrorElementPair getterMEP = new MirrorElementPair(getterData.mirror, getterData.element);
                 if (property.setter().isEmpty()) {
                     typeProvider.findExtensions(extensionsBuilder, getterMEP);
-                    propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
+                    propertiesBuilder.add(new ConfigPropertyImpl.Accessors(Lazy.wrap(() -> typeProvider.fromMirror(getterAccInf.propertyType)),
                             propName, extensionsBuilder.build(), property.optional(), property.getter()));
                 } else {
                     Set<MethodData> setterDataSet = methods.get(property.setter());
@@ -233,7 +234,7 @@ public final class StandardStructFactory extends BaseStructFactory {
                     if (!types.isSameType(getterAccInf.propertyType, setterAccInf.propertyType))
                         throw new RuntimeException(mirror + ": Type mismatch between getter" + property.getter() + " and setter " + property.setter());
                     typeProvider.findExtensions(extensionsBuilder, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
-                    propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(getterAccInf.propertyType),
+                    propertiesBuilder.add(new ConfigPropertyImpl.Accessors(Lazy.wrap(() -> typeProvider.fromMirror(getterAccInf.propertyType)),
                             propName, extensionsBuilder.build(), property.optional(), property.getter(), property.setter()));
                 }
             } else {
@@ -241,7 +242,7 @@ public final class StandardStructFactory extends BaseStructFactory {
                 if (fieldData == null)
                     throw new RuntimeException("Missing field \"" + property.field() + "\"!");
                 typeProvider.findExtensions(extensionsBuilder, new MirrorElementPair(fieldData.mirror, fieldData.element));
-                propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldData.mirror),
+                propertiesBuilder.add(new ConfigPropertyImpl.Field(Lazy.wrap(() -> typeProvider.fromMirror(fieldData.mirror)),
                         propName, extensionsBuilder.build(), !fieldData.isFinal, property.optional(), property.field()));
             }
             if (!propertyNames.add(propName))
@@ -268,7 +269,7 @@ public final class StandardStructFactory extends BaseStructFactory {
                 propName = typeProvider.name(fieldE.getSimpleName().toString());
             ImmutableClassToInstanceMap.Builder<ConfigPropertyExtension> extensions = ImmutableClassToInstanceMap.builder();
             typeProvider.findExtensions(extensions, new MirrorElementPair(fieldM, fieldE));
-            propertiesBuilder.add(new ConfigPropertyImpl.Field(() -> typeProvider.fromMirror(fieldM),
+            propertiesBuilder.add(new ConfigPropertyImpl.Field(Lazy.wrap(() -> typeProvider.fromMirror(fieldM)),
                     propName, extensions.build(), !field.getValue().isFinal, optional, fieldName));
             if (!propertyNames.add(propName))
                 throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
@@ -464,7 +465,7 @@ public final class StandardStructFactory extends BaseStructFactory {
                 typeProvider.findExtensions(extensions,
                         new MirrorElementPair(prop.getterM, prop.getterE),
                         new MirrorElementPair(prop.setterM, prop.setterE));
-                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(prop.type),
+                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(Lazy.wrap(() -> typeProvider.fromMirror(prop.type)),
                         entry.getKey(),
                         extensions.build(),
                         prop.optional,
@@ -472,7 +473,7 @@ public final class StandardStructFactory extends BaseStructFactory {
             } else {
                 typeProvider. findExtensions(extensions,
                         new MirrorElementPair(prop.getterM, prop.getterE));
-                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(() -> typeProvider.fromMirror(prop.type),
+                propertiesBuilder.add(new ConfigPropertyImpl.Accessors(Lazy.wrap(() -> typeProvider.fromMirror(prop.type)),
                         entry.getKey(),
                         extensions.build(),
                         prop.optional,
@@ -630,7 +631,7 @@ public final class StandardStructFactory extends BaseStructFactory {
                     boundPropertyName = boundPropertyAnno.value();
                 if (!propertyNames.contains(boundPropertyName))
                     throw new RuntimeException("Missing bound property \"" + boundPropertyName + "\" for parameter \"" + entry.getValue().element() + "\"!");
-                paramsBuilder.add(new StructInstantiationStrategyImpl.ParameterImpl(() -> typeProvider.fromMirror(paramMirror),
+                paramsBuilder.add(new StructInstantiationStrategyImpl.ParameterImpl(Lazy.wrap(() -> typeProvider.fromMirror(paramMirror)),
                         entry.getKey(), boundPropertyName));
             }
             if (isFactory)

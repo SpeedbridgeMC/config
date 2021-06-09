@@ -3,51 +3,51 @@ package io.github.speedbridgemc.config.processor.api.property;
 import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.squareup.javapoet.CodeBlock;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
+import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.impl.property.ConfigPropertyImpl;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Optional;
-import java.util.function.Supplier;
 
 public interface ConfigProperty {
-    static @NotNull ConfigProperty field(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+    static @NotNull ConfigProperty field(@NotNull Lazy<ConfigType> type, @NotNull String name,
                                          @NotNull String fieldName, boolean isFinal, boolean isOptional) {
-        return new ConfigPropertyImpl.Field(typeSupplier, name, ImmutableClassToInstanceMap.of(), !isFinal, isOptional, fieldName);
+        return new ConfigPropertyImpl.Field(type, name, ImmutableClassToInstanceMap.of(), !isFinal, isOptional, fieldName);
     }
 
-    static @NotNull ConfigProperty field(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+    static @NotNull ConfigProperty field(@NotNull Lazy<ConfigType> type, @NotNull String name,
                                          @NotNull String fieldName, boolean isOptional) {
-        return field(typeSupplier, name, fieldName, false, isOptional);
+        return field(type, name, fieldName, false, isOptional);
     }
 
-    static @NotNull ConfigProperty accessors(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+    static @NotNull ConfigProperty accessors(@NotNull Lazy<ConfigType> type, @NotNull String name,
                                              @NotNull String getterName, @NotNull String setterName, boolean isOptional) {
-        return new ConfigPropertyImpl.Accessors(typeSupplier, name, ImmutableClassToInstanceMap.of(), isOptional, getterName, setterName);
+        return new ConfigPropertyImpl.Accessors(type, name, ImmutableClassToInstanceMap.of(), isOptional, getterName, setterName);
     }
 
-    static @NotNull ConfigProperty getter(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+    static @NotNull ConfigProperty getter(@NotNull Lazy<ConfigType> type, @NotNull String name,
                                           @NotNull String getterName, boolean isOptional) {
-        return new ConfigPropertyImpl.Accessors(typeSupplier, name, ImmutableClassToInstanceMap.of(), isOptional, getterName);
+        return new ConfigPropertyImpl.Accessors(type, name, ImmutableClassToInstanceMap.of(), isOptional, getterName);
     }
 
-    static @NotNull ConfigPropertyBuilder fieldBuilder(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+    static @NotNull ConfigPropertyBuilder fieldBuilder(@NotNull Lazy<ConfigType> type, @NotNull String name,
                                                        @NotNull String fieldName, boolean isFinal) {
-        return new ConfigPropertyBuilder(typeSupplier, name, false, !isFinal, fieldName, "", "");
+        return new ConfigPropertyBuilder(type, name, false, !isFinal, fieldName, "", "");
     }
 
-    static @NotNull ConfigPropertyBuilder fieldBuilder(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+    static @NotNull ConfigPropertyBuilder fieldBuilder(@NotNull Lazy<ConfigType> type, @NotNull String name,
                                                        @NotNull String fieldName) {
-        return fieldBuilder(typeSupplier, name, fieldName, false);
+        return fieldBuilder(type, name, fieldName, false);
     }
 
-    static @NotNull ConfigPropertyBuilder accessorsBuilder(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+    static @NotNull ConfigPropertyBuilder accessorsBuilder(@NotNull Lazy<ConfigType> type, @NotNull String name,
                                                            @NotNull String getterName, @NotNull String setterName) {
-        return new ConfigPropertyBuilder(typeSupplier, name, true, false, "", getterName, setterName);
+        return new ConfigPropertyBuilder(type, name, true, false, "", getterName, setterName);
     }
 
-    static @NotNull ConfigPropertyBuilder getterBuilder(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+    static @NotNull ConfigPropertyBuilder getterBuilder(@NotNull Lazy<ConfigType> type, @NotNull String name,
                                                         @NotNull String getterName) {
-        return new ConfigPropertyBuilder(typeSupplier, name, true, true, "", getterName, "");
+        return new ConfigPropertyBuilder(type, name, true, true, "", getterName, "");
     }
 
     @NotNull String name();

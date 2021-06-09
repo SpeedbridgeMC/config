@@ -1,17 +1,16 @@
 package io.github.speedbridgemc.config.processor.impl.type;
 
-import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.EnumName;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
-import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
 import io.github.speedbridgemc.config.processor.api.type.StructFactory;
+import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -134,14 +133,13 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
 
     @Override
     public @NotNull ConfigType arrayOf(@NotNull ConfigType componentType) {
-        return new ConfigTypeImpl.Array(types.getArrayType(componentType.asMirror()),
-                () -> componentType);
+        return new ConfigTypeImpl.Array(types.getArrayType(componentType.asMirror()), Lazy.of(componentType));
     }
 
     @Override
     public @NotNull ConfigType mapOf(@NotNull ConfigType keyType, @NotNull ConfigType valueType) {
         return new ConfigTypeImpl.Map(types.getDeclaredType(mapTE, keyType.asMirror(), valueType.asMirror()),
-                () -> keyType, () -> valueType);
+                Lazy.of(keyType), Lazy.of(valueType));
     }
 
     @Override
@@ -225,7 +223,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             DeclaredType declaredType = (DeclaredType) mirror;
             ConfigType configType = declaredTypeCache.get(declaredType);
             if (configType == null) {
-                configType = fromDeclaredType(declaredType, null);
+                configType = fromDeclaredType(declaredType);
                 declaredTypeCache.put(declaredType, configType);
             }
             return configType;
@@ -236,7 +234,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
 
     private final @NotNull HashMap<DeclaredType, ConfigType> declaredTypeCache = new HashMap<>();
 
-    private @NotNull ConfigType fromDeclaredType(@NotNull DeclaredType mirror, @Nullable Config.StructOverride structOverride) {
+    private @NotNull ConfigType fromDeclaredType(@NotNull DeclaredType mirror) {
         TypeMirror mirrorErasure = types.erasure(mirror);
 
         // 5 possible cases (6 if you count String, but that's handled in fromMirror)
@@ -261,14 +259,14 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             TypeMirror compType = mirror.accept(collectionTypeArgFinder, null);
             if (compType == null)
                 throw new RuntimeException("Got null component type (T in Collection<T>) for " + mirror);
-            return new ConfigTypeImpl.Array(mirror, () -> fromMirror(compType));
+            return new ConfigTypeImpl.Array(mirror, Lazy.wrap(() -> fromMirror(compType)));
         }
         // 3. subtype of Map - type of kind MAP
         if (types.isAssignable(mirrorErasure, mapTM)) {
             MapTypeArgs typeArgs = mirror.accept(mapTypeArgsFinder, null);
             if (typeArgs == null)
                 throw new RuntimeException("Got null key/value types (K and V in Map<K, V>) for " + mirror);
-            return new ConfigTypeImpl.Map(mirror, () -> fromMirror(typeArgs.keyType), () -> fromMirror(typeArgs.valueType));
+            return new ConfigTypeImpl.Map(mirror, Lazy.wrap(() -> fromMirror(typeArgs.keyType)), Lazy.wrap(() -> fromMirror(typeArgs.valueType)));
         }
         TypeName typeName = TypeName.get(mirror).withoutAnnotations();
         // 4. boxed primitives - type of kind (unboxed primitive)
@@ -293,8 +291,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
             throw new RuntimeException("Unknown primitive " + typeName + "!");
         }
         // 5. anything else - type of kind STRUCT (delegated to StructFactory)
-        if (structOverride == null)
-            structOverride = structOverrides.get(mirrorErasure);
+        Config.StructOverride structOverride = structOverride = structOverrides.get(mirrorErasure);
         Optional<ConfigType> struct = Optional.empty();
         for (StructFactory structFactory : structFactories) {
             struct = structFactory.createStruct(mirror, structOverride);

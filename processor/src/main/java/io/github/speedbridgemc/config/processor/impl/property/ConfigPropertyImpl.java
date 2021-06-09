@@ -6,25 +6,24 @@ import com.squareup.javapoet.CodeBlock;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
+import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.toImmutableClassToInstanceMap;
 
 public abstract class ConfigPropertyImpl implements ConfigProperty {
-    private final @NotNull Supplier<ConfigType> typeSupplier;
+    private final @NotNull Lazy<ConfigType> type;
     protected final @NotNull String name;
     protected final @NotNull ImmutableClassToInstanceMap<ConfigPropertyExtension> extensions;
     protected final boolean canSet, isOptional;
-    private ConfigType type;
 
-    protected ConfigPropertyImpl(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+    protected ConfigPropertyImpl(@NotNull Lazy<ConfigType> type, @NotNull String name,
                                  @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
                                  boolean canSet, boolean isOptional) {
-        this.typeSupplier = typeSupplier;
+        this.type = type;
         this.name = name;
         this.extensions = toImmutableClassToInstanceMap(extensions);
         this.canSet = canSet;
@@ -33,9 +32,7 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
 
     @Override
     public @NotNull ConfigType type() {
-        if (type == null)
-            type = typeSupplier.get();
-        return type;
+        return type.get();
     }
 
     @Override
@@ -61,11 +58,11 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
     public static final class Field extends ConfigPropertyImpl {
         private final @NotNull String fieldName;
 
-        public Field(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+        public Field(@NotNull Lazy<ConfigType> typeLazy, @NotNull String name,
                      @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
                      boolean canSet, boolean isOptional,
                      @NotNull String fieldName) {
-            super(typeSupplier, name, extensions, canSet, isOptional);
+            super(typeLazy, name, extensions, canSet, isOptional);
             this.fieldName = fieldName;
         }
 
@@ -86,18 +83,18 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
         private final @NotNull String getterName;
         private final @Nullable String setterName;
 
-        public Accessors(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+        public Accessors(@NotNull Lazy<ConfigType> typeLazy, @NotNull String name,
                          @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
                          boolean isOptional, @NotNull String getterName, @NotNull String setterName) {
-            super(typeSupplier, name, extensions, true, isOptional);
+            super(typeLazy, name, extensions, true, isOptional);
             this.getterName = getterName;
             this.setterName = setterName;
         }
 
-        public Accessors(@NotNull Supplier<ConfigType> typeSupplier, @NotNull String name,
+        public Accessors(@NotNull Lazy<ConfigType> typeLazy, @NotNull String name,
                          @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
                          boolean isOptional, @NotNull String getterName) {
-            super(typeSupplier, name, extensions, false, isOptional);
+            super(typeLazy, name, extensions, false, isOptional);
             this.getterName = getterName;
             setterName = null;
         }
