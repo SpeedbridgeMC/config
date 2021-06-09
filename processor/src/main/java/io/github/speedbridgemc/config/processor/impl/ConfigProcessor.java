@@ -3,6 +3,9 @@ package io.github.speedbridgemc.config.processor.impl;
 import com.google.auto.service.AutoService;
 import com.squareup.javapoet.TypeName;
 import io.github.speedbridgemc.config.Config;
+import io.github.speedbridgemc.config.processor.api.Identifiable;
+import io.github.speedbridgemc.config.processor.api.ProcessingWorker;
+import io.github.speedbridgemc.config.processor.api.component.Component;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
@@ -27,8 +30,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import java.io.*;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 import static java.util.Collections.singleton;
 
@@ -46,6 +48,27 @@ public final class ConfigProcessor extends AbstractProcessor {
     private Messager messager;
     private Elements elements;
     private Types types;
+
+    private static final class LazyInit<PW extends ProcessingWorker> {
+        private final @NotNull PW worker;
+        private boolean initialized;
+
+        public LazyInit(@NotNull PW worker) {
+            this.worker = worker;
+            initialized = false;
+        }
+
+        public @NotNull PW get(@NotNull ProcessingEnvironment processingEnv) {
+            if (!initialized) {
+                worker.init(processingEnv);
+                initialized = true;
+            }
+            return worker;
+        }
+    }
+
+    private final HashMap<String, LazyInit<Component>> components = new HashMap<>();
+    private final HashMap<String, LazyInit<NamingStrategy>> namingStrategies = new HashMap<>();
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
@@ -87,7 +110,22 @@ public final class ConfigProcessor extends AbstractProcessor {
         }
         messager.printMessage(Diagnostic.Kind.NOTE, "Running Speedbridge Config Annotation Processor v" + version);
 
-        final ClassLoader cl = ConfigProcessor.class.getClassLoader();
+        loadServices(Component.class, components);
+        loadServices(NamingStrategy.class, namingStrategies);
+    }
+
+    private <PW extends ProcessingWorker> void loadServices(@NotNull Class<PW> clazz,
+                                                            @NotNull HashSet<LazyInit<PW>> set) {
+        ServiceLoader<PW> loader = ServiceLoader.load(clazz, ConfigProcessor.class.getClassLoader());
+        for (PW worker : loader)
+            set.add(new LazyInit<>(worker));
+    }
+
+    private <PW extends ProcessingWorker & Identifiable> void loadServices(@NotNull Class<PW> clazz,
+                                                                           @NotNull HashMap<String, LazyInit<PW>> map) {
+        ServiceLoader<PW> loader = ServiceLoader.load(clazz, ConfigProcessor.class.getClassLoader());
+        for (PW worker : loader)
+            map.put(worker.id(), new LazyInit<>(worker));
     }
 
     @Override
@@ -187,5 +225,4 @@ public final class ConfigProcessor extends AbstractProcessor {
     public Set<String> getSupportedAnnotationTypes() {
         return singleton(Config.class.getCanonicalName());
     }
-
 }

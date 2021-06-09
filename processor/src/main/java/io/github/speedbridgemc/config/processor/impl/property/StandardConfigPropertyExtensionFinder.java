@@ -1,16 +1,13 @@
 package io.github.speedbridgemc.config.processor.impl.property;
 
-import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableSet;
 import io.github.speedbridgemc.config.processor.api.property.BaseConfigPropertyExtensionFinder;
-import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.property.SerializeExtension;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.serialize.Aliases;
 import io.github.speedbridgemc.config.serialize.SerializedName;
 import org.jetbrains.annotations.NotNull;
 
-@AutoService(ConfigPropertyExtensionFinder.class)
 public final class StandardConfigPropertyExtensionFinder extends BaseConfigPropertyExtensionFinder {
     @Override
     public void findExtensions(@NotNull Callback callback, @NotNull MirrorElementPair @NotNull ... pairs) {
