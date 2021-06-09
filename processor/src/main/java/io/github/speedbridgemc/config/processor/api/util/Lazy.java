@@ -28,8 +28,8 @@ public interface Lazy<T> extends Supplier<T> {
             @Override
             public T get() {
                 if (!present) {
-                    present = true;
                     value = _supplier.get();
+                    present = true;
                 }
                 return value;
             }
