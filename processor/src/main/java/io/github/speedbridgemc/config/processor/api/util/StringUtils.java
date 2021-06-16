@@ -9,11 +9,11 @@ public final class StringUtils {
     private StringUtils() { }
 
     /**
-     * Converts a string to title-case by making the first character uppercase.
-     * @param s original string
-     * @return title-cased string
+     * Converts a {@code camelCase} string to {@code UpperCamelCase}.
+     * @param s camel-case string
+     * @return upper-camel-case string
      */
-    public static @NotNull String titleCase(@NotNull String s) {
+    public static @NotNull String camelCaseToUpperCamelCase(@NotNull String s) {
         if (s.isEmpty())
             return "";
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);

@@ -7,7 +7,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import java.util.Optional;
 
-import static io.github.speedbridgemc.config.processor.api.util.StringUtils.titleCase;
+import static io.github.speedbridgemc.config.processor.api.util.StringUtils.camelCaseToUpperCamelCase;
 
 public final class PropertyUtils {
     private PropertyUtils() { }
@@ -42,12 +42,12 @@ public final class PropertyUtils {
 
     public static @NotNull String makeGetterName(@NotNull String propertyName, boolean isBool) {
         if (isBool)
-            return "is" + titleCase(propertyName);
+            return "is" + camelCaseToUpperCamelCase(propertyName);
         else
-            return "get" + titleCase(propertyName);
+            return "get" + camelCaseToUpperCamelCase(propertyName);
     }
 
     public static @NotNull String makeSetterName(@NotNull String propertyName) {
-        return "set" + titleCase(propertyName);
+        return "set" + camelCaseToUpperCamelCase(propertyName);
     }
 }

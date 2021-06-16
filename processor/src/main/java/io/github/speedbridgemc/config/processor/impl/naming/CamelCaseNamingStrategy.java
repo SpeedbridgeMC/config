@@ -7,8 +7,6 @@ import io.github.speedbridgemc.config.processor.api.util.StringUtils;
 import io.github.speedbridgemc.config.processor.impl.ConfigProcessor;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Locale;
-
 @AutoService(NamingStrategy.class)
 public final class CamelCaseNamingStrategy extends BaseNamingStrategy {
     public CamelCaseNamingStrategy() {
@@ -19,7 +17,7 @@ public final class CamelCaseNamingStrategy extends BaseNamingStrategy {
     public @NotNull String name(@NotNull String variant, @NotNull String originalName) {
         String s = StringUtils.snakeCaseToCamelCase(originalName);
         if ("upper".equalsIgnoreCase(variant))
-            s = StringUtils.titleCase(s);
+            s = StringUtils.camelCaseToUpperCamelCase(s);
         return s;
     }
 }
