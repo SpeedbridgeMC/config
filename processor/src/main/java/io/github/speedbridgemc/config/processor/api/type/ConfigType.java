@@ -1,21 +1,13 @@
 package io.github.speedbridgemc.config.processor.api.type;
 
-import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import org.jetbrains.annotations.NotNull;
 
-import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
-import java.util.List;
-import java.util.Optional;
 
 /**
  * Represents a value type in a configuration file.
  */
 public interface ConfigType {
-    static @NotNull ConfigStructBuilder structBuilder(@NotNull DeclaredType forMirror) {
-        return new ConfigStructBuilder(forMirror);
-    }
-
     /**
      * Gets the kind of this type.
      * @return type kind
@@ -36,54 +28,4 @@ public interface ConfigType {
      * @return {@literal true} if nullable, {@literal false} otherwise
      */
     boolean isNullable();
-
-    // only for ENUM types
-    /**
-     * Gets the constants this enum type contains.
-     * @return enum constant names
-     */
-    @NotNull List<? extends String> enumConstants();
-
-    // only for ARRAY types
-    /**
-     * Gets the component type of this array type.
-     * @return component type
-     */
-    @NotNull ConfigType componentType();
-
-    // only for MAP types
-    /**
-     * Gets the key type of this map type.
-     * @return key type
-     */
-    @NotNull ConfigType keyType();
-    /**
-     * Gets the value type of this map type.
-     * @return value type
-     */
-    @NotNull ConfigType valueType();
-
-    // only for STRUCT types
-    /**
-     * Gets the instantiation strategy of this struct type.
-     * @return instantiation strategy
-     */
-    @NotNull StructInstantiationStrategy instantiationStrategy();
-    /**
-     * Gets the nested properties of this struct type.
-     * @return type properties
-     */
-    @NotNull List<? extends ConfigProperty> properties();
-    /**
-     * Gets the nested property with the specified name in this struct type, if it exists.
-     * @param name property name
-     * @return property, or {@code Optional.empty()} if this struct doesn't contain a property with that name
-     */
-    default @NotNull Optional<ConfigProperty> property(@NotNull String name) {
-        for (ConfigProperty prop : properties()) {
-            if (name.equals(prop.name()))
-                return Optional.of(prop);
-        }
-        return Optional.empty();
-    }
 }

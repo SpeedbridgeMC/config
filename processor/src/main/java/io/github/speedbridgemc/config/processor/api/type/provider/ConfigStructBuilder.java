@@ -1,7 +1,9 @@
-package io.github.speedbridgemc.config.processor.api.type;
+package io.github.speedbridgemc.config.processor.api.type.provider;
 
 import com.google.common.collect.ImmutableList;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
+import io.github.speedbridgemc.config.processor.api.type.ConfigStruct;
+import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeImpl;
 import org.jetbrains.annotations.NotNull;
 
@@ -12,7 +14,7 @@ public final class ConfigStructBuilder {
     private final @NotNull ImmutableList.Builder<ConfigProperty> propertiesBuilder;
     private @NotNull StructInstantiationStrategy instantiationStrategy;
 
-    ConfigStructBuilder(@NotNull DeclaredType mirror) {
+    public ConfigStructBuilder(@NotNull DeclaredType mirror) {
         this.mirror = mirror;
         propertiesBuilder = ImmutableList.builder();
         instantiationStrategy = StructInstantiationStrategy.NONE;
@@ -38,7 +40,7 @@ public final class ConfigStructBuilder {
         return this;
     }
 
-    public @NotNull ConfigType build() {
+    public @NotNull ConfigStruct build() {
         return new ConfigTypeImpl.Struct(mirror, instantiationStrategy, propertiesBuilder.build());
     }
 }

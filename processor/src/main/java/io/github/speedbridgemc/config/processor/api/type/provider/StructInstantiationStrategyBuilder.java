@@ -1,7 +1,9 @@
-package io.github.speedbridgemc.config.processor.api.type;
+package io.github.speedbridgemc.config.processor.api.type.provider;
 
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
+import io.github.speedbridgemc.config.processor.api.type.ConfigType;
+import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.impl.type.StructInstantiationStrategyImpl;
 import org.jetbrains.annotations.NotNull;

@@ -10,13 +10,14 @@ import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.type.*;
+import io.github.speedbridgemc.config.processor.api.type.provider.*;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorUtils;
 import io.github.speedbridgemc.config.processor.impl.naming.SnakeCaseNamingStrategy;
 import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
-import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeProviderImpl;
-import io.github.speedbridgemc.config.processor.impl.type.StandardStructFactory;
+import io.github.speedbridgemc.config.processor.impl.type.provider.ConfigTypeProviderImpl;
+import io.github.speedbridgemc.config.processor.impl.type.provider.StandardStructFactory;
 import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.*;
@@ -174,7 +175,7 @@ public final class ConfigProcessor extends AbstractProcessor {
 
             Lazy<ConfigType> stringLazy = Lazy.of(typeProvider.primitiveOf(ConfigTypeKind.STRING));
             DeclaredType identifierM = MirrorUtils.getDeclaredType(elements, "io.github.speedbridgemc.config.test.Identifier");
-            typeProvider.addStruct(ConfigType.structBuilder(identifierM)
+            typeProvider.addStruct(new ConfigStructBuilder(identifierM)
                     .property(ConfigProperty.getter(stringLazy,
                             "value", "toString", false))
                     .instantiationStrategy(StructInstantiationStrategyBuilder.factory(TypeName.get(identifierM), "tryParse")
@@ -184,15 +185,16 @@ public final class ConfigProcessor extends AbstractProcessor {
 
             ConfigType cType = typeProvider.fromMirror(type.asType());
             System.out.println(cType);
-            dumpConfigType(cType);
+            if (cType.kind() == ConfigTypeKind.STRUCT)
+                dumpConfigStruct((ConfigStruct) cType);
         }
     }
 
-    private void dumpConfigType(@NotNull ConfigType cType) {
-        dumpConfigType(cType, "");
+    private void dumpConfigStruct(@NotNull ConfigStruct cType) {
+        dumpConfigStruct(cType, "");
     }
 
-    private void dumpConfigType(@NotNull ConfigType cType, @NotNull String indent) {
+    private void dumpConfigStruct(@NotNull ConfigStruct cType, @NotNull String indent) {
         System.out.format("%sinstantiation strategy: %s%n", indent, cType.instantiationStrategy());
         System.out.format("%s%d properties:%n", indent, cType.properties().size());
         for (ConfigProperty prop : cType.properties()) {
@@ -200,7 +202,7 @@ public final class ConfigProcessor extends AbstractProcessor {
             System.out.format("%s - %s %s%s%n", indent, pType, prop.name(), propAttr(prop));
             switch (pType.kind()) {
             case STRUCT:
-                dumpConfigType(pType, indent + "     ");
+                dumpConfigStruct((ConfigStruct) pType, indent + "     ");
                 break;
             default:
                 break;

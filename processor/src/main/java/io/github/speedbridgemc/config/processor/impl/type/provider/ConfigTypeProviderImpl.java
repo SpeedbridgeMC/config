@@ -1,4 +1,4 @@
-package io.github.speedbridgemc.config.processor.impl.type;
+package io.github.speedbridgemc.config.processor.impl.type.provider;
 
 import com.google.common.collect.ImmutableList;
 import com.squareup.javapoet.TypeName;
@@ -6,13 +6,15 @@ import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.EnumName;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
+import io.github.speedbridgemc.config.processor.api.type.ConfigStruct;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
-import io.github.speedbridgemc.config.processor.api.type.ConfigTypeProvider;
-import io.github.speedbridgemc.config.processor.api.type.StructFactory;
+import io.github.speedbridgemc.config.processor.api.type.provider.ConfigTypeProvider;
+import io.github.speedbridgemc.config.processor.api.type.provider.StructFactory;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.processor.api.util.MirrorUtils;
+import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeImpl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -301,7 +303,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
         }
         // 5. anything else - type of kind STRUCT (delegated to StructFactory)
         Config.StructOverride structOverride = structOverrides.get(mirrorErasure);
-        Optional<ConfigType> struct = Optional.empty();
+        Optional<ConfigStruct> struct = Optional.empty();
         for (StructFactory structFactory : structFactories) {
             struct = structFactory.createStruct(structFactoryCtx, mirror, structOverride);
             if (struct.isPresent())

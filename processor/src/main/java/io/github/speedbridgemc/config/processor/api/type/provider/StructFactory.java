@@ -1,14 +1,14 @@
-package io.github.speedbridgemc.config.processor.api.type;
+package io.github.speedbridgemc.config.processor.api.type.provider;
 
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.ProcessingWorker;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtension;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
+import io.github.speedbridgemc.config.processor.api.type.ConfigStruct;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.type.DeclaredType;
 import java.util.Optional;
 
@@ -36,6 +36,6 @@ public interface StructFactory extends ProcessingWorker {
                             @NotNull MirrorElementPair @NotNull ... pairs);
     }
 
-    @NotNull Optional<ConfigType> createStruct(@NotNull Context ctx,
-                                               @NotNull DeclaredType mirror, @Nullable Config.StructOverride structOverride);
+    @NotNull Optional<ConfigStruct> createStruct(@NotNull Context ctx,
+                                                 @NotNull DeclaredType mirror, @Nullable Config.StructOverride structOverride);
 }

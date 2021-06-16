@@ -1,4 +1,4 @@
-package io.github.speedbridgemc.config.processor.impl.type;
+package io.github.speedbridgemc.config.processor.impl.type.provider;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.LinkedHashMultimap;
@@ -8,6 +8,9 @@ import io.github.speedbridgemc.config.ScanTarget;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyBuilder;
 import io.github.speedbridgemc.config.processor.api.type.*;
+import io.github.speedbridgemc.config.processor.api.type.provider.BaseStructFactory;
+import io.github.speedbridgemc.config.processor.api.type.provider.ConfigStructBuilder;
+import io.github.speedbridgemc.config.processor.api.type.provider.StructInstantiationStrategyBuilder;
 import io.github.speedbridgemc.config.processor.api.util.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -24,7 +27,6 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-// this is the class responsible for converting any Java class into a matching ConfigType of kind STRUCT
 public final class StandardStructFactory extends BaseStructFactory {
     private TypeMirror booleanTM, voidTM;
     private ImmutableList<ExecutableElement> objectMethods;
@@ -43,8 +45,8 @@ public final class StandardStructFactory extends BaseStructFactory {
     private static final String[] DUMMY_STRING_ARRAY = new String[0];
 
     @Override
-    public @NotNull Optional<ConfigType> createStruct(@NotNull Context ctx,
-                                                      @NotNull DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
+    public @NotNull Optional<ConfigStruct> createStruct(@NotNull Context ctx,
+                                                        @NotNull DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
         TypeElement te = (TypeElement) mirror.asElement();
 
         boolean includeFieldsByDefault = true;
@@ -103,7 +105,7 @@ public final class StandardStructFactory extends BaseStructFactory {
             }
         }
 
-        ConfigStructBuilder structBuilder = ConfigType.structBuilder(mirror);
+        ConfigStructBuilder structBuilder = new ConfigStructBuilder(mirror);
         HashSet<String> propertyNames = new HashSet<>();
 
         if (structOverride != null)

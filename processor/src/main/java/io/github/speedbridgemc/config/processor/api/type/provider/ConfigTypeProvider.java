@@ -1,8 +1,10 @@
-package io.github.speedbridgemc.config.processor.api.type;
+package io.github.speedbridgemc.config.processor.api.type.provider;
 
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
+import io.github.speedbridgemc.config.processor.api.type.ConfigType;
+import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

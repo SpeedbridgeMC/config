@@ -5,7 +5,7 @@ package io.github.speedbridgemc.config.processor.api.type;
  */
 public enum ConfigTypeKind {
     /**
-     * The primitive boolean type, {@literal true} of {@literal false}.
+     * The primitive boolean type, {@literal true} or {@literal false}.
      */
     BOOL,
     /**
@@ -37,13 +37,12 @@ public enum ConfigTypeKind {
      */
     DOUBLE,
     /**
-     * The primitive string type.<p>
-     * {@linkplain String This isn't a primitive in Java.}
+     * The primitive {@code String} type.
      */
     STRING,
     /**
      * The enum type.<p>
-     * Maps to {@literal enum}s, represented using strings.
+     * Maps to {@code enum}s, represented using strings.
      */
     ENUM,
     /**

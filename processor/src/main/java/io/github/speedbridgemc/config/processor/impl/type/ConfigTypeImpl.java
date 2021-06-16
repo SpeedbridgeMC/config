@@ -2,9 +2,8 @@ package io.github.speedbridgemc.config.processor.impl.type;
 
 import com.google.common.collect.ImmutableList;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
-import io.github.speedbridgemc.config.processor.api.type.ConfigType;
+import io.github.speedbridgemc.config.processor.api.type.*;
 import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
-import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import org.jetbrains.annotations.NotNull;
 
@@ -45,36 +44,6 @@ public abstract class ConfigTypeImpl implements ConfigType {
     }
 
     @Override
-    public @NotNull List<? extends String> enumConstants() {
-        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.ENUM + "!");
-    }
-
-    @Override
-    public @NotNull ConfigType componentType() {
-        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.ARRAY + "!");
-    }
-
-    @Override
-    public @NotNull ConfigType keyType() {
-        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.MAP + "!");
-    }
-
-    @Override
-    public @NotNull ConfigType valueType() {
-        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.MAP + "!");
-    }
-
-    @Override
-    public @NotNull StructInstantiationStrategy instantiationStrategy() {
-        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.STRUCT + "!");
-    }
-
-    @Override
-    public @NotNull List<? extends ConfigProperty> properties() {
-        throw new UnsupportedOperationException("Only supported for types of kind " + ConfigTypeKind.STRUCT + "!");
-    }
-
-    @Override
     public String toString() {
         return name;
     }
@@ -93,7 +62,7 @@ public abstract class ConfigTypeImpl implements ConfigType {
         }
     }
 
-    public static final class Enum extends ConfigTypeImpl {
+    public static final class Enum extends ConfigTypeImpl implements ConfigEnum {
         private final @NotNull ImmutableList<String> constants;
 
         public Enum(@NotNull TypeMirror typeMirror, @NotNull List<String> constants) {
@@ -107,7 +76,7 @@ public abstract class ConfigTypeImpl implements ConfigType {
         }
     }
 
-    public static final class Array extends ConfigTypeImpl {
+    public static final class Array extends ConfigTypeImpl implements ConfigArray {
         private final @NotNull Lazy<ConfigType> componentType;
 
         public Array(@NotNull TypeMirror typeMirror, @NotNull Lazy<ConfigType> componentType) {
@@ -126,7 +95,7 @@ public abstract class ConfigTypeImpl implements ConfigType {
         }
     }
 
-    public static final class Map extends ConfigTypeImpl {
+    public static final class Map extends ConfigTypeImpl implements ConfigMap {
         private final @NotNull Lazy<ConfigType> keyType, valueType;
 
         public Map(@NotNull TypeMirror typeMirror, @NotNull Lazy<ConfigType> keyType, @NotNull Lazy<ConfigType> valueType) {
@@ -151,7 +120,7 @@ public abstract class ConfigTypeImpl implements ConfigType {
         }
     }
 
-    public static final class Struct extends ConfigTypeImpl {
+    public static final class Struct extends ConfigTypeImpl implements ConfigStruct {
         private final @NotNull StructInstantiationStrategy instantiationStrategy;
         private final @NotNull ImmutableList<ConfigProperty> properties;
 
