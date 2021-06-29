@@ -39,27 +39,15 @@ public abstract class ConfigTypeImpl implements ConfigType {
     }
 
     @Override
-    public boolean isNullable() {
-        return true;
-    }
-
-    @Override
     public String toString() {
         return name;
     }
 
     public static final class Primitive extends ConfigTypeImpl {
-        private final boolean isNullable;
-
-        public Primitive(@NotNull ConfigTypeKind kind, @NotNull String name, @NotNull TypeMirror typeMirror, boolean isNullable) {
+        public Primitive(@NotNull ConfigTypeKind kind, @NotNull String name, @NotNull TypeMirror typeMirror) {
             super(kind, name, typeMirror);
-            this.isNullable = isNullable;
         }
 
-        @Override
-        public boolean isNullable() {
-            return isNullable;
-        }
     }
 
     public static final class Enum extends ConfigTypeImpl implements ConfigEnum {

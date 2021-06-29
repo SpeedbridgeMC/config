@@ -68,7 +68,6 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private String namingStrategyVariant;
 
     private ConfigType boolCType, byteCType, shortCType, intCType, longCType, charCType, floatCType, doubleCType, stringCType;
-    private ConfigType boolNullCType, byteNullCType, shortNullCType, intNullCType, longNullCType, charNullCType, floatNullCType, doubleNullCType, stringNullCType;
 
     private final StructFactoryContextImpl structFactoryCtx = new StructFactoryContextImpl();
     private final HashMap<TypeMirror, Config.StructOverride> structOverrides = new HashMap<>();
@@ -91,65 +90,46 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
         mapTM = types.erasure(mapTE.asType());
 
         boolCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.BOOL, "bool",
-                types.getPrimitiveType(TypeKind.BOOLEAN), false);
+                types.getPrimitiveType(TypeKind.BOOLEAN));
         byteCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.BYTE, "byte",
-                types.getPrimitiveType(TypeKind.BYTE), false);
+                types.getPrimitiveType(TypeKind.BYTE));
         shortCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.SHORT, "short",
-                types.getPrimitiveType(TypeKind.SHORT), false);
+                types.getPrimitiveType(TypeKind.SHORT));
         intCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.INT, "int",
-                types.getPrimitiveType(TypeKind.INT), false);
+                types.getPrimitiveType(TypeKind.INT));
         longCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.LONG, "long",
-                types.getPrimitiveType(TypeKind.LONG), false);
+                types.getPrimitiveType(TypeKind.LONG));
         charCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.CHAR, "char",
-                types.getPrimitiveType(TypeKind.CHAR), false);
+                types.getPrimitiveType(TypeKind.CHAR));
         floatCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.FLOAT, "float",
-                types.getPrimitiveType(TypeKind.FLOAT), false);
+                types.getPrimitiveType(TypeKind.FLOAT));
         doubleCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.DOUBLE, "double",
-                types.getPrimitiveType(TypeKind.DOUBLE), false);
+                types.getPrimitiveType(TypeKind.DOUBLE));
         stringCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.STRING, "string",
-                stringTM, false);
-
-        boolNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.BOOL, "bool?",
-                types.getPrimitiveType(TypeKind.BOOLEAN), true);
-        byteNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.BYTE, "byte?",
-                types.getPrimitiveType(TypeKind.BYTE), true);
-        shortNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.SHORT, "short?",
-                types.getPrimitiveType(TypeKind.SHORT), true);
-        intNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.INT, "int?",
-                types.getPrimitiveType(TypeKind.INT), true);
-        longNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.LONG, "long?",
-                types.getPrimitiveType(TypeKind.LONG), true);
-        charNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.CHAR, "char?",
-                types.getPrimitiveType(TypeKind.CHAR), true);
-        floatNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.FLOAT, "float?",
-                types.getPrimitiveType(TypeKind.FLOAT), true);
-        doubleNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.DOUBLE, "double?",
-                types.getPrimitiveType(TypeKind.DOUBLE), true);
-        stringNullCType = new ConfigTypeImpl.Primitive(ConfigTypeKind.STRING, "string?",
-                stringTM, true);
+                stringTM);
     }
 
     @Override
-    public @NotNull ConfigType primitiveOf(@NotNull ConfigTypeKind kind, boolean nullable) {
+    public @NotNull ConfigType primitiveOf(@NotNull ConfigTypeKind kind) {
         switch (kind) {
         case BOOL:
-            return nullable ? boolNullCType : boolCType;
+            return boolCType;
         case BYTE:
-            return nullable ? byteNullCType : byteCType;
+            return byteCType;
         case SHORT:
-            return nullable ? shortNullCType : shortCType;
+            return shortCType;
         case INT:
-            return nullable ? intNullCType : intCType;
+            return intCType;
         case LONG:
-            return nullable ? longNullCType : longCType;
+            return longCType;
         case CHAR:
-            return nullable ? charNullCType : charCType;
+            return charCType;
         case FLOAT:
-            return nullable ? floatNullCType : floatCType;
+            return floatCType;
         case DOUBLE:
-            return nullable ? doubleNullCType : doubleCType;
+            return doubleCType;
         case STRING:
-            return nullable ? stringNullCType : stringCType;
+            return stringCType;
         }
         throw new IllegalArgumentException("Kind " + kind + " is not primitive!");
     }
@@ -284,21 +264,21 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
         if (typeName.isBoxedPrimitive()) {
             typeName = typeName.unbox();
             if (typeName.equals(TypeName.BOOLEAN))
-                return boolNullCType;
+                return boolCType;
             else if (typeName.equals(TypeName.BYTE))
-                return byteNullCType;
+                return byteCType;
             else if (typeName.equals(TypeName.SHORT))
-                return shortNullCType;
+                return shortCType;
             else if (typeName.equals(TypeName.INT))
-                return intNullCType;
+                return intCType;
             else if (typeName.equals(TypeName.LONG))
-                return longNullCType;
+                return longCType;
             else if (typeName.equals(TypeName.CHAR))
-                return charNullCType;
+                return charCType;
             else if (typeName.equals(TypeName.FLOAT))
-                return floatNullCType;
+                return floatCType;
             else if (typeName.equals(TypeName.DOUBLE))
-                return doubleNullCType;
+                return doubleCType;
             throw new RuntimeException("Unknown primitive " + typeName + "!");
         }
         // 5. anything else - type of kind STRUCT (delegated to StructFactory)
