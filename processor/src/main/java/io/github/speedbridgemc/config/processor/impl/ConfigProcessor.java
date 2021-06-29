@@ -8,7 +8,9 @@ import io.github.speedbridgemc.config.processor.api.ProcessingWorker;
 import io.github.speedbridgemc.config.processor.api.component.Component;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
+import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyBuilder;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
+import io.github.speedbridgemc.config.processor.api.property.StandardConfigPropertyFlags;
 import io.github.speedbridgemc.config.processor.api.type.*;
 import io.github.speedbridgemc.config.processor.api.type.provider.*;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
@@ -176,8 +178,8 @@ public final class ConfigProcessor extends AbstractProcessor {
             Lazy<ConfigType> stringLazy = Lazy.of(typeProvider.primitiveOf(ConfigTypeKind.STRING));
             DeclaredType identifierM = MirrorUtils.getDeclaredType(elements, "io.github.speedbridgemc.config.test.Identifier");
             typeProvider.addStruct(new ConfigStructBuilder(identifierM)
-                    .property(ConfigProperty.getter(stringLazy,
-                            "value", "toString", false))
+                    .property(ConfigPropertyBuilder.getter(stringLazy,
+                            "value", "toString").build())
                     .instantiationStrategy(StructInstantiationStrategyBuilder.factory(TypeName.get(identifierM), "tryParse")
                             .param(stringLazy, "string", "value")
                             .build())
@@ -214,7 +216,7 @@ public final class ConfigProcessor extends AbstractProcessor {
         StringBuilder sb = new StringBuilder();
         if (!prop.canSet())
             sb.append("readonly, ");
-        if (prop.isOptional())
+        if (prop.hasFlag(StandardConfigPropertyFlags.OPTIONAL))
             sb.append("optional, ");
         if (sb.length() > 0) {
             sb.setLength(sb.length() - 2);

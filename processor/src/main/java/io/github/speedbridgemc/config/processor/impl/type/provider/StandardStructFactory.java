@@ -7,6 +7,7 @@ import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.ScanTarget;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyBuilder;
+import io.github.speedbridgemc.config.processor.api.property.StandardConfigPropertyFlags;
 import io.github.speedbridgemc.config.processor.api.type.*;
 import io.github.speedbridgemc.config.processor.api.type.provider.BaseStructFactory;
 import io.github.speedbridgemc.config.processor.api.type.provider.ConfigStructBuilder;
@@ -214,7 +215,7 @@ public final class StandardStructFactory extends BaseStructFactory {
                         new RuntimeException("Can't find valid getter void " + mirror + "." + property.getter() + "()"));
                 MirrorElementPair getterMEP = new MirrorElementPair(getterData.mirror, getterData.element);
                 if (property.setter().isEmpty()) {
-                    propertyBuilder = ConfigProperty.getterBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(getterAccInf.propertyType)),
+                    propertyBuilder = ConfigPropertyBuilder.getter(Lazy.wrap(() -> ctx.typeProvider().fromMirror(getterAccInf.propertyType)),
                             propName, property.getter());
                     ctx.findExtensions(propertyBuilder::extension, getterMEP);
                 } else {
@@ -232,7 +233,7 @@ public final class StandardStructFactory extends BaseStructFactory {
                             new RuntimeException("Can't find valid setter " + getterAccInf.propertyType + " " + mirror + "." + property.setter() + "()"));
                     if (!types.isSameType(getterAccInf.propertyType, setterAccInf.propertyType))
                         throw new RuntimeException(mirror + ": Type mismatch between getter" + property.getter() + " and setter " + property.setter());
-                    propertyBuilder = ConfigProperty.accessorsBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(getterAccInf.propertyType)),
+                    propertyBuilder = ConfigPropertyBuilder.accessors(Lazy.wrap(() -> ctx.typeProvider().fromMirror(getterAccInf.propertyType)),
                             propName, property.getter(), property.setter());
                     ctx.findExtensions(propertyBuilder::extension, getterMEP, new MirrorElementPair(setterData.mirror, setterData.element));
                 }
@@ -240,12 +241,12 @@ public final class StandardStructFactory extends BaseStructFactory {
                 FieldData fieldData = fields.get(property.field());
                 if (fieldData == null)
                     throw new RuntimeException("Missing field \"" + property.field() + "\"!");
-                propertyBuilder = ConfigProperty.fieldBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(fieldData.mirror)),
+                propertyBuilder = ConfigPropertyBuilder.field(Lazy.wrap(() -> ctx.typeProvider().fromMirror(fieldData.mirror)),
                         propName, property.field(), fieldData.isFinal);
                 ctx.findExtensions(propertyBuilder::extension, new MirrorElementPair(fieldData.mirror, fieldData.element));
             }
             if (property.optional())
-                propertyBuilder.optional();
+                propertyBuilder.flag(StandardConfigPropertyFlags.OPTIONAL);
             propertyCallback.accept(propertyBuilder.build());
             if (!propertyNames.add(propName))
                 throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
@@ -271,11 +272,11 @@ public final class StandardStructFactory extends BaseStructFactory {
             }
             if (propName.isEmpty())
                 propName = ctx.name(fieldE.getSimpleName().toString());
-            ConfigPropertyBuilder propertyBuilder = ConfigProperty.fieldBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(fieldM)),
+            ConfigPropertyBuilder propertyBuilder = ConfigPropertyBuilder.field(Lazy.wrap(() -> ctx.typeProvider().fromMirror(fieldM)),
                     propName, fieldName, !field.getValue().isFinal);
             ctx.findExtensions(propertyBuilder::extension, new MirrorElementPair(fieldM, fieldE));
             if (optional)
-                propertyBuilder.optional();
+                propertyBuilder.flag(StandardConfigPropertyFlags.OPTIONAL);
             propertyCallback.accept(propertyBuilder.build());
             if (!propertyNames.add(propName))
                 throw new RuntimeException("Duplicate property key \"" + propName + "\"!");
@@ -472,19 +473,19 @@ public final class StandardStructFactory extends BaseStructFactory {
             ConfigPropertyBuilder propertyBuilder;
             if (prop.hasSetter) {
                 assert prop.setterM != null && prop.setterE != null;
-                propertyBuilder = ConfigProperty.accessorsBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(prop.type)),
+                propertyBuilder = ConfigPropertyBuilder.accessors(Lazy.wrap(() -> ctx.typeProvider().fromMirror(prop.type)),
                         entry.getKey(), prop.getterE.getSimpleName().toString(), prop.setterE.getSimpleName().toString());
                 ctx.findExtensions(propertyBuilder::extension,
                         new MirrorElementPair(prop.getterM, prop.getterE),
                         new MirrorElementPair(prop.setterM, prop.setterE));
             } else {
-                propertyBuilder = ConfigProperty.getterBuilder(Lazy.wrap(() -> ctx.typeProvider().fromMirror(prop.type)),
+                propertyBuilder = ConfigPropertyBuilder.getter(Lazy.wrap(() -> ctx.typeProvider().fromMirror(prop.type)),
                         entry.getKey(), prop.getterE.getSimpleName().toString());
                 ctx.findExtensions(propertyBuilder::extension,
                         new MirrorElementPair(prop.getterM, prop.getterE));
             }
             if (prop.optional)
-                propertyBuilder.optional();
+                propertyBuilder.flag(StandardConfigPropertyFlags.OPTIONAL);
             propertyCallback.accept(propertyBuilder.build());
             if (!propertyNames.add(entry.getKey()))
                 throw new RuntimeException("Duplicate property key \"" + entry.getKey()+ "\"!");
