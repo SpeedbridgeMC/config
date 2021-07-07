@@ -1,51 +1,62 @@
 package io.github.speedbridgemc.config;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.lang.annotation.*;
 
-/**
- * Marks a class as a configuration POJO. The annotation processor will generate a handler implementation for it.
- */
 @Documented
-@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.SOURCE)
+@Target(ElementType.TYPE)
 public @interface Config {
-    /**
-     * The name of the configuration.<br>
-     * Components may use this string in any way they see fit.
-     * @return config name
-     */
-    @NotNull String name();
+    String[] components();
+    StructOverride[] structOverrides() default { };
 
-    /**
-     * The name of the handler interface that the processor should generate an implementation for.
-     * @return handler interface class name
-     */
-    @NotNull @JavaClass String handlerInterface();
+    @Retention(RetentionPolicy.SOURCE)
+    @Target({ })
+    @interface StructOverride {
+        Class<?> target();
+        Struct override();
+        Property[] properties() default { };
+    }
+    
+    @Documented
+    @Retention(RetentionPolicy.SOURCE)
+    @Target({ ElementType.FIELD, ElementType.METHOD })
+    @interface Exclude { }
 
-    /**
-     * The {@link Component}s that should be added to the handler implementation.
-     * @return components
-     */
-    @NotNull Component @NotNull [] components();
+    @Documented
+    @Retention(RetentionPolicy.SOURCE)
+    @Target({ ElementType.FIELD, ElementType.METHOD })
+    @interface Property {
+        String name() default "";
+        // unused outside of StructOverrides
+        String field() default "";
+        String getter() default "";
+        String setter() default "";
+        boolean optional() default false;
+    }
 
-    /**
-     * The name (and package) of the handler implementation.<p>
-     * By default, this is the {@linkplain #handlerInterface() handler interface's name} suffixed with "Impl".
-     * @return handler implementation class name
-     */
-    @NotNull String @NotNull [] handlerName() default { };
+    @Documented
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.TYPE)
+    @interface Struct {
+        ScanTarget[] scanFor() default { ScanTarget.FIELDS, ScanTarget.PROPERTIES };
 
-    /**
-     * The name of the non-null annotation to use in the handler implementation.
-     * @return non-null annotation class name
-     */
-    @NotNull @JavaClass String @NotNull [] nonNullAnnotation() default { };
+        Class<?> constructorOwner() default Void.class;
+        // type parameters aren't necessary here - can't have 2 methods with the same signatures post-erasure
+        Class<?>[] constructorParams() default { Void.class };
+        Class<?> factoryOwner() default Void.class;
+        String factoryName() default "";
+        // factory return type is implied to be the annotated struct
+        Class<?>[] factoryParams() default { Void.class };
+        // each parameter's bound property, in order
+        // priority is @BoundProperty > boundProperties > auto naming
+        //  (if boundProperties has an empty string at that parameter's index, or isn't long enough)
+        String[] boundProperties() default { };
+    }
 
-    /**
-     * The name of the nullable annotation to use in the handler implementation.
-     * @return nullable annotation class name
-     */
-    @NotNull @JavaClass String @NotNull [] nullableAnnotation() default { };
+    @Documented
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.PARAMETER)
+    @interface BoundProperty {
+        String value();
+    }
 }
