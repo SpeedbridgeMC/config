@@ -1,12 +1,16 @@
 rootProject.name = 'config'
-include 'runtime'
-include 'annotations'
-include 'processor'
-include 'handler-itf'
-include 'serialize'
 
-project(':runtime').name = 'config-runtime'
+include 'annotations'
 project(':annotations').name = 'config-annotations'
+
+include 'runtime'
+project(':runtime').name = 'config-runtime'
+
+include 'processor'
 project(':processor').name = 'config-processor'
+
+include 'handler-itf'
 project(':handler-itf').name = 'config-handler-itf'
+
+include 'serialize'
 project(':serialize').name = 'config-serialize'
