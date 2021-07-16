@@ -1,0 +1,19 @@
+plugins {
+    id 'java-library'
+}
+
+version '2.0.0'
+description 'Speedbridge Config: Handler Interface'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.jetbrains:annotations:20.1.0'
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
