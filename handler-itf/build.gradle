@@ -10,7 +10,11 @@ repositories {
 }
 
 dependencies {
+    api project(':config-processor')
+
     implementation 'org.jetbrains:annotations:20.1.0'
+    implementation 'com.google.auto.service:auto-service-annotations:1.0-rc7'
+    annotationProcessor 'com.google.auto.service:auto-service:1.0-rc7'
 }
 
 java {
