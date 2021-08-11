@@ -4,7 +4,6 @@ import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.EnumName;
 import io.github.speedbridgemc.config.serialize.Aliases;
 import io.github.speedbridgemc.config.serialize.SerializedName;
-import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 
@@ -25,7 +24,7 @@ public class TestConfig {
         @EnumName("baz")
         BAZ;
 
-        private final @NotNull String name;
+        private final String name;
 
         TestEnum() {
             final String internalName = super.name();

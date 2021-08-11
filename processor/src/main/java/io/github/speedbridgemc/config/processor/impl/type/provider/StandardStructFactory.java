@@ -13,7 +13,6 @@ import io.github.speedbridgemc.config.processor.api.type.provider.BaseStructFact
 import io.github.speedbridgemc.config.processor.api.type.provider.ConfigStructBuilder;
 import io.github.speedbridgemc.config.processor.api.type.provider.StructInstantiationStrategyBuilder;
 import io.github.speedbridgemc.config.processor.api.util.*;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -33,7 +32,7 @@ public final class StandardStructFactory extends BaseStructFactory {
     private ImmutableList<ExecutableElement> objectMethods;
 
     @Override
-    public void init(@NotNull ProcessingEnvironment processingEnv) {
+    public void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
 
         booleanTM = MirrorUtils.getDeclaredType(elements, Boolean.class);
@@ -46,8 +45,8 @@ public final class StandardStructFactory extends BaseStructFactory {
     private static final String[] DUMMY_STRING_ARRAY = new String[0];
 
     @Override
-    public @NotNull Optional<ConfigStruct> createStruct(@NotNull Context ctx,
-                                                        @NotNull DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
+    public Optional<ConfigStruct> createStruct(Context ctx,
+                                                        DeclaredType mirror, Config.@Nullable StructOverride structOverride) {
         TypeElement te = (TypeElement) mirror.asElement();
 
         boolean includeFieldsByDefault = true;
@@ -121,32 +120,32 @@ public final class StandardStructFactory extends BaseStructFactory {
 
     // region Intermediary data classes
     private static final class FieldData {
-        public final @NotNull TypeMirror mirror;
-        public final @NotNull VariableElement element;
+        public final TypeMirror mirror;
+        public final VariableElement element;
         public final boolean isFinal;
 
-        FieldData(@NotNull TypeMirror mirror, @NotNull VariableElement element, boolean isFinal) {
+        FieldData(TypeMirror mirror, VariableElement element, boolean isFinal) {
             this.mirror = mirror;
             this.element = element;
             this.isFinal = isFinal;
         }
     }
     private static final class MethodData {
-        public final @NotNull ExecutableType mirror;
-        public final @NotNull ExecutableElement element;
+        public final ExecutableType mirror;
+        public final ExecutableElement element;
 
-        MethodData(@NotNull ExecutableType mirror, @NotNull ExecutableElement element) {
+        MethodData(ExecutableType mirror, ExecutableElement element) {
             this.mirror = mirror;
             this.element = element;
         }
     }
     private static final class AccessorPairDef {
-        public final @NotNull String name, getter, setter;
+        public final String name, getter, setter;
         public final boolean optional;
-        public final @NotNull ExecutableElement definingMethod;
-        public final @NotNull ExecutableType definingMethodType;
+        public final ExecutableElement definingMethod;
+        public final ExecutableType definingMethodType;
 
-        AccessorPairDef(@NotNull String name, @NotNull String getter, @NotNull String setter, boolean optional, @NotNull ExecutableElement definingMethod, @NotNull ExecutableType definingMethodType) {
+        AccessorPairDef(String name, String getter, String setter, boolean optional, ExecutableElement definingMethod, ExecutableType definingMethodType) {
             this.name = name;
             this.getter = getter;
             this.setter = setter;
@@ -156,17 +155,17 @@ public final class StandardStructFactory extends BaseStructFactory {
         }
     }
     private static final class AccessorPair {
-        public final @NotNull TypeMirror type;
-        public final @NotNull ExecutableType getterM;
+        public final TypeMirror type;
+        public final ExecutableType getterM;
         public final ExecutableType setterM;
         public final boolean hasSetter;
-        public final @NotNull ExecutableElement getterE;
+        public final ExecutableElement getterE;
         public final ExecutableElement setterE;
         public final boolean optional;
 
-        AccessorPair(@NotNull TypeMirror type,
-                     @NotNull ExecutableType getterM, @NotNull ExecutableType setterM,
-                     @NotNull ExecutableElement getterE, @NotNull ExecutableElement setterE, boolean optional) {
+        AccessorPair(TypeMirror type,
+                     ExecutableType getterM, ExecutableType setterM,
+                     ExecutableElement getterE, ExecutableElement setterE, boolean optional) {
             this.optional = optional;
             hasSetter = true;
             this.type = type;
@@ -176,8 +175,8 @@ public final class StandardStructFactory extends BaseStructFactory {
             this.setterE = setterE;
         }
 
-        AccessorPair(@NotNull TypeMirror type,
-                     @NotNull ExecutableType getterM, @NotNull ExecutableElement getterE, boolean optional) {
+        AccessorPair(TypeMirror type,
+                     ExecutableType getterM, ExecutableElement getterE, boolean optional) {
             this.optional = optional;
             hasSetter = false;
             this.type = type;
@@ -189,8 +188,8 @@ public final class StandardStructFactory extends BaseStructFactory {
     }
     // endregion
 
-    private void getPropertiesFromStructOverride(@NotNull Context ctx,
-                                                 @NotNull DeclaredType mirror, Config.@NotNull StructOverride structOverride,
+    private void getPropertiesFromStructOverride(Context ctx,
+                                                 DeclaredType mirror, Config.StructOverride structOverride,
                                                  LinkedHashMap<String, FieldData> fields, LinkedHashMultimap<String, MethodData> methods,
                                                  Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
         for (Config.Property property : structOverride.properties()) {
@@ -253,7 +252,7 @@ public final class StandardStructFactory extends BaseStructFactory {
         }
     }
 
-    private void getPropertiesFromFields(@NotNull Context ctx, boolean includeFieldsByDefault,
+    private void getPropertiesFromFields(Context ctx, boolean includeFieldsByDefault,
                                          LinkedHashMap<String, FieldData> fields, Consumer<ConfigProperty> propertyCallback,
                                          HashSet<String> propertyNames) {
         for (Map.Entry<String, FieldData> field : fields.entrySet()) {
@@ -283,7 +282,7 @@ public final class StandardStructFactory extends BaseStructFactory {
         }
     }
 
-    private void getPropertiesFromAccessorPairs(@NotNull Context ctx, @NotNull DeclaredType mirror,
+    private void getPropertiesFromAccessorPairs(Context ctx, DeclaredType mirror,
                                                 boolean includePropertiesByDefault, LinkedHashMultimap<String, MethodData> methods,
                                                 HashSet<AccessorPairDef> accessorPairDefs,
                                                 Consumer<ConfigProperty> propertyCallback, HashSet<String> propertyNames) {
@@ -492,8 +491,7 @@ public final class StandardStructFactory extends BaseStructFactory {
         }
     }
 
-    @NotNull
-    private StructInstantiationStrategy createInstantiationStrategy(@NotNull Context ctx, @NotNull DeclaredType mirror,
+    private StructInstantiationStrategy createInstantiationStrategy(Context ctx, DeclaredType mirror,
                                                                     TypeElement te, Config.Struct structAnno,
                                                                     HashSet<String> propertyNames) {
         boolean isFactory;
@@ -666,7 +664,7 @@ public final class StandardStructFactory extends BaseStructFactory {
         }
     }
 
-    private boolean isBool(@NotNull TypeMirror type) {
+    private boolean isBool(TypeMirror type) {
         return type.getKind() == TypeKind.BOOLEAN || types.isSameType(booleanTM, type);
     }
 }

@@ -6,15 +6,14 @@ import io.github.speedbridgemc.config.processor.api.property.SerializeExtension;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.serialize.Aliases;
 import io.github.speedbridgemc.config.serialize.SerializedName;
-import org.jetbrains.annotations.NotNull;
 
 public final class StandardConfigPropertyExtensionFinder extends BaseConfigPropertyExtensionFinder {
     @Override
-    public void findExtensions(@NotNull Callback callback, @NotNull MirrorElementPair @NotNull ... pairs) {
+    public void findExtensions(Callback callback, MirrorElementPair ... pairs) {
         extSerialize(callback, pairs);
     }
 
-    private void extSerialize(@NotNull Callback callback, @NotNull MirrorElementPair @NotNull ... pairs) {
+    private void extSerialize(Callback callback, MirrorElementPair ... pairs) {
         String serializedName = null;
         final ImmutableSet.Builder<String> aliasBuilder = ImmutableSet.builder();
         for (MirrorElementPair pair : pairs) {

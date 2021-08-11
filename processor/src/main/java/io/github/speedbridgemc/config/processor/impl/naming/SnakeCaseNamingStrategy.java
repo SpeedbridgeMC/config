@@ -5,7 +5,6 @@ import io.github.speedbridgemc.config.processor.api.naming.BaseNamingStrategy;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.util.StringUtils;
 import io.github.speedbridgemc.config.processor.impl.ConfigProcessor;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;
 
@@ -16,7 +15,7 @@ public final class SnakeCaseNamingStrategy extends BaseNamingStrategy {
     }
 
     @Override
-    public @NotNull String name(@NotNull String variant, @NotNull String originalName) {
+    public String name(String variant, String originalName) {
         String s = StringUtils.camelCaseToSnakeCase(originalName);
         if ("screaming".equalsIgnoreCase(variant))
             s = s.toUpperCase(Locale.ROOT);

@@ -15,7 +15,6 @@ import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorElementPair;
 import io.github.speedbridgemc.config.processor.api.util.MirrorUtils;
 import io.github.speedbridgemc.config.processor.impl.type.ConfigTypeImpl;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.annotation.processing.Messager;
@@ -39,18 +38,18 @@ import java.util.*;
 public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private class StructFactoryContextImpl implements StructFactory.Context {
         @Override
-        public @NotNull ConfigTypeProvider typeProvider() {
+        public ConfigTypeProvider typeProvider() {
             return ConfigTypeProviderImpl.this;
         }
 
         @Override
-        public @NotNull String name(@NotNull String originalName) {
+        public String name(String originalName) {
             return namingStrategy.name(namingStrategyVariant, originalName);
         }
 
         @Override
-        public void findExtensions(ConfigPropertyExtensionFinder.@NotNull Callback mapBuilder,
-                                   @NotNull MirrorElementPair @NotNull ... pairs) {
+        public void findExtensions(ConfigPropertyExtensionFinder.Callback mapBuilder,
+                                   MirrorElementPair ... pairs) {
             for (ConfigPropertyExtensionFinder finder : extensionFinders)
                 finder.findExtensions(mapBuilder, pairs);
         }
@@ -75,7 +74,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     private final ArrayList<ConfigPropertyExtensionFinder> extensionFinders = new ArrayList<>();
 
     @Override
-    public void init(@NotNull ProcessingEnvironment processingEnv) {
+    public void init(ProcessingEnvironment processingEnv) {
         if (initialized)
             throw new IllegalStateException("Already initialized!");
         initialized = true;
@@ -110,7 +109,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     }
 
     @Override
-    public @NotNull ConfigType primitiveOf(@NotNull ConfigTypeKind kind) {
+    public ConfigType primitiveOf(ConfigTypeKind kind) {
         switch (kind) {
         case BOOL:
             return boolCType;
@@ -135,18 +134,18 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     }
 
     @Override
-    public @NotNull ConfigType arrayOf(@NotNull ConfigType componentType) {
+    public ConfigType arrayOf(ConfigType componentType) {
         return new ConfigTypeImpl.Array(types.getArrayType(componentType.asMirror()), Lazy.of(componentType));
     }
 
     @Override
-    public @NotNull ConfigType mapOf(@NotNull ConfigType keyType, @NotNull ConfigType valueType) {
+    public ConfigType mapOf(ConfigType keyType, ConfigType valueType) {
         return new ConfigTypeImpl.Map(types.getDeclaredType(mapTE, keyType.asMirror(), valueType.asMirror()),
                 Lazy.of(keyType), Lazy.of(valueType));
     }
 
     @Override
-    public void addStruct(@NotNull ConfigType type) {
+    public void addStruct(ConfigType type) {
         if (type.kind() != ConfigTypeKind.STRUCT)
             throw new IllegalArgumentException("Injected type must be of kind " + ConfigTypeKind.STRUCT + "!");
         DeclaredType mirror = (DeclaredType) type.asMirror();
@@ -167,28 +166,28 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     }
 
     @Override
-    public void addExtensionFinder(@NotNull ConfigPropertyExtensionFinder extensionFinder) {
+    public void addExtensionFinder(ConfigPropertyExtensionFinder extensionFinder) {
         extensionFinders.add(extensionFinder);
     }
 
     @Override
-    public void setNamingStrategy(@NotNull NamingStrategy strategy, @NotNull String variant) {
+    public void setNamingStrategy(NamingStrategy strategy, String variant) {
         this.namingStrategy = strategy;
         this.namingStrategyVariant = variant;
     }
 
     @Override
-    public void setStructOverride(@NotNull DeclaredType mirror, @Nullable Config.StructOverride structOverride) {
+    public void setStructOverride(DeclaredType mirror, @Nullable Config.StructOverride structOverride) {
         structOverrides.put(types.erasure(mirror), structOverride);
     }
 
     @Override
-    public void addStructFactory(@NotNull StructFactory structFactory) {
+    public void addStructFactory(StructFactory structFactory) {
         structFactories.add(structFactory);
     }
 
     @Override
-    public @NotNull ConfigType fromMirror(@NotNull TypeMirror mirror) {
+    public ConfigType fromMirror(TypeMirror mirror) {
         if (types.isSameType(mirror, stringTM))
             return stringCType;
         switch (mirror.getKind()) {
@@ -223,9 +222,9 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
         }
     }
 
-    private final @NotNull HashMap<DeclaredType, ConfigType> declaredTypeCache = new HashMap<>();
+    private final HashMap<DeclaredType, ConfigType> declaredTypeCache = new HashMap<>();
 
-    private @NotNull ConfigType fromDeclaredType(@NotNull DeclaredType mirror) {
+    private ConfigType fromDeclaredType(DeclaredType mirror) {
         TypeMirror mirrorErasure = types.erasure(mirror);
 
         // 5 possible cases (6 if you count String, but that's handled in fromMirror)
@@ -292,7 +291,7 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
         return struct.orElseThrow(() -> new RuntimeException("Failed to create struct config type from \"" + mirror + "\"!"));
     }
 
-    private final @NotNull CollectionTypeArgFinder collectionTypeArgFinder = new CollectionTypeArgFinder();
+    private final CollectionTypeArgFinder collectionTypeArgFinder = new CollectionTypeArgFinder();
     private final class CollectionTypeArgFinder extends SimpleTypeVisitor8<TypeMirror, Void> {
         @Override
         public TypeMirror visitDeclared(DeclaredType t, Void unused) {
@@ -315,15 +314,15 @@ public final class ConfigTypeProviderImpl implements ConfigTypeProvider {
     }
 
     private static final class MapTypeArgs {
-        public final @NotNull TypeMirror keyType, valueType;
+        public final TypeMirror keyType, valueType;
 
-        public MapTypeArgs(@NotNull TypeMirror keyType, @NotNull TypeMirror valueType) {
+        public MapTypeArgs(TypeMirror keyType, TypeMirror valueType) {
             this.keyType = keyType;
             this.valueType = valueType;
         }
     }
 
-    private final @NotNull MapTypeArgsFinder mapTypeArgsFinder = new MapTypeArgsFinder();
+    private final MapTypeArgsFinder mapTypeArgsFinder = new MapTypeArgsFinder();
     private final class MapTypeArgsFinder extends SimpleTypeVisitor8<MapTypeArgs, Void> {
         @Override
         public MapTypeArgs visitDeclared(DeclaredType t, Void unused) {

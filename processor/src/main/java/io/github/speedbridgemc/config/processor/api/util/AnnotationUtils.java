@@ -1,6 +1,5 @@
 package io.github.speedbridgemc.config.processor.api.util;
 
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.lang.model.AnnotatedConstruct;
@@ -18,10 +17,10 @@ import java.util.function.Supplier;
 public final class AnnotationUtils {
     private AnnotationUtils() { }
 
-    public static <A extends Annotation, V> @Nullable V getFirstValue(@NotNull Iterable<? extends AnnotatedConstruct> constructs,
-                                                                      @NotNull Class<A> annotationType,
-                                                                      @NotNull Function<A, V> valueMapper,
-                                                                      @NotNull Predicate<V> valueChecker) {
+    public static <A extends Annotation, V> @Nullable V getFirstValue(Iterable<? extends AnnotatedConstruct> constructs,
+                                                                      Class<A> annotationType,
+                                                                      Function<A, V> valueMapper,
+                                                                      Predicate<V> valueChecker) {
         for (AnnotatedConstruct construct : constructs) {
             if (construct == null)
                 continue;
@@ -35,18 +34,18 @@ public final class AnnotationUtils {
         return null;
     }
 
-    public static <A extends Annotation, V> @Nullable V getFirstValue(@NotNull Class<A> annotationType,
-                                                                      @NotNull Function<A, V> valueMapper,
-                                                                      @NotNull Predicate<V> valueChecker,
-                                                                      @Nullable AnnotatedConstruct @NotNull ... constructs) {
+    public static <A extends Annotation, V> @Nullable V getFirstValue(Class<A> annotationType,
+                                                                      Function<A, V> valueMapper,
+                                                                      Predicate<V> valueChecker,
+                                                                      @Nullable AnnotatedConstruct ... constructs) {
         return getFirstValue(Arrays.asList(constructs), annotationType, valueMapper, valueChecker);
     }
 
-    public static <A extends Annotation, V> @NotNull V concatValues(@NotNull Iterable<? extends AnnotatedConstruct> constructs,
-                                                                    @NotNull Class<A> annotationType,
-                                                                    @NotNull Function<A, V> valueMapper,
-                                                                    @NotNull Supplier<V> initialValueSupplier,
-                                                                    @NotNull BinaryOperator<V> valueCombiner) {
+    public static <A extends Annotation, V> V concatValues(Iterable<? extends AnnotatedConstruct> constructs,
+                                                                    Class<A> annotationType,
+                                                                    Function<A, V> valueMapper,
+                                                                    Supplier<V> initialValueSupplier,
+                                                                    BinaryOperator<V> valueCombiner) {
         V finalValue = initialValueSupplier.get();
         for (AnnotatedConstruct construct : constructs) {
             if (construct == null)
@@ -60,16 +59,16 @@ public final class AnnotationUtils {
         return finalValue;
     }
 
-    public static <A extends Annotation, V> @NotNull V concatValues(@NotNull Class<A> annotationType,
-                                                                    @NotNull Function<A, V> valueMapper,
-                                                                    @NotNull Supplier<V> initialValueSupplier,
-                                                                    @NotNull BinaryOperator<V> valueCombiner,
-                                                                    @Nullable AnnotatedConstruct @NotNull ... constructs) {
+    public static <A extends Annotation, V> V concatValues(Class<A> annotationType,
+                                                                    Function<A, V> valueMapper,
+                                                                    Supplier<V> initialValueSupplier,
+                                                                    BinaryOperator<V> valueCombiner,
+                                                                    @Nullable AnnotatedConstruct ... constructs) {
         return concatValues(Arrays.asList(constructs), annotationType, valueMapper, initialValueSupplier, valueCombiner);
     }
 
-    public static <A extends Annotation> @NotNull TypeMirror getClass(@NotNull A annotation,
-                                                                      @NotNull Function<A, Class<?>> valueMapper) {
+    public static <A extends Annotation> TypeMirror getClass(A annotation,
+                                                                      Function<A, Class<?>> valueMapper) {
         try {
             valueMapper.apply(annotation);
         } catch (MirroredTypeException e) {
@@ -78,8 +77,8 @@ public final class AnnotationUtils {
         throw new InternalError("Getting Class from annotation didn't throw MirroredTypeException?!");
     }
 
-    public static <A extends Annotation> @NotNull List<? extends TypeMirror> getClasses(@NotNull A annotation,
-                                                                                        @NotNull Function<A, Class<?>[]> valueMapper) {
+    public static <A extends Annotation> List<? extends TypeMirror> getClasses(A annotation,
+                                                                                        Function<A, Class<?>[]> valueMapper) {
         try {
             valueMapper.apply(annotation);
         } catch (MirroredTypesException e) {

@@ -11,8 +11,13 @@ import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyBuilder;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.property.StandardConfigPropertyFlags;
-import io.github.speedbridgemc.config.processor.api.type.*;
-import io.github.speedbridgemc.config.processor.api.type.provider.*;
+import io.github.speedbridgemc.config.processor.api.type.ConfigStruct;
+import io.github.speedbridgemc.config.processor.api.type.ConfigType;
+import io.github.speedbridgemc.config.processor.api.type.ConfigTypeKind;
+import io.github.speedbridgemc.config.processor.api.type.provider.ConfigStructBuilder;
+import io.github.speedbridgemc.config.processor.api.type.provider.ConfigTypeProvider;
+import io.github.speedbridgemc.config.processor.api.type.provider.StructFactory;
+import io.github.speedbridgemc.config.processor.api.type.provider.StructInstantiationStrategyBuilder;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorUtils;
@@ -20,7 +25,6 @@ import io.github.speedbridgemc.config.processor.impl.naming.SnakeCaseNamingStrat
 import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.impl.type.provider.ConfigTypeProviderImpl;
 import io.github.speedbridgemc.config.processor.impl.type.provider.StandardStructFactory;
-import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -43,7 +47,7 @@ import static java.util.Collections.singleton;
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @AutoService(Processor.class)
 public final class ConfigProcessor extends AbstractProcessor {
-    public static @NotNull String id(@NotNull String path) {
+    public static String id(String path) {
         return "speedbridge-config:" + path;
     }
 
@@ -53,15 +57,15 @@ public final class ConfigProcessor extends AbstractProcessor {
     private Types types;
 
     private static final class LazyInit<PW extends ProcessingWorker> {
-        private final @NotNull PW worker;
+        private final PW worker;
         private boolean initialized;
 
-        public LazyInit(@NotNull PW worker) {
+        public LazyInit(PW worker) {
             this.worker = worker;
             initialized = false;
         }
 
-        public @NotNull PW get(@NotNull ProcessingEnvironment processingEnv) {
+        public PW get(ProcessingEnvironment processingEnv) {
             if (!initialized) {
                 worker.init(processingEnv);
                 initialized = true;
@@ -117,15 +121,15 @@ public final class ConfigProcessor extends AbstractProcessor {
         loadServices(NamingStrategy.class, namingStrategies);
     }
 
-    private <PW extends ProcessingWorker> void loadServices(@NotNull Class<PW> clazz,
-                                                            @NotNull HashSet<LazyInit<PW>> set) {
+    private <PW extends ProcessingWorker> void loadServices(Class<PW> clazz,
+                                                            HashSet<LazyInit<PW>> set) {
         ServiceLoader<PW> loader = ServiceLoader.load(clazz, ConfigProcessor.class.getClassLoader());
         for (PW worker : loader)
             set.add(new LazyInit<>(worker));
     }
 
-    private <PW extends ProcessingWorker & Identifiable> void loadServices(@NotNull Class<PW> clazz,
-                                                                           @NotNull HashMap<String, LazyInit<PW>> map) {
+    private <PW extends ProcessingWorker & Identifiable> void loadServices(Class<PW> clazz,
+                                                                           HashMap<String, LazyInit<PW>> map) {
         ServiceLoader<PW> loader = ServiceLoader.load(clazz, ConfigProcessor.class.getClassLoader());
         for (PW worker : loader)
             map.put(worker.id(), new LazyInit<>(worker));
@@ -192,11 +196,11 @@ public final class ConfigProcessor extends AbstractProcessor {
         }
     }
 
-    private void dumpConfigStruct(@NotNull ConfigStruct cType) {
+    private void dumpConfigStruct(ConfigStruct cType) {
         dumpConfigStruct(cType, "");
     }
 
-    private void dumpConfigStruct(@NotNull ConfigStruct cType, @NotNull String indent) {
+    private void dumpConfigStruct(ConfigStruct cType, String indent) {
         System.out.format("%sinstantiation strategy: %s%n", indent, cType.instantiationStrategy());
         System.out.format("%s%d properties:%n", indent, cType.properties().size());
         for (ConfigProperty prop : cType.properties()) {
@@ -212,7 +216,7 @@ public final class ConfigProcessor extends AbstractProcessor {
         }
     }
 
-    private @NotNull String propAttr(@NotNull ConfigProperty prop) {
+    private String propAttr(ConfigProperty prop) {
         StringBuilder sb = new StringBuilder();
         if (!prop.canSet())
             sb.append("readonly, ");

@@ -9,7 +9,6 @@ import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExten
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyFlag;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
@@ -19,15 +18,15 @@ import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.
 import static io.github.speedbridgemc.config.processor.api.util.CollectionUtils.toImmutableSet;
 
 public abstract class ConfigPropertyImpl implements ConfigProperty {
-    private final @NotNull Lazy<ConfigType> type;
-    protected final @NotNull String name;
-    protected final @NotNull ImmutableSet<ConfigPropertyFlag> flags;
-    protected final @NotNull ImmutableClassToInstanceMap<ConfigPropertyExtension> extensions;
+    private final Lazy<ConfigType> type;
+    protected final String name;
+    protected final ImmutableSet<ConfigPropertyFlag> flags;
+    protected final ImmutableClassToInstanceMap<ConfigPropertyExtension> extensions;
     protected final boolean canSet;
 
-    protected ConfigPropertyImpl(@NotNull Lazy<ConfigType> type, @NotNull String name,
-                                 @NotNull Set<ConfigPropertyFlag> flags,
-                                 @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
+    protected ConfigPropertyImpl(Lazy<ConfigType> type, String name,
+                                 Set<ConfigPropertyFlag> flags,
+                                 ClassToInstanceMap<ConfigPropertyExtension> extensions,
                                  boolean canSet) {
         this.type = type;
         this.name = name;
@@ -37,22 +36,22 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
     }
 
     @Override
-    public @NotNull ConfigType type() {
+    public ConfigType type() {
         return type.get();
     }
 
     @Override
-    public @NotNull String name() {
+    public String name() {
         return name;
     }
 
     @Override
-    public @NotNull Set<? extends ConfigPropertyFlag> flags() {
+    public Set<? extends ConfigPropertyFlag> flags() {
         return flags;
     }
 
     @Override
-    public @NotNull <E extends ConfigPropertyExtension> Optional<E> extension(@NotNull Class<E> type) {
+    public <E extends ConfigPropertyExtension> Optional<E> extension(Class<E> type) {
         return Optional.ofNullable(extensions.getInstance(type));
     }
 
@@ -62,24 +61,24 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
     }
 
     public static final class Field extends ConfigPropertyImpl {
-        private final @NotNull String fieldName;
+        private final String fieldName;
 
-        public Field(@NotNull Lazy<ConfigType> typeLazy, @NotNull String name,
-                     @NotNull Set<ConfigPropertyFlag> flags,
-                     @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
+        public Field(Lazy<ConfigType> typeLazy, String name,
+                     Set<ConfigPropertyFlag> flags,
+                     ClassToInstanceMap<ConfigPropertyExtension> extensions,
                      boolean canSet,
-                     @NotNull String fieldName) {
+                     String fieldName) {
             super(typeLazy, name, flags, extensions, canSet);
             this.fieldName = fieldName;
         }
 
         @Override
-        public @NotNull CodeBlock generateGet(@NotNull String object, @NotNull String destination) {
+        public CodeBlock generateGet(String object, String destination) {
             return CodeBlock.of("$L = $L.$L", destination, object, fieldName);
         }
 
         @Override
-        public @NotNull CodeBlock generateSet(@NotNull String object, @NotNull String source) {
+        public CodeBlock generateSet(String object, String source) {
             if (!canSet)
                 throw new IllegalStateException("Can't set this property!");
             return CodeBlock.of("$L.$L = $L", object, source, fieldName);
@@ -87,34 +86,34 @@ public abstract class ConfigPropertyImpl implements ConfigProperty {
     }
 
     public static final class Accessors extends ConfigPropertyImpl {
-        private final @NotNull String getterName;
+        private final String getterName;
         private final @Nullable String setterName;
 
-        public Accessors(@NotNull Lazy<ConfigType> typeLazy, @NotNull String name,
-                         @NotNull Set<ConfigPropertyFlag> flags,
-                         @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
-                         @NotNull String getterName, @NotNull String setterName) {
+        public Accessors(Lazy<ConfigType> typeLazy, String name,
+                         Set<ConfigPropertyFlag> flags,
+                         ClassToInstanceMap<ConfigPropertyExtension> extensions,
+                         String getterName, String setterName) {
             super(typeLazy, name, flags, extensions, true);
             this.getterName = getterName;
             this.setterName = setterName;
         }
 
-        public Accessors(@NotNull Lazy<ConfigType> typeLazy, @NotNull String name,
-                         @NotNull Set<ConfigPropertyFlag> flags,
-                         @NotNull ClassToInstanceMap<ConfigPropertyExtension> extensions,
-                         @NotNull String getterName) {
+        public Accessors(Lazy<ConfigType> typeLazy, String name,
+                         Set<ConfigPropertyFlag> flags,
+                         ClassToInstanceMap<ConfigPropertyExtension> extensions,
+                         String getterName) {
             super(typeLazy, name, flags, extensions, false);
             this.getterName = getterName;
             setterName = null;
         }
 
         @Override
-        public @NotNull CodeBlock generateGet(@NotNull String object, @NotNull String destination) {
+        public CodeBlock generateGet(String object, String destination) {
             return CodeBlock.of("$L = $L.$L()", destination, object, getterName);
         }
 
         @Override
-        public @NotNull CodeBlock generateSet(@NotNull String object, @NotNull String source) {
+        public CodeBlock generateSet(String object, String source) {
             if (!canSet)
                 throw new IllegalStateException("Can't set this property!");
             return CodeBlock.of("$L.$L($L)", object, setterName, source);

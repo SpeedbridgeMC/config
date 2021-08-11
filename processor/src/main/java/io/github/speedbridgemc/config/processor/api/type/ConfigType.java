@@ -1,7 +1,5 @@
 package io.github.speedbridgemc.config.processor.api.type;
 
-import org.jetbrains.annotations.NotNull;
-
 import javax.lang.model.type.TypeMirror;
 
 /**
@@ -12,15 +10,15 @@ public interface ConfigType {
      * Gets the kind of this type.
      * @return type kind
      */
-    @NotNull ConfigTypeKind kind();
+    ConfigTypeKind kind();
     /**
      * Gets the name of this type.
      * @return name
      */
-    @NotNull String name();
+    String name();
     /**
      * Gets this type as a {@link TypeMirror}.
      * @return type as mirror
      */
-    @NotNull TypeMirror asMirror();
+    TypeMirror asMirror();
 }

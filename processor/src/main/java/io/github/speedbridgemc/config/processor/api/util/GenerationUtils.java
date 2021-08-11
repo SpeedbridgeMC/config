@@ -1,7 +1,6 @@
 package io.github.speedbridgemc.config.processor.api.util;
 
 import com.squareup.javapoet.ClassName;
-import org.jetbrains.annotations.NotNull;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.TypeElement;
@@ -17,7 +16,7 @@ public final class GenerationUtils {
      * @param processingEnv processing environment
      * @return class name of {@code @Generated} annotation
      */
-    public static @NotNull ClassName getGeneratedAnnotation(@NotNull ProcessingEnvironment processingEnv) {
+    public static ClassName getGeneratedAnnotation(ProcessingEnvironment processingEnv) {
         if (generatedAnnotation == null) {
             TypeElement elem = processingEnv.getElementUtils().getTypeElement("javax.annotation.processing.Generated");
             if (elem == null)

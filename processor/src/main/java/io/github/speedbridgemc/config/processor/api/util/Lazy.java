@@ -1,12 +1,10 @@
 package io.github.speedbridgemc.config.processor.api.util;
 
-import org.jetbrains.annotations.NotNull;
-
 import java.util.function.Supplier;
 
 /**
  * Represents a <em>lazy-loading</em> supplier.<p>
- * A lazy-loading supplier supplier that only computes its result once, when its {@linkplain #get()} method is first invoked.<br>
+ * A lazy-loading supplier only computes its result once, when its {@linkplain #get()} method is first invoked.<br>
  * On later invocations of {@code get()}, it will retrieve the previously computed result.
  * @param <T> result type
  */
@@ -21,9 +19,9 @@ public interface Lazy<T> extends Supplier<T> {
      * @param <T> result type
      * @return wrapped supplier
      */
-    static <T> @NotNull Lazy<T> wrap(@NotNull Supplier<? extends T> supplier) {
+    static <T> Lazy<T> wrap(Supplier<? extends T> supplier) {
         return new Lazy<T>() {
-            private final @NotNull Supplier<? extends T> _supplier = supplier;
+            private final Supplier<? extends T> _supplier = supplier;
             private boolean present = false;
             private T value;
 
@@ -44,7 +42,7 @@ public interface Lazy<T> extends Supplier<T> {
      * @param <T> result type
      * @return wrapped value
      */
-    static <T> @NotNull Lazy<T> of(@NotNull T value) {
+    static <T> Lazy<T> of(T value) {
         return new Lazy<T>() {
             private final T _value = value;
 

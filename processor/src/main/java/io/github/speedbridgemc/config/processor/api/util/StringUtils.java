@@ -1,7 +1,5 @@
 package io.github.speedbridgemc.config.processor.api.util;
 
-import org.jetbrains.annotations.NotNull;
-
 /**
  * Utilities for working with {@code String}s.
  */
@@ -13,7 +11,7 @@ public final class StringUtils {
      * @param s camel-case string
      * @return upper-camel-case string
      */
-    public static @NotNull String camelCaseToUpperCamelCase(@NotNull String s) {
+    public static String camelCaseToUpperCamelCase(String s) {
         if (s.isEmpty())
             return "";
         return Character.toUpperCase(s.charAt(0)) + s.substring(1);
@@ -24,7 +22,7 @@ public final class StringUtils {
      * @param s camel-case string
      * @return snake-case string
      */
-    public static @NotNull String camelCaseToSnakeCase(@NotNull String s) {
+    public static String camelCaseToSnakeCase(String s) {
         StringBuilder resultBuilder = new StringBuilder();
         for (int i = 0, length = s.length(); i < length; i++) {
             char ch = s.charAt(i);
@@ -40,7 +38,7 @@ public final class StringUtils {
      * @param s snake-case string
      * @return camel-case string
      */
-    public static @NotNull String snakeCaseToCamelCase(@NotNull String s) {
+    public static String snakeCaseToCamelCase(String s) {
         StringBuilder resultBuilder = new StringBuilder();
         boolean toUpper = false;
         for (int i = 0, length = s.length(); i < length; i++) {
@@ -62,7 +60,7 @@ public final class StringUtils {
      * @param count number of characters to remove
      * @return transformed string
      */
-    public static @NotNull String stripAndLower(@NotNull String s, int count) {
+    public static String stripAndLower(String s, int count) {
         if (s.length() > count)
             s = s.substring(count);
         return Character.toLowerCase(s.charAt(0)) + s.substring(1);

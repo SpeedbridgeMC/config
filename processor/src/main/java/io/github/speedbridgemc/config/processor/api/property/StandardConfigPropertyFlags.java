@@ -1,7 +1,6 @@
 package io.github.speedbridgemc.config.processor.api.property;
 
 import io.github.speedbridgemc.config.processor.impl.ConfigProcessor;
-import org.jetbrains.annotations.NotNull;
 
 public enum StandardConfigPropertyFlags implements ConfigPropertyFlag {
     OPTIONAL("optional");
@@ -13,7 +12,7 @@ public enum StandardConfigPropertyFlags implements ConfigPropertyFlag {
     }
 
     @Override
-    public @NotNull String id() {
+    public String id() {
         return id;
     }
 }

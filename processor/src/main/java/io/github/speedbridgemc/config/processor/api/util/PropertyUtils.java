@@ -1,7 +1,5 @@
 package io.github.speedbridgemc.config.processor.api.util;
 
-import org.jetbrains.annotations.NotNull;
-
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -15,16 +13,16 @@ public final class PropertyUtils {
     public static final class AccessorInfo {
         public enum Kind { GETTER, SETTER }
 
-        public final @NotNull PropertyUtils.AccessorInfo.Kind kind;
-        public final @NotNull TypeMirror propertyType;
+        public final PropertyUtils.AccessorInfo.Kind kind;
+        public final TypeMirror propertyType;
 
-        public AccessorInfo(@NotNull PropertyUtils.AccessorInfo.Kind kind, @NotNull TypeMirror propertyType) {
+        public AccessorInfo(PropertyUtils.AccessorInfo.Kind kind, TypeMirror propertyType) {
             this.kind = kind;
             this.propertyType = propertyType;
         }
     }
 
-    public static @NotNull Optional<AccessorInfo> getAccessorInfo(ExecutableType method) {
+    public static Optional<AccessorInfo> getAccessorInfo(ExecutableType method) {
         if (method.getParameterTypes().isEmpty() && method.getReturnType().getKind() != TypeKind.VOID)
             return Optional.of(new AccessorInfo(AccessorInfo.Kind.GETTER, method.getReturnType()));
         else if (method.getParameterTypes().size() == 1 && method.getReturnType().getKind() == TypeKind.VOID)
@@ -32,7 +30,7 @@ public final class PropertyUtils {
         return Optional.empty();
     }
 
-    public static @NotNull String getPropertyName(@NotNull String accessorName, boolean isBool) {
+    public static String getPropertyName(String accessorName, boolean isBool) {
         if (isBool && accessorName.startsWith("is"))
             return StringUtils.stripAndLower(accessorName, 2);
         if (accessorName.startsWith("get") || accessorName.startsWith("set"))
@@ -40,14 +38,14 @@ public final class PropertyUtils {
         return accessorName;
     }
 
-    public static @NotNull String makeGetterName(@NotNull String propertyName, boolean isBool) {
+    public static String makeGetterName(String propertyName, boolean isBool) {
         if (isBool)
             return "is" + camelCaseToUpperCamelCase(propertyName);
         else
             return "get" + camelCaseToUpperCamelCase(propertyName);
     }
 
-    public static @NotNull String makeSetterName(@NotNull String propertyName) {
+    public static String makeSetterName(String propertyName) {
         return "set" + camelCaseToUpperCamelCase(propertyName);
     }
 }

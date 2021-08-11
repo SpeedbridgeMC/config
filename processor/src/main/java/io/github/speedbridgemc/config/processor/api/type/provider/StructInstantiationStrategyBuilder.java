@@ -6,39 +6,38 @@ import io.github.speedbridgemc.config.processor.api.type.ConfigType;
 import io.github.speedbridgemc.config.processor.api.type.StructInstantiationStrategy;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.impl.type.StructInstantiationStrategyImpl;
-import org.jetbrains.annotations.NotNull;
 
 public final class StructInstantiationStrategyBuilder {
-    public static @NotNull StructInstantiationStrategyBuilder constructor(@NotNull TypeName ownerName) {
+    public static StructInstantiationStrategyBuilder constructor(TypeName ownerName) {
         return new StructInstantiationStrategyBuilder(false, ownerName, "");
     }
 
-    public static @NotNull StructInstantiationStrategyBuilder factory(@NotNull TypeName ownerName, @NotNull String name) {
+    public static StructInstantiationStrategyBuilder factory(TypeName ownerName, String name) {
         return new StructInstantiationStrategyBuilder(true, ownerName, name);
     }
 
     private final boolean isFactory;
-    private final @NotNull TypeName ownerName;
-    private final @NotNull String factoryName;
-    private final @NotNull ImmutableList.Builder<StructInstantiationStrategy.Parameter> paramsBuilder;
+    private final TypeName ownerName;
+    private final String factoryName;
+    private final ImmutableList.Builder<StructInstantiationStrategy.Parameter> paramsBuilder;
 
-    private StructInstantiationStrategyBuilder(boolean isFactory, @NotNull TypeName ownerName, @NotNull String factoryName) {
+    private StructInstantiationStrategyBuilder(boolean isFactory, TypeName ownerName, String factoryName) {
         this.isFactory = isFactory;
         this.ownerName = ownerName.withoutAnnotations();
         this.factoryName = factoryName;
         paramsBuilder = ImmutableList.builder();
     }
 
-    public @NotNull StructInstantiationStrategyBuilder param(@NotNull Lazy<ConfigType> type, @NotNull String name, @NotNull String boundProperty) {
+    public StructInstantiationStrategyBuilder param(Lazy<ConfigType> type, String name, String boundProperty) {
         paramsBuilder.add(new StructInstantiationStrategyImpl.ParameterImpl(type, name, boundProperty));
         return this;
     }
 
-    public @NotNull StructInstantiationStrategyBuilder param(@NotNull Lazy<ConfigType> type, @NotNull String name) {
+    public StructInstantiationStrategyBuilder param(Lazy<ConfigType> type, String name) {
         return param(type, name, name);
     }
 
-    public @NotNull StructInstantiationStrategy build() {
+    public StructInstantiationStrategy build() {
         if (isFactory)
             return new StructInstantiationStrategyImpl.Factory(paramsBuilder.build(), ownerName, factoryName);
         else

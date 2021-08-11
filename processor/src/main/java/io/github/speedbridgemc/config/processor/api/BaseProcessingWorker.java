@@ -1,7 +1,5 @@
 package io.github.speedbridgemc.config.processor.api;
 
-import org.jetbrains.annotations.NotNull;
-
 import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.util.Elements;
@@ -15,7 +13,7 @@ public abstract class BaseProcessingWorker implements ProcessingWorker {
     protected Elements elements;
 
     @Override
-    public void init(@NotNull ProcessingEnvironment processingEnv) {
+    public void init(ProcessingEnvironment processingEnv) {
         if (initialized)
             throw new IllegalStateException("Already initialized!");
         initialized = true;
