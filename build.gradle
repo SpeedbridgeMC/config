@@ -1,25 +1,8 @@
 plugins {
-    id 'java'
-    id 'maven-publish'
     id 'signing'
 }
 
 group 'io.github.speedbridgemc'
-version '1.0.0'
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    testCompileOnly project(':config-annotations')
-    testImplementation project(':config-runtime')
-    testAnnotationProcessor project(':config-processor')
-
-    testImplementation 'org.jetbrains:annotations:20.1.0'
-    testImplementation 'com.google.code.gson:gson:2.8.6'
-    testImplementation 'blue.endless:jankson:1.2.0'
-}
 
 /// BIG BLOCK O' CODE TO HANDLE MODULAR PROJECT STRUCTURE ///
 subprojects {

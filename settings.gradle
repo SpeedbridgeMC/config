@@ -8,3 +8,11 @@ project(':runtime').name = 'config-runtime'
 
 include 'processor'
 project(':processor').name = 'config-processor'
+
+// TEST PROJECTS
+
+include 'test-processor'
+project(':test-processor').name = 'config-test-processor'
+
+include 'test'
+project(':test').name = 'config-test'

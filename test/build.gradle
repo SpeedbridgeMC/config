@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+}
+
+version '2.0.0'
+description 'Speedbridge Config: Test Processor'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompileOnly project(':config-annotations')
+    testImplementation project(':config-runtime')
+    testAnnotationProcessor project(':config-processor')
+
+    testImplementation 'org.jetbrains:annotations:20.1.0'
+    testImplementation 'com.google.code.gson:gson:2.8.6'
+    testImplementation 'blue.endless:jankson:1.2.0'
+}
