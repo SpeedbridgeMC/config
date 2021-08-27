@@ -22,7 +22,6 @@ import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
 import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorUtils;
 import io.github.speedbridgemc.config.processor.impl.naming.SnakeCaseNamingStrategy;
-import io.github.speedbridgemc.config.processor.impl.property.StandardConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.impl.type.provider.ConfigTypeProviderImpl;
 import io.github.speedbridgemc.config.processor.impl.type.provider.StandardStructFactory;
 
@@ -163,12 +162,9 @@ public final class ConfigProcessor extends AbstractProcessor {
             typeProvider.init(processingEnv);
             NamingStrategy namingStrategy = new SnakeCaseNamingStrategy();
             namingStrategy.init(processingEnv);
-            ConfigPropertyExtensionFinder extensionFinder = new StandardConfigPropertyExtensionFinder();
-            extensionFinder.init(processingEnv);
             StructFactory structFactory = new StandardStructFactory();
             structFactory.init(processingEnv);
             typeProvider.setNamingStrategy(namingStrategy, "");
-            typeProvider.addExtensionFinder(extensionFinder);
             typeProvider.addStructFactory(structFactory);
 
             for (Config.StructOverride structOverride : config.structOverrides()) {
