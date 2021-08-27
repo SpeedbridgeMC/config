@@ -14,7 +14,7 @@ dependencies {
     testImplementation project(':config-runtime')
     testAnnotationProcessor project(':config-processor')
 
-    testImplementation 'org.jetbrains:annotations:20.1.0'
-    testImplementation 'com.google.code.gson:gson:2.8.6'
-    testImplementation 'blue.endless:jankson:1.2.0'
+    testImplementation 'org.jetbrains:annotations:22.0.0'
+    testImplementation 'com.google.code.gson:gson:2.8.8'
+    testImplementation 'blue.endless:jankson:1.2.1'
 }

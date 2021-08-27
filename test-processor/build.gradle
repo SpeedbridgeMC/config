@@ -11,10 +11,10 @@ repositories {
 
 dependencies {
     testImplementation 'com.squareup:javapoet:1.13.0'
-    testImplementation 'com.google.guava:guava:30.1-jre'
+    testImplementation 'com.google.guava:guava:30.1.1-jre'
     testImplementation project(':config-processor')
 
-    testImplementation 'org.jetbrains:annotations:20.1.0'
-    testImplementation 'com.google.auto.service:auto-service-annotations:1.0-rc7'
-    testAnnotationProcessor 'com.google.auto.service:auto-service:1.0-rc7'
+    testImplementation 'org.jetbrains:annotations:22.0.0'
+    testImplementation 'com.google.auto.service:auto-service-annotations:1.0'
+    testAnnotationProcessor 'com.google.auto.service:auto-service:1.0'
 }
