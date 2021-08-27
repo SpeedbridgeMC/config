@@ -9,7 +9,6 @@ import io.github.speedbridgemc.config.processor.api.component.Component;
 import io.github.speedbridgemc.config.processor.api.naming.NamingStrategy;
 import io.github.speedbridgemc.config.processor.api.property.ConfigProperty;
 import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyBuilder;
-import io.github.speedbridgemc.config.processor.api.property.ConfigPropertyExtensionFinder;
 import io.github.speedbridgemc.config.processor.api.property.StandardConfigPropertyFlags;
 import io.github.speedbridgemc.config.processor.api.type.ConfigStruct;
 import io.github.speedbridgemc.config.processor.api.type.ConfigType;

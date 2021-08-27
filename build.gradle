@@ -6,6 +6,9 @@ group 'io.github.speedbridgemc'
 
 /// BIG BLOCK O' CODE TO HANDLE MODULAR PROJECT STRUCTURE ///
 subprojects {
+    if (name.contains('test'))
+        return
+
     apply plugin: 'java' // so components.java is available
     apply plugin: 'maven-publish'
 
