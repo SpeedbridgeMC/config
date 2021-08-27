@@ -174,13 +174,13 @@ public final class ConfigProcessor extends AbstractProcessor {
                 typeProvider.setStructOverride((DeclaredType) mirror, structOverride);
             }
 
-            Lazy<ConfigType> stringLazy = Lazy.of(typeProvider.primitiveOf(ConfigTypeKind.STRING));
+            ConfigType tString = typeProvider.primitiveOf(ConfigTypeKind.STRING);
             DeclaredType identifierM = MirrorUtils.getDeclaredType(elements, "io.github.speedbridgemc.config.test.Identifier");
             typeProvider.addStruct(new ConfigStructBuilder(identifierM)
-                    .property(ConfigPropertyBuilder.getter(stringLazy,
+                    .property(ConfigPropertyBuilder.getter(tString,
                             "value", "toString").build())
                     .instantiationStrategy(StructInstantiationStrategyBuilder.factory(TypeName.get(identifierM), "tryParse")
-                            .param(stringLazy, "string", "value")
+                            .param(tString, "string", "value")
                             .build())
                     .build());
 

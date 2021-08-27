@@ -1,11 +1,13 @@
 package io.github.speedbridgemc.config.processor.api.type;
 
+import io.github.speedbridgemc.config.processor.api.util.Lazy;
+
 import javax.lang.model.type.TypeMirror;
 
 /**
  * Represents a value type in a configuration file.
  */
-public interface ConfigType {
+public interface ConfigType extends Lazy<ConfigType> {
     /**
      * Gets the kind of this type.
      * @return type kind
