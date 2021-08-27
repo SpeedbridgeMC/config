@@ -23,4 +23,14 @@ public interface ConfigType extends Lazy<ConfigType> {
      * @return type as mirror
      */
     TypeMirror asMirror();
+
+    /**
+     * Returns {@code this}.
+     *
+     * @return this type instance
+     */
+    @Override
+    default ConfigType get() {
+        return this;
+    }
 }

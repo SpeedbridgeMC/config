@@ -18,7 +18,6 @@ import io.github.speedbridgemc.config.processor.api.type.provider.ConfigTypeProv
 import io.github.speedbridgemc.config.processor.api.type.provider.StructFactory;
 import io.github.speedbridgemc.config.processor.api.type.provider.StructInstantiationStrategyBuilder;
 import io.github.speedbridgemc.config.processor.api.util.AnnotationUtils;
-import io.github.speedbridgemc.config.processor.api.util.Lazy;
 import io.github.speedbridgemc.config.processor.api.util.MirrorUtils;
 import io.github.speedbridgemc.config.processor.impl.naming.SnakeCaseNamingStrategy;
 import io.github.speedbridgemc.config.processor.impl.type.provider.ConfigTypeProviderImpl;

@@ -2,8 +2,6 @@ package io.github.speedbridgemc.config.test;
 
 import io.github.speedbridgemc.config.Config;
 import io.github.speedbridgemc.config.EnumName;
-import io.github.speedbridgemc.config.serialize.Aliases;
-import io.github.speedbridgemc.config.serialize.SerializedName;
 
 import java.lang.reflect.Field;
 
@@ -88,7 +86,6 @@ public class TestConfig {
         }
     }
 
-    @Aliases({ "int_one", "INTONEBABY" })
     public int int1;
     @Config.Property(name = "int_2_baby")
     public int int2;
@@ -99,8 +96,7 @@ public class TestConfig {
 
     public TestEnum testEnum = TestEnum.FOO;
     public HelloWorld helloWorld = HelloWorld.create("hello", "world".hashCode());
-    @SerializedName("powerHolder")
-    public TestInterface testInterface = new TestInterfaceImpl();
+    public TestInterface powerHolder = new TestInterfaceImpl();
     public Identifier testId = new Identifier("a", "b");
     public TestData testData = TestData.of(24, "yoyoyo");
 

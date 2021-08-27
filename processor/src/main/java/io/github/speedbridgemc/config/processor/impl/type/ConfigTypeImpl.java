@@ -41,16 +41,10 @@ public abstract class ConfigTypeImpl implements ConfigType {
         return name;
     }
 
-    @Override
-    public ConfigType get() {
-        return this;
-    }
-
     public static final class Primitive extends ConfigTypeImpl {
         public Primitive(ConfigTypeKind kind, String name, TypeMirror typeMirror) {
             super(kind, name, typeMirror);
         }
-
     }
 
     public static final class Enum extends ConfigTypeImpl implements ConfigEnum {
